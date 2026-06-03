@@ -100,7 +100,7 @@ def set_meta(clave, valor):
 # ─────────────────────────────────────────────
 
 def get_upcoming():
-    r = requests.get(f"{BASE_URL}/v3/events/upcoming?sport_id={SPORT_ID}&league_id={LEAGUE_ID}&token={BETSAPI_TOKEN}", timeout=10)
+    r = requests.get(f"{BASE_URL}/v1/events/upcoming?sport_id={SPORT_ID}&league_id={LEAGUE_ID}&token={BETSAPI_TOKEN}", timeout=10)
     return r.json().get("results", [])
 
 def get_ended(page=1, day=None):
