@@ -209,7 +209,7 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis):
     if total_h2h > 0:
         wins_a = analisis.get('h2h_wins_a', 0)
         wins_b = total_h2h - wins_a
-        msg += f"• H2H total: {total_h2h} partidos — {jugador_a} {wins_a}W/{wins_b}L vs {jugador_b}\n"
+        msg += f"• H2H: {total_h2h} partidos — {jugador_a} {wins_a}W/{wins_b}L vs {jugador_b} {wins_b}W/{wins_a}L\n"
     else:
         msg += f"• H2H total: 0 partidos\n"
 
@@ -218,14 +218,14 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis):
     if h2h_equipos > 0:
         wins_eq_a = analisis.get('h2h_wins_eq_a', 0)
         wins_eq_b = h2h_equipos - wins_eq_a
-        msg += f"• H2H con estos equipos: {h2h_equipos} partidos — {jugador_a} {wins_eq_a}W/{wins_eq_b}L\n"
+        msg += f"• H2H con estos equipos: {h2h_equipos} partidos — {jugador_a} {wins_eq_a}W/{wins_eq_b}L vs {jugador_b} {wins_eq_b}W/{wins_eq_a}L\n"
     else:
         msg += f"• H2H con estos equipos: 0 partidos\n"
 
     # Forma reciente con racha W/L
     if analisis.get('racha_a') and analisis.get('racha_b'):
-        msg += f"• Forma reciente {jugador_a}: {analisis['racha_a']}\n"
-        msg += f"• Forma reciente {jugador_b}: {analisis['racha_b']}\n"
+        msg += f"• Forma reciente {jugador_a}: {'-'.join(analisis['racha_a'].split())}\n"
+        msg += f"• Forma reciente {jugador_b}: {'-'.join(analisis['racha_b'].split())}\n"
     elif analisis.get('forma_a') is not None:
         msg += f"• Forma reciente {jugador_a}: {analisis['forma_a']}% victorias\n"
         msg += f"• Forma reciente {jugador_b}: {analisis['forma_b']}% victorias\n"
