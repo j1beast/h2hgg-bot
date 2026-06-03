@@ -135,6 +135,8 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         prob_forma = forma_a / (forma_a + forma_b) if (forma_a + forma_b) > 0 else 0.5
         resultado["forma_a"] = round(forma_a * 100, 1)
         resultado["forma_b"] = round(forma_b * 100, 1)
+        resultado["h2h_equipos"] = len(h2h_equipos)
+resultado["h2h_wins_eq_a"] = wins_eq if h2h_equipos else 0  # ← línea nueva
     else:
         prob_forma = 0.5
         resultado["forma_a"] = None
