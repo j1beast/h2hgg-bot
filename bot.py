@@ -291,7 +291,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     avg_pts = round(sum(p["pts_favor"] for p in partidos) / total, 1)
     avg_contra = round(sum(p["pts_contra"] for p in partidos) / total, 1)
     std = calcular_std([p["pts_favor"] for p in partidos])
-    recientes = partidos[-10:]
+    recientes = partidos[:10]
     racha = sum(1 for p in recientes if p["gano"])
     msg = (
         f"📊 *Estadísticas de {jugador}*\n\n"
