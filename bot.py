@@ -289,7 +289,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     jugador = " ".join(context.args).upper()
     await update.message.reply_text(f"🔍 Buscando estadísticas de {jugador}...")
-    _, partidos, _ = buscar_historial(jugador, "DUMMY", paginas=50)
+    _, partidos, _ = buscar_historial(jugador, "DUMMY", paginas=100)
     if not partidos:
         await update.message.reply_text(f"No encontré partidos de {jugador}.")
         return
@@ -322,7 +322,7 @@ async def pronostico(update: Update, context: ContextTypes.DEFAULT_TYPE):
     jugador_a = partes[0].strip()
     jugador_b = partes[1].strip()
     await update.message.reply_text(f"🔍 Analizando {jugador_a} vs {jugador_b}...\nEsto puede tardar unos segundos.")
-    partidos_h2h, partidos_a, partidos_b = buscar_historial(jugador_a, jugador_b, paginas=50)
+    partidos_h2h, partidos_a, partidos_b = buscar_historial(jugador_a, jugador_b, paginas=100)
     franq_a = partidos_a[-1]["franquicia"] if partidos_a else "Equipo A"
     franq_b = partidos_b[-1]["franquicia"] if partidos_b else "Equipo B"
     analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
