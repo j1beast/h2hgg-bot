@@ -14,6 +14,7 @@ LEAGUE_ID = "25067"
 SPORT_ID = "18"
 BASE_URL = "https://api.b365api.com"
 DB_PATH = "/app/data/cache.db"
+USUARIOS_PERMITIDOS = [7339330267, 1021947497, 409760550]
 
 # ─────────────────────────────────────────────
 # BASE DE DATOS
