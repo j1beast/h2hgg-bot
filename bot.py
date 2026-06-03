@@ -115,7 +115,7 @@ def get_ended(page=1, day=None):
 # CARGA INICIAL Y ACTUALIZACION DIARIA
 # ─────────────────────────────────────────────
 
-def cargar_datos_iniciales(meses=12):
+def cargar_datos_iniciales(meses=11):
     print("Cargando datos históricos por fechas...")
     total = 0
     hoy = datetime.utcnow()
