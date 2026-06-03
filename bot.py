@@ -601,6 +601,8 @@ async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ─────────────────────────────────────────────
 
 if __name__ == "__main__":
+    import time
+    time.sleep(15)
     init_db()
     if total_partidos_db() == 0:
         print("Base de datos vacía, cargando datos iniciales...")
