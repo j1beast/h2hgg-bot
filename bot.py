@@ -46,53 +46,45 @@ def extraer_franquicia(nombre_equipo):
         return nombre_equipo.split("(")[0].strip()
     return nombre_equipo.strip()
 
-def buscar_historial(jugador_a, jugador_b, paginas=100):
+def buscar_historial(jugador_a, jugador_b, paginas=50):
     partidos_h2h = []
     partidos_a = []
     partidos_b = []
-    from datetime import datetime, timedelta
-    hoy = datetime.utcnow()
-    hace_un_año = hoy - timedelta(days=365)
-    fecha_actual = hoy
-    while fecha_actual >= hace_un_año:
-        day_str = fecha_actual.strftime("%Y%m%d")
-        for p in range(1, 6):
-            resultados = get_ended(p, day=day_str)
-            if not resultados:
-                break
-            for ev in resultados:
-                home = ev.get("home", {}).get("name", "")
-                away = ev.get("away", {}).get("name", "")
-                ss = ev.get("ss", "")
-                if not ss or "-" not in ss:
-                    continue
-                try:
-                    score_h, score_a = map(int, ss.split("-"))
-                except:
-                    continue
-                nombre_home = extraer_nombre_jugador(home).upper()
-                nombre_away = extraer_nombre_jugador(away).upper()
-                franq_home = extraer_franquicia(home)
-                franq_away = extraer_franquicia(away)
-                ja = jugador_a.upper()
-                jb = jugador_b.upper()
-                es_h2h = (nombre_home == ja and nombre_away == jb) or (nombre_home == jb and nombre_away == ja)
-                if es_h2h:
-                    if nombre_home == ja:
-                        partidos_h2h.append({"pts_a": score_h, "pts_b": score_a, "gano_a": score_h > score_a, "franq_a": franq_home, "franq_b": franq_away})
-                    else:
-                        partidos_h2h.append({"pts_a": score_a, "pts_b": score_h, "gano_a": score_a > score_h, "franq_a": franq_away, "franq_b": franq_home})
+    for p in range(1, paginas + 1):
+        resultados = get_ended(p)
+        if not resultados:
+            break
+        for ev in resultados:
+            home = ev.get("home", {}).get("name", "")
+            away = ev.get("away", {}).get("name", "")
+            ss = ev.get("ss", "")
+            if not ss or "-" not in ss:
+                continue
+            try:
+                score_h, score_a = map(int, ss.split("-"))
+            except:
+                continue
+            nombre_home = extraer_nombre_jugador(home).upper()
+            nombre_away = extraer_nombre_jugador(away).upper()
+            franq_home = extraer_franquicia(home)
+            franq_away = extraer_franquicia(away)
+            ja = jugador_a.upper()
+            jb = jugador_b.upper()
+            es_h2h = (nombre_home == ja and nombre_away == jb) or (nombre_home == jb and nombre_away == ja)
+            if es_h2h:
                 if nombre_home == ja:
-                    partidos_a.append({"pts_favor": score_h, "pts_contra": score_a, "gano": score_h > score_a, "franquicia": franq_home})
-                elif nombre_away == ja:
-                    partidos_a.append({"pts_favor": score_a, "pts_contra": score_h, "gano": score_a > score_h, "franquicia": franq_away})
-                if nombre_home == jb:
-                    partidos_b.append({"pts_favor": score_h, "pts_contra": score_a, "gano": score_h > score_a, "franquicia": franq_home})
-                elif nombre_away == jb:
-                    partidos_b.append({"pts_favor": score_a, "pts_contra": score_h, "gano": score_a > score_h, "franquicia": franq_away})
-        fecha_actual -= timedelta(days=1)
+                    partidos_h2h.append({"pts_a": score_h, "pts_b": score_a, "gano_a": score_h > score_a, "franq_a": franq_home, "franq_b": franq_away})
+                else:
+                    partidos_h2h.append({"pts_a": score_a, "pts_b": score_h, "gano_a": score_a > score_h, "franq_a": franq_away, "franq_b": franq_home})
+            if nombre_home == ja:
+                partidos_a.append({"pts_favor": score_h, "pts_contra": score_a, "gano": score_h > score_a, "franquicia": franq_home})
+            elif nombre_away == ja:
+                partidos_a.append({"pts_favor": score_a, "pts_contra": score_h, "gano": score_a > score_h, "franquicia": franq_away})
+            if nombre_home == jb:
+                partidos_b.append({"pts_favor": score_h, "pts_contra": score_a, "gano": score_h > score_a, "franquicia": franq_home})
+            elif nombre_away == jb:
+                partidos_b.append({"pts_favor": score_a, "pts_contra": score_h, "gano": score_a > score_h, "franquicia": franq_away})
     return partidos_h2h, partidos_a, partidos_b
-
 def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b):
     resultado = {}
     # H2H historico general (25%)
@@ -289,7 +281,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     jugador = " ".join(context.args).upper()
     await update.message.reply_text(f"🔍 Buscando estadísticas de {jugador}...")
-    _, partidos, _ = buscar_historial(jugador, "DUMMY", paginas=100)
+    _, partidos, _ = buscar_historial(jugador, "DUMMY", paginas=50)
     if not partidos:
         await update.message.reply_text(f"No encontré partidos de {jugador}.")
         return
@@ -322,7 +314,7 @@ async def pronostico(update: Update, context: ContextTypes.DEFAULT_TYPE):
     jugador_a = partes[0].strip()
     jugador_b = partes[1].strip()
     await update.message.reply_text(f"🔍 Analizando {jugador_a} vs {jugador_b}...\nEsto puede tardar unos segundos.")
-    partidos_h2h, partidos_a, partidos_b = buscar_historial(jugador_a, jugador_b, paginas=100)
+    partidos_h2h, partidos_a, partidos_b = buscar_historial(jugador_a, jugador_b, paginas=50)
     franq_a = partidos_a[-1]["franquicia"] if partidos_a else "Equipo A"
     franq_b = partidos_b[-1]["franquicia"] if partidos_b else "Equipo B"
     analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
