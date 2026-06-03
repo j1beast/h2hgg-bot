@@ -247,19 +247,7 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis):
         msg += f"\n🔢 *TOTAL DEL PARTIDO*\n"
         msg += f"Línea: {analisis['linea_total']} pts\n"
         msg += f"Over `{analisis['over_total']}` / Under `{analisis['under_total']}`\n"
-        if analisis.get('handicap') is not None:
-            hcp = analisis['handicap']
-            if hcp > 0:
-                msg += f"\n⚖️ *HÁNDICAP*\n{jugador_b} +{hcp} pts\n"
-            elif hcp < 0:
-                msg += f"\n⚖️ *HÁNDICAP*\n{jugador_a} +{abs(hcp)} pts\n"
-            else:
-                msg += f"\n⚖️ *HÁNDICAP*\nPartido igualado\n"
 
-    if analisis.get('avg_pts_a') and analisis.get('std_pts_a'):
-        msg += f"\n📉 *CONSISTENCIA*\n"
-        msg += f"{jugador_a}: media {analisis['avg_pts_a']} pts (±{analisis['std_pts_a']})\n"
-        msg += f"{jugador_b}: media {analisis['avg_pts_b']} pts (±{analisis['std_pts_b']})\n"
     return msg
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = (
