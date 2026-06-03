@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 import asyncio
+import time
 
 TELEGRAM_TOKEN = "8917382762:AAGJI3_MKRiEe5nSb1uz56Q-fJYfIchzWuQ"
 BETSAPI_TOKEN = "255743-DXkD4nrqNqXhJq"
@@ -132,8 +133,9 @@ def cargar_datos_iniciales(meses=11):
                     guardar_partido(ev)
                     total += 1
             except:
-                break
+                continue
         fecha_actual -= timedelta(days=1)
+        time.sleep(0.5)
         if total % 500 == 0 and total > 0:
             print(f"Progreso: {total} partidos guardados...")
     set_meta("ultima_carga", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
