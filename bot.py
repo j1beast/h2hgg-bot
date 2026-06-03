@@ -280,7 +280,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     jugador = " ".join(context.args).upper()
     await update.message.reply_text(f"🔍 Buscando estadísticas de {jugador}...")
-    _, partidos, _ = buscar_historial(jugador, "DUMMY", paginas=5)
+    _, partidos, _ = buscar_historial(jugador, "DUMMY", paginas=50)
     if not partidos:
         await update.message.reply_text(f"No encontré partidos de {jugador}.")
         return
