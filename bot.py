@@ -46,7 +46,7 @@ def extraer_franquicia(nombre_equipo):
         return nombre_equipo.split("(")[0].strip()
     return nombre_equipo.strip()
 
-def buscar_historial(jugador_a, jugador_b, paginas=50):
+def buscar_historial(jugador_a, jugador_b, paginas=100):
     partidos_h2h = []
     partidos_a = []
     partidos_b = []
