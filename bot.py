@@ -107,6 +107,7 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         wins_eq = sum(1 for p in h2h_equipos if p["gano_a"])
         prob_h2h_eq = wins_eq / len(h2h_equipos)
         resultado["h2h_equipos"] = len(h2h_equipos)
+        resultado["h2h_wins_eq_a"] = wins_eq if h2h_equipos else 0
     else:
         prob_h2h_eq = 0.5
         resultado["h2h_equipos"] = 0
