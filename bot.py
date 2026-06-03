@@ -314,9 +314,33 @@ async def pronostico(update: Update, context: ContextTypes.DEFAULT_TYPE):
     jugador_a = partes[0].strip()
     jugador_b = partes[1].strip()
     await update.message.reply_text(f"🔍 Analizando {jugador_a} vs {jugador_b}...\nEsto puede tardar unos segundos.")
+    
+    # Buscar equipos en próximos partidos
+    franq_a = None
+    franq_b = None
+    proximos = get_upcoming()
+    for ev in proximos:
+        home = ev.get("home", {}).get("name", "")
+        away = ev.get("away", {}).get("name", "")
+        nombre_home = extraer_nombre_jugador(home).upper()
+        nombre_away = extraer_nombre_jugador(away).upper()
+        if nombre_home == jugador_a and nombre_away == jugador_b:
+            franq_a = extraer_franquicia(home)
+            franq_b = extraer_franquicia(away)
+            break
+        elif nombre_home == jugador_b and nombre_away == jugador_a:
+            franq_a = extraer_franquicia(away)
+            franq_b = extraer_franquicia(home)
+            break
+    
     partidos_h2h, partidos_a, partidos_b = buscar_historial(jugador_a, jugador_b, paginas=50)
-    franq_a = partidos_a[-1]["franquicia"] if partidos_a else "Equipo A"
-    franq_b = partidos_b[-1]["franquicia"] if partidos_b else "Equipo B"
+    
+    # Si no encontró equipos en próximos, usar último partido
+    if not franq_a:
+        franq_a = partidos_a[0]["franquicia"] if partidos_a else "Equipo A"
+    if not franq_b:
+        franq_b = partidos_b[0]["franquicia"] if partidos_b else "Equipo B"
+    
     analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
     msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis)
     await update.message.reply_text(msg, parse_mode="Markdown")
