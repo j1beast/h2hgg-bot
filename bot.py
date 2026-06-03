@@ -1,40 +1,160 @@
 import os
 import requests
 import json
+import sqlite3
 import statistics
-from datetime import datetime
+from datetime import datetime, timedelta
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+import asyncio
 
 TELEGRAM_TOKEN = "8917382762:AAGJI3_MKRiEe5nSb1uz56Q-fJYfIchzWuQ"
 BETSAPI_TOKEN = "255743-DXkD4nrqNqXhJq"
 LEAGUE_ID = "25067"
 SPORT_ID = "18"
-BASE_URL = "https://api.betsapi.com"
+BASE_URL = "https://api.b365api.com"
+DB_PATH = "/app/data/cache.db"
+
+# ─────────────────────────────────────────────
+# BASE DE DATOS
+# ─────────────────────────────────────────────
+
+def init_db():
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS partidos (
+        id TEXT PRIMARY KEY,
+        home_name TEXT,
+        away_name TEXT,
+        home_jugador TEXT,
+        away_jugador TEXT,
+        home_franquicia TEXT,
+        away_franquicia TEXT,
+        score_home INTEGER,
+        score_away INTEGER,
+        fecha TEXT,
+        timestamp INTEGER
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS meta (
+        clave TEXT PRIMARY KEY,
+        valor TEXT
+    )''')
+    conn.commit()
+    conn.close()
+
+def get_db():
+    return sqlite3.connect(DB_PATH)
+
+def guardar_partido(ev):
+    home = ev.get("home", {}).get("name", "")
+    away = ev.get("away", {}).get("name", "")
+    ss = ev.get("ss", "")
+    ev_id = str(ev.get("id", ""))
+    if not ss or "-" not in ss or not ev_id:
+        return
+    try:
+        score_h, score_a = map(int, ss.split("-"))
+    except:
+        return
+    home_jugador = extraer_nombre_jugador(home)
+    away_jugador = extraer_nombre_jugador(away)
+    home_franq = extraer_franquicia(home)
+    away_franq = extraer_franquicia(away)
+    t = ev.get("time", 0)
+    fecha = datetime.utcfromtimestamp(int(t)).strftime("%Y-%m-%d") if t else ""
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''INSERT OR IGNORE INTO partidos
+        (id, home_name, away_name, home_jugador, away_jugador, home_franquicia, away_franquicia, score_home, score_away, fecha, timestamp)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?)''',
+        (ev_id, home, away, home_jugador, away_jugador, home_franq, away_franq, score_h, score_a, fecha, int(t) if t else 0))
+    conn.commit()
+    conn.close()
+
+def total_partidos_db():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM partidos")
+    total = c.fetchone()[0]
+    conn.close()
+    return total
+
+def get_meta(clave):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT valor FROM meta WHERE clave=?", (clave,))
+    row = c.fetchone()
+    conn.close()
+    return row[0] if row else None
+
+def set_meta(clave, valor):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("INSERT OR REPLACE INTO meta (clave, valor) VALUES (?,?)", (clave, valor))
+    conn.commit()
+    conn.close()
+
+# ─────────────────────────────────────────────
+# API BETSAPI
+# ─────────────────────────────────────────────
 
 def get_upcoming():
-    r = requests.get(f"{BASE_URL}/v3/events/upcoming?sport_id={SPORT_ID}&league_id={LEAGUE_ID}&token={BETSAPI_TOKEN}")
+    r = requests.get(f"{BASE_URL}/v3/events/upcoming?sport_id={SPORT_ID}&league_id={LEAGUE_ID}&token={BETSAPI_TOKEN}", timeout=10)
     return r.json().get("results", [])
 
 def get_ended(page=1, day=None):
-    url = f"https://api.b365api.com/v3/events/ended?sport_id={SPORT_ID}&league_id={LEAGUE_ID}&token={BETSAPI_TOKEN}&page={page}"
+    url = f"{BASE_URL}/v3/events/ended?sport_id={SPORT_ID}&league_id={LEAGUE_ID}&token={BETSAPI_TOKEN}&page={page}"
     if day:
         url += f"&day={day}"
-    r = requests.get(url)
+    r = requests.get(url, timeout=10)
     return r.json().get("results", [])
-def get_event_stats(event_id):
-    r = requests.get(f"{BASE_URL}/v1/event/stats_trend?token={BETSAPI_TOKEN}&event_id={event_id}")
-    return r.json().get("results", {})
 
-def prob_to_odds(prob):
-    if prob <= 0 or prob >= 1:
-        return 1.01
-    return round(1 / prob, 2)
+# ─────────────────────────────────────────────
+# CARGA INICIAL Y ACTUALIZACION DIARIA
+# ─────────────────────────────────────────────
 
-def calcular_std(valores):
-    if len(valores) < 2:
-        return 0
-    return round(statistics.stdev(valores), 1)
+def cargar_datos_iniciales(paginas=50):
+    print("Cargando datos iniciales de BetsAPI...")
+    total = 0
+    for p in range(1, paginas + 1):
+        resultados = get_ended(p)
+        if not resultados:
+            break
+        for ev in resultados:
+            guardar_partido(ev)
+            total += 1
+        print(f"Página {p} cargada — {total} partidos guardados")
+    set_meta("ultima_carga", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
+    print(f"Carga inicial completada: {total} partidos")
+
+def actualizar_datos_hoy():
+    hoy = datetime.utcnow().strftime("%Y%m%d")
+    ayer = (datetime.utcnow() - timedelta(days=1)).strftime("%Y%m%d")
+    total = 0
+    for day in [ayer, hoy]:
+        for p in range(1, 10):
+            resultados = get_ended(p, day=day)
+            if not resultados:
+                break
+            for ev in resultados:
+                guardar_partido(ev)
+                total += 1
+    set_meta("ultima_actualizacion", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
+    print(f"Actualización diaria: {total} partidos nuevos")
+    return total
+
+async def tarea_actualizacion_diaria():
+    while True:
+        now = datetime.utcnow()
+        manana_4am = datetime(now.year, now.month, now.day, 4, 0, 0) + timedelta(days=1)
+        segundos = (manana_4am - now).total_seconds()
+        await asyncio.sleep(segundos)
+        actualizar_datos_hoy()
+
+# ─────────────────────────────────────────────
+# HELPERS
+# ─────────────────────────────────────────────
 
 def extraer_nombre_jugador(nombre_equipo):
     if "(" in nombre_equipo and ")" in nombre_equipo:
@@ -46,48 +166,69 @@ def extraer_franquicia(nombre_equipo):
         return nombre_equipo.split("(")[0].strip()
     return nombre_equipo.strip()
 
-def buscar_historial(jugador_a, jugador_b, paginas=50):
+def prob_to_odds(prob):
+    if prob <= 0 or prob >= 1:
+        return 1.01
+    return round(1 / prob, 2)
+
+def calcular_std(valores):
+    if len(valores) < 2:
+        return 0
+    return round(statistics.stdev(valores), 1)
+
+# ─────────────────────────────────────────────
+# CONSULTAS A LA BASE DE DATOS
+# ─────────────────────────────────────────────
+
+def buscar_historial_db(jugador_a, jugador_b):
+    conn = get_db()
+    c = conn.cursor()
+    ja = jugador_a.upper()
+    jb = jugador_b.upper()
+    c.execute('''SELECT home_jugador, away_jugador, home_franquicia, away_franquicia,
+                 score_home, score_away, fecha, timestamp
+                 FROM partidos
+                 WHERE (UPPER(home_jugador)=? AND UPPER(away_jugador)=?)
+                    OR (UPPER(home_jugador)=? AND UPPER(away_jugador)=?)
+                 ORDER BY timestamp DESC''', (ja, jb, jb, ja))
+    rows = c.fetchall()
+    conn.close()
     partidos_h2h = []
-    partidos_a = []
-    partidos_b = []
-    for p in range(1, paginas + 1):
-        resultados = get_ended(p)
-        if not resultados:
-            break
-        for ev in resultados:
-            home = ev.get("home", {}).get("name", "")
-            away = ev.get("away", {}).get("name", "")
-            ss = ev.get("ss", "")
-            if not ss or "-" not in ss:
-                continue
-            try:
-                score_h, score_a = map(int, ss.split("-"))
-            except:
-                continue
-            nombre_home = extraer_nombre_jugador(home).upper()
-            nombre_away = extraer_nombre_jugador(away).upper()
-            franq_home = extraer_franquicia(home)
-            franq_away = extraer_franquicia(away)
-            ja = jugador_a.upper()
-            jb = jugador_b.upper()
-            es_h2h = (nombre_home == ja and nombre_away == jb) or (nombre_home == jb and nombre_away == ja)
-            if es_h2h:
-                if nombre_home == ja:
-                    partidos_h2h.append({"pts_a": score_h, "pts_b": score_a, "gano_a": score_h > score_a, "franq_a": franq_home, "franq_b": franq_away})
-                else:
-                    partidos_h2h.append({"pts_a": score_a, "pts_b": score_h, "gano_a": score_a > score_h, "franq_a": franq_away, "franq_b": franq_home})
-            if nombre_home == ja:
-                partidos_a.append({"pts_favor": score_h, "pts_contra": score_a, "gano": score_h > score_a, "franquicia": franq_home})
-            elif nombre_away == ja:
-                partidos_a.append({"pts_favor": score_a, "pts_contra": score_h, "gano": score_a > score_h, "franquicia": franq_away})
-            if nombre_home == jb:
-                partidos_b.append({"pts_favor": score_h, "pts_contra": score_a, "gano": score_h > score_a, "franquicia": franq_home})
-            elif nombre_away == jb:
-                partidos_b.append({"pts_favor": score_a, "pts_contra": score_h, "gano": score_a > score_h, "franquicia": franq_away})
-    return partidos_h2h, partidos_a, partidos_b
+    for row in rows:
+        home_j, away_j, home_f, away_f, sc_h, sc_a, fecha, ts = row
+        if home_j.upper() == ja:
+            partidos_h2h.append({"pts_a": sc_h, "pts_b": sc_a, "gano_a": sc_h > sc_a, "franq_a": home_f, "franq_b": away_f, "fecha": fecha})
+        else:
+            partidos_h2h.append({"pts_a": sc_a, "pts_b": sc_h, "gano_a": sc_a > sc_h, "franq_a": away_f, "franq_b": home_f, "fecha": fecha})
+    return partidos_h2h
+
+def buscar_partidos_jugador_db(jugador):
+    conn = get_db()
+    c = conn.cursor()
+    j = jugador.upper()
+    c.execute('''SELECT home_jugador, away_jugador, home_franquicia, away_franquicia,
+                 score_home, score_away, fecha, timestamp
+                 FROM partidos
+                 WHERE UPPER(home_jugador)=? OR UPPER(away_jugador)=?
+                 ORDER BY timestamp DESC''', (j, j))
+    rows = c.fetchall()
+    conn.close()
+    partidos = []
+    for row in rows:
+        home_j, away_j, home_f, away_f, sc_h, sc_a, fecha, ts = row
+        if home_j.upper() == j:
+            partidos.append({"pts_favor": sc_h, "pts_contra": sc_a, "gano": sc_h > sc_a, "franquicia": home_f, "fecha": fecha})
+        else:
+            partidos.append({"pts_favor": sc_a, "pts_contra": sc_h, "gano": sc_a > sc_h, "franquicia": away_f, "fecha": fecha})
+    return partidos
+
+# ─────────────────────────────────────────────
+# ANALISIS
+# ─────────────────────────────────────────────
+
 def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b):
     resultado = {}
-    # H2H historico general (25%)
+    # H2H histórico general (25%)
     if partidos_h2h:
         wins_a = sum(1 for p in partidos_h2h if p["gano_a"])
         total_h2h = len(partidos_h2h)
@@ -101,16 +242,20 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
     else:
         prob_h2h = 0.5
         resultado["h2h_total"] = 0
+        resultado["h2h_wins_a"] = 0
+
     # H2H con equipos actuales (20%)
     h2h_equipos = [p for p in partidos_h2h if p.get("franq_a", "").upper() == franq_a.upper() and p.get("franq_b", "").upper() == franq_b.upper()]
     if h2h_equipos:
         wins_eq = sum(1 for p in h2h_equipos if p["gano_a"])
         prob_h2h_eq = wins_eq / len(h2h_equipos)
         resultado["h2h_equipos"] = len(h2h_equipos)
-        resultado["h2h_wins_eq_a"] = wins_eq if h2h_equipos else 0
+        resultado["h2h_wins_eq_a"] = wins_eq
     else:
         prob_h2h_eq = 0.5
         resultado["h2h_equipos"] = 0
+        resultado["h2h_wins_eq_a"] = 0
+
     # Rendimiento con equipo actual (25%)
     partidos_a_franq = [p for p in partidos_a if p.get("franquicia", "").upper() == franq_a.upper()]
     partidos_b_franq = [p for p in partidos_b if p.get("franquicia", "").upper() == franq_b.upper()]
@@ -126,9 +271,10 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         prob_equipo = 0.5
         resultado["winrate_a_franq"] = None
         resultado["winrate_b_franq"] = None
+
     # Forma reciente (20%)
-    recientes_a = partidos_a[:15] if len(partidos_a) >= 15 else partidos_a
-    recientes_b = partidos_b[:15] if len(partidos_b) >= 15 else partidos_b
+    recientes_a = partidos_a[:15]
+    recientes_b = partidos_b[:15]
     if recientes_a and recientes_b:
         forma_a = sum(1 for p in recientes_a if p["gano"]) / len(recientes_a)
         forma_b = sum(1 for p in recientes_b if p["gano"]) / len(recientes_b)
@@ -141,13 +287,15 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         prob_forma = 0.5
         resultado["forma_a"] = None
         resultado["forma_b"] = None
+
     # Tendencia reciente H2H (10%)
-    h2h_reciente = partidos_h2h[:10] if len(partidos_h2h) >= 10 else partidos_h2h
+    h2h_reciente = partidos_h2h[:10]
     if h2h_reciente:
         wins_rec = sum(1 for p in h2h_reciente if p["gano_a"])
         prob_h2h_rec = wins_rec / len(h2h_reciente)
     else:
         prob_h2h_rec = 0.5
+
     # Probabilidad final ponderada
     prob_final_a = (prob_h2h * 0.25) + (prob_equipo * 0.25) + (prob_h2h_eq * 0.20) + (prob_forma * 0.20) + (prob_h2h_rec * 0.10)
     prob_final_b = 1 - prob_final_a
@@ -155,26 +303,31 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
     resultado["prob_b"] = round(prob_final_b, 4)
     resultado["cuota_a"] = prob_to_odds(prob_final_a)
     resultado["cuota_b"] = prob_to_odds(prob_final_b)
+
     # Over/Under
-    todos_pts_a = [p["pts_favor"] for p in partidos_a] if partidos_a else []
-    todos_pts_b = [p["pts_favor"] for p in partidos_b] if partidos_b else []
+    todos_pts_a = [p["pts_favor"] for p in partidos_a]
+    todos_pts_b = [p["pts_favor"] for p in partidos_b]
     pts_totales_h2h = [p["pts_a"] + p["pts_b"] for p in partidos_h2h] if partidos_h2h else []
+
     if todos_pts_a:
         resultado["avg_pts_a"] = round(sum(todos_pts_a) / len(todos_pts_a), 1)
         resultado["std_pts_a"] = calcular_std(todos_pts_a)
     else:
         resultado["avg_pts_a"] = None
         resultado["std_pts_a"] = None
+
     if todos_pts_b:
         resultado["avg_pts_b"] = round(sum(todos_pts_b) / len(todos_pts_b), 1)
         resultado["std_pts_b"] = calcular_std(todos_pts_b)
     else:
         resultado["avg_pts_b"] = None
         resultado["std_pts_b"] = None
+
     if pts_totales_h2h:
         resultado["avg_total_h2h"] = round(sum(pts_totales_h2h) / len(pts_totales_h2h), 1)
     else:
         resultado["avg_total_h2h"] = None
+
     if resultado["avg_pts_a"] and resultado["avg_pts_b"]:
         linea_a = resultado["avg_pts_a"]
         linea_b = resultado["avg_pts_b"]
@@ -196,24 +349,25 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         resultado["under_b"] = prob_to_odds(1 - confianza_b)
         resultado["over_total"] = prob_to_odds(confianza_total)
         resultado["under_total"] = prob_to_odds(1 - confianza_total)
-        handicap = round(linea_a - linea_b, 1)
-        resultado["handicap"] = handicap
+
     return resultado
+
+# ─────────────────────────────────────────────
+# FORMATO DE MENSAJES
+# ─────────────────────────────────────────────
 
 def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis):
     msg = f"🏀 *{jugador_a} ({franq_a}) vs {jugador_b} ({franq_b})*\n\n"
     msg += f"📊 *Datos analizados:*\n"
 
-    # H2H histórico con resultado de cada partido
     total_h2h = analisis.get('h2h_total', 0)
     if total_h2h > 0:
         wins_a = analisis.get('h2h_wins_a', 0)
         wins_b = total_h2h - wins_a
         msg += f"• H2H: {total_h2h} partidos — {jugador_a} {wins_a}W/{wins_b}L vs {jugador_b} {wins_b}W/{wins_a}L\n"
     else:
-        msg += f"• H2H total: 0 partidos\n"
+        msg += f"• H2H: 0 partidos\n"
 
-    # H2H con equipos actuales
     h2h_equipos = analisis.get('h2h_equipos', 0)
     if h2h_equipos > 0:
         wins_eq_a = analisis.get('h2h_wins_eq_a', 0)
@@ -222,10 +376,11 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis):
     else:
         msg += f"• H2H con estos equipos: 0 partidos\n"
 
-    # Forma reciente con racha W/L
     if analisis.get('racha_a') and analisis.get('racha_b'):
-        msg += f"• Forma reciente {jugador_a}: {'-'.join(analisis['racha_a'].split())}\n"
-        msg += f"• Forma reciente {jugador_b}: {'-'.join(analisis['racha_b'].split())}\n"
+        racha_a = "-".join(analisis['racha_a'].split())
+        racha_b = "-".join(analisis['racha_b'].split())
+        msg += f"• Forma reciente {jugador_a}: {racha_a}\n"
+        msg += f"• Forma reciente {jugador_b}: {racha_b}\n"
     elif analisis.get('forma_a') is not None:
         msg += f"• Forma reciente {jugador_a}: {analisis['forma_a']}% victorias\n"
         msg += f"• Forma reciente {jugador_b}: {analisis['forma_b']}% victorias\n"
@@ -249,14 +404,25 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis):
         msg += f"Over `{analisis['over_total']}` / Under `{analisis['under_total']}`\n"
 
     return msg
+
+# ─────────────────────────────────────────────
+# COMANDOS TELEGRAM
+# ─────────────────────────────────────────────
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    total = total_partidos_db()
+    ultima = get_meta("ultima_actualizacion") or get_meta("ultima_carga") or "Nunca"
     msg = (
         "🏀 *Bot H2H GG League*\n\n"
+        f"📦 Partidos en base de datos: {total}\n"
+        f"🕐 Última actualización: {ultima}\n\n"
         "Comandos disponibles:\n"
         "• `/pronostico JUGADORA vs JUGADORB` — análisis completo\n"
+        "• `/h2h JUGADORA vs JUGADORB` — historial de enfrentamientos\n"
+        "• `/stats JUGADOR` — estadísticas de un jugador\n"
         "• `/proximos` — próximos partidos\n"
         "• `/resultados` — últimos resultados\n"
-        "• `/stats JUGADOR` — estadísticas de un jugador\n\n"
+        "• `/actualizar` — actualizar datos manualmente\n\n"
         "Ejemplo: `/pronostico MYTH vs MALICE`"
     )
     await update.message.reply_text(msg, parse_mode="Markdown")
@@ -277,17 +443,18 @@ async def proximos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def resultados(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🔍 Consultando últimos resultados...")
-    partidos = get_ended()
-    if not partidos:
-        await update.message.reply_text("No hay resultados disponibles.")
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT home_name, away_name, score_home, score_away FROM partidos ORDER BY timestamp DESC LIMIT 8")
+    rows = c.fetchall()
+    conn.close()
+    if not rows:
+        await update.message.reply_text("No hay resultados en la base de datos.")
         return
     msg = "🏀 *Últimos resultados H2H GG League:*\n\n"
-    for ev in partidos[:8]:
-        home = ev.get("home", {}).get("name", "?")
-        away = ev.get("away", {}).get("name", "?")
-        ss = ev.get("ss", "?")
-        msg += f"• {home} vs {away} — `{ss}`\n"
+    for row in rows:
+        home, away, sc_h, sc_a = row
+        msg += f"• {home} vs {away} — `{sc_h}-{sc_a}`\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -296,9 +463,9 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     jugador = " ".join(context.args).upper()
     await update.message.reply_text(f"🔍 Buscando estadísticas de {jugador}...")
-    _, partidos, _ = buscar_historial(jugador, "DUMMY", paginas=50)
+    partidos = buscar_partidos_jugador_db(jugador)
     if not partidos:
-        await update.message.reply_text(f"No encontré partidos de {jugador}.")
+        await update.message.reply_text(f"No encontré partidos de {jugador} en la base de datos.")
         return
     total = len(partidos)
     victorias = sum(1 for p in partidos if p["gano"])
@@ -308,6 +475,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     std = calcular_std([p["pts_favor"] for p in partidos])
     recientes = partidos[:10]
     racha = sum(1 for p in recientes if p["gano"])
+    racha_str = "-".join(["W" if p["gano"] else "L" for p in recientes])
     msg = (
         f"📊 *Estadísticas de {jugador}*\n\n"
         f"• Partidos: {total}\n"
@@ -316,9 +484,44 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"• Promedio puntos: {avg_pts}\n"
         f"• Promedio recibidos: {avg_contra}\n"
         f"• Consistencia: ±{std} pts\n"
-        f"• Últimos 10: {racha} victorias\n"
+        f"• Últimos 10: {racha_str}\n"
     )
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def h2h(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    texto = " ".join(context.args).upper()
+    if "VS" not in texto:
+        await update.message.reply_text("Uso: /h2h JUGADORA vs JUGADORB\nEjemplo: /h2h MYTH vs MALICE")
+        return
+    partes = texto.split("VS")
+    jugador_a = partes[0].strip()
+    jugador_b = partes[1].strip()
+    await update.message.reply_text(f"🔍 Buscando historial {jugador_a} vs {jugador_b}...")
+    partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
+    if not partidos_h2h:
+        await update.message.reply_text(f"No encontré enfrentamientos entre {jugador_a} y {jugador_b}.")
+        return
+    wins_a = sum(1 for p in partidos_h2h if p["gano_a"])
+    wins_b = len(partidos_h2h) - wins_a
+    msg = f"🏀 *H2H {jugador_a} vs {jugador_b}*\n"
+    msg += f"Total: {len(partidos_h2h)} partidos\n"
+    msg += f"{jugador_a}: {wins_a}W/{wins_b}L\n"
+    msg += f"{jugador_b}: {wins_b}W/{wins_a}L\n\n"
+    msg += f"📋 *Resultados:*\n"
+    for i, p in enumerate(partidos_h2h, 1):
+        ganador = jugador_a if p["gano_a"] else jugador_b
+        fecha = p.get("fecha", "")
+        msg += f"{i}. {jugador_a} ({p.get('franq_a','?')}) {p['pts_a']}—{p['pts_b']} {jugador_b} ({p.get('franq_b','?')}) ✅{ganador} {fecha}\n"
+        if len(msg) > 3500:
+            msg += "...(más partidos disponibles)\n"
+            break
+    await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def actualizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("🔄 Actualizando datos... esto puede tardar unos segundos.")
+    total = actualizar_datos_hoy()
+    total_db = total_partidos_db()
+    await update.message.reply_text(f"✅ Actualización completada.\n• Partidos nuevos: {total}\n• Total en base de datos: {total_db}")
 
 async def pronostico(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = " ".join(context.args).upper()
@@ -328,34 +531,38 @@ async def pronostico(update: Update, context: ContextTypes.DEFAULT_TYPE):
     partes = texto.split("VS")
     jugador_a = partes[0].strip()
     jugador_b = partes[1].strip()
-    await update.message.reply_text(f"🔍 Analizando {jugador_a} vs {jugador_b}...\nEsto puede tardar unos segundos.")
-    
+    await update.message.reply_text(f"🔍 Analizando {jugador_a} vs {jugador_b}...")
+
     # Buscar equipos en próximos partidos
     franq_a = None
     franq_b = None
-    proximos = get_upcoming()
-    for ev in proximos:
-        home = ev.get("home", {}).get("name", "")
-        away = ev.get("away", {}).get("name", "")
-        nombre_home = extraer_nombre_jugador(home).upper()
-        nombre_away = extraer_nombre_jugador(away).upper()
-        if nombre_home == jugador_a and nombre_away == jugador_b:
-            franq_a = extraer_franquicia(home)
-            franq_b = extraer_franquicia(away)
-            break
-        elif nombre_home == jugador_b and nombre_away == jugador_a:
-            franq_a = extraer_franquicia(away)
-            franq_b = extraer_franquicia(home)
-            break
-    
-    partidos_h2h, partidos_a, partidos_b = buscar_historial(jugador_a, jugador_b, paginas=50)
-    
-    # Si no encontró equipos en próximos, usar último partido
+    try:
+        proximos_list = get_upcoming()
+        for ev in proximos_list:
+            home = ev.get("home", {}).get("name", "")
+            away = ev.get("away", {}).get("name", "")
+            nombre_home = extraer_nombre_jugador(home).upper()
+            nombre_away = extraer_nombre_jugador(away).upper()
+            if nombre_home == jugador_a and nombre_away == jugador_b:
+                franq_a = extraer_franquicia(home)
+                franq_b = extraer_franquicia(away)
+                break
+            elif nombre_home == jugador_b and nombre_away == jugador_a:
+                franq_a = extraer_franquicia(away)
+                franq_b = extraer_franquicia(home)
+                break
+    except:
+        pass
+
+    partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
+    partidos_a = buscar_partidos_jugador_db(jugador_a)
+    partidos_b = buscar_partidos_jugador_db(jugador_b)
+
     if not franq_a:
         franq_a = partidos_a[0]["franquicia"] if partidos_a else "Equipo A"
     if not franq_b:
         franq_b = partidos_b[0]["franquicia"] if partidos_b else "Equipo B"
-    
+
     analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
     msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis)
     await update.message.reply_text(msg, parse_mode="Markdown")
@@ -367,41 +574,29 @@ async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
         jugador_a = partes[0].strip()
         jugador_b = partes[1].strip()
         await update.message.reply_text(f"🔍 Analizando {jugador_a} vs {jugador_b}...")
-        partidos_h2h, partidos_a, partidos_b = buscar_historial(jugador_a, jugador_b, paginas=8)
-        franq_a = partidos_a[-1]["franquicia"] if partidos_a else "Equipo A"
-        franq_b = partidos_b[-1]["franquicia"] if partidos_b else "Equipo B"
+        partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
+        partidos_a = buscar_partidos_jugador_db(jugador_a)
+        partidos_b = buscar_partidos_jugador_db(jugador_b)
+        franq_a = partidos_a[0]["franquicia"] if partidos_a else "Equipo A"
+        franq_b = partidos_b[0]["franquicia"] if partidos_b else "Equipo B"
         analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
         msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis)
         await update.message.reply_text(msg, parse_mode="Markdown")
     else:
         await update.message.reply_text("Escribe algo como: *MYTH vs MALICE* o usa /pronostico MYTH vs MALICE", parse_mode="Markdown")
 
-async def h2h(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    texto = " ".join(context.args).upper()
-    if "VS" not in texto:
-        await update.message.reply_text("Uso: /h2h JUGADORA vs JUGADORB\nEjemplo: /h2h MYTH vs MALICE")
-        return
-    partes = texto.split("VS")
-    jugador_a = partes[0].strip()
-    jugador_b = partes[1].strip()
-    await update.message.reply_text(f"🔍 Buscando historial {jugador_a} vs {jugador_b}...")
-    partidos_h2h, _, _ = buscar_historial(jugador_a, jugador_b, paginas=50)
-    if not partidos_h2h:
-        await update.message.reply_text(f"No encontré enfrentamientos entre {jugador_a} y {jugador_b}.")
-        return
-    msg = f"🏀 *H2H {jugador_a} vs {jugador_b}*\n"
-    msg += f"Total: {len(partidos_h2h)} partidos\n\n"
-    wins_a = sum(1 for p in partidos_h2h if p["gano_a"])
-    wins_b = len(partidos_h2h) - wins_a
-    msg += f"{jugador_a}: {wins_a}W/{wins_b}L\n"
-    msg += f"{jugador_b}: {wins_b}W/{wins_a}L\n\n"
-    msg += f"📋 *Resultados:*\n"
-    for i, p in enumerate(partidos_h2h, 1):
-        ganador = jugador_a if p["gano_a"] else jugador_b
-        msg += f"{i}. {jugador_a} ({p.get('franq_a','?')}) {p['pts_a']} — {p['pts_b']} {jugador_b} ({p.get('franq_b','?')}) → {ganador}\n"
-    await update.message.reply_text(msg, parse_mode="Markdown")
-    
+# ─────────────────────────────────────────────
+# MAIN
+# ─────────────────────────────────────────────
+
 if __name__ == "__main__":
+    init_db()
+    if total_partidos_db() == 0:
+        print("Base de datos vacía, cargando datos iniciales...")
+        cargar_datos_iniciales(paginas=50)
+    else:
+        print(f"Base de datos lista con {total_partidos_db()} partidos.")
+
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("proximos", proximos))
@@ -409,6 +604,11 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("pronostico", pronostico))
     app.add_handler(CommandHandler("h2h", h2h))
+    app.add_handler(CommandHandler("actualizar", actualizar))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
+
+    loop = asyncio.get_event_loop()
+    loop.create_task(tarea_actualizacion_diaria())
+
     print("Bot iniciado...")
     app.run_polling()
