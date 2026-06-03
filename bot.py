@@ -603,7 +603,7 @@ if __name__ == "__main__":
     init_db()
     if total_partidos_db() == 0:
         print("Base de datos vacía, cargando datos iniciales...")
-        cargar_datos_iniciales(meses=12)
+        cargar_datos_iniciales(meses=11)
     else:
         print(f"Base de datos lista con {total_partidos_db()} partidos.")
 
