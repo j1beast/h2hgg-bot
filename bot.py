@@ -16,7 +16,9 @@ SPORT_ID = "18"
 BASE_URL = "https://api.b365api.com"
 DB_PATH = "/app/data/cache.db"
 USUARIOS_PERMITIDOS = [7339330267, 1021947497, 409760550]
-
+def es_permitido(update):
+    return update.effective_user.id in USUARIOS_PERMITIDOS
+    
 # ─────────────────────────────────────────────
 # BASE DE DATOS
 # ─────────────────────────────────────────────
@@ -423,6 +425,9 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis):
 # ─────────────────────────────────────────────
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        await update.message.reply_text("No tienes acceso a este bot.")
+        return
     total = total_partidos_db()
     ultima = get_meta("ultima_actualizacion") or get_meta("ultima_carga") or "Nunca"
     msg = (
@@ -441,6 +446,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def proximos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        await update.message.reply_text("No tienes acceso a este bot.")
+        return
     await update.message.reply_text("🔍 Consultando próximos partidos...")
     partidos = get_upcoming()
     if not partidos:
@@ -456,6 +464,9 @@ async def proximos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def resultados(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        await update.message.reply_text("No tienes acceso a este bot.")
+        return
     conn = get_db()
     c = conn.cursor()
     c.execute("SELECT home_name, away_name, score_home, score_away FROM partidos ORDER BY timestamp DESC LIMIT 8")
@@ -471,6 +482,9 @@ async def resultados(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        await update.message.reply_text("No tienes acceso a este bot.")
+        return
     if not context.args:
         await update.message.reply_text("Uso: /stats NOMBREJUGADOR\nEjemplo: /stats MYTH")
         return
@@ -502,6 +516,9 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def h2h(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        await update.message.reply_text("No tienes acceso a este bot.")
+        return
     texto = " ".join(context.args).upper()
     if "VS" not in texto:
         await update.message.reply_text("Uso: /h2h JUGADORA vs JUGADORB\nEjemplo: /h2h MYTH vs MALICE")
@@ -531,12 +548,18 @@ async def h2h(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def actualizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        await update.message.reply_text("No tienes acceso a este bot.")
+        return
     await update.message.reply_text("🔄 Actualizando datos... esto puede tardar unos segundos.")
     total = actualizar_datos_hoy()
     total_db = total_partidos_db()
     await update.message.reply_text(f"✅ Actualización completada.\n• Partidos nuevos: {total}\n• Total en base de datos: {total_db}")
 
 async def pronostico(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        await update.message.reply_text("No tienes acceso a este bot.")
+        return
     texto = " ".join(context.args).upper()
     if "VS" not in texto:
         await update.message.reply_text("Uso: /pronostico JUGADORA vs JUGADORB\nEjemplo: /pronostico MYTH vs MALICE")
@@ -581,6 +604,9 @@ async def pronostico(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        await update.message.reply_text("No tienes acceso a este bot.")
+        return
     texto = update.message.text.upper()
     if " VS " in texto:
         partes = texto.split(" VS ")
