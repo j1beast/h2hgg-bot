@@ -16,10 +16,12 @@ def get_upcoming():
     r = requests.get(f"{BASE_URL}/v3/events/upcoming?sport_id={SPORT_ID}&league_id={LEAGUE_ID}&token={BETSAPI_TOKEN}")
     return r.json().get("results", [])
 
-def get_ended(page=1):
-    r = requests.get(f"{BASE_URL}/v2/events/ended?sport_id={SPORT_ID}&league_id={LEAGUE_ID}&token={BETSAPI_TOKEN}&page={page}")
+def get_ended(page=1, day=None):
+    url = f"https://api.b365api.com/v3/events/ended?sport_id={SPORT_ID}&league_id={LEAGUE_ID}&token={BETSAPI_TOKEN}&page={page}"
+    if day:
+        url += f"&day={day}"
+    r = requests.get(url)
     return r.json().get("results", [])
-
 def get_event_stats(event_id):
     r = requests.get(f"{BASE_URL}/v1/event/stats_trend?token={BETSAPI_TOKEN}&event_id={event_id}")
     return r.json().get("results", {})
