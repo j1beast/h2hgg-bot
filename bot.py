@@ -114,19 +114,29 @@ def get_ended(page=1, day=None):
 # CARGA INICIAL Y ACTUALIZACION DIARIA
 # ─────────────────────────────────────────────
 
-def cargar_datos_iniciales(paginas=50):
-    print("Cargando datos iniciales de BetsAPI...")
+def cargar_datos_iniciales(meses=12):
+    print("Cargando datos históricos por fechas...")
     total = 0
-    for p in range(1, paginas + 1):
-        resultados = get_ended(p)
-        if not resultados:
-            break
-        for ev in resultados:
-            guardar_partido(ev)
-            total += 1
-        print(f"Página {p} cargada — {total} partidos guardados")
+    hoy = datetime.utcnow()
+    fecha_inicio = hoy - timedelta(days=meses*30)
+    fecha_actual = hoy
+    while fecha_actual >= fecha_inicio:
+        day_str = fecha_actual.strftime("%Y%m%d")
+        for p in range(1, 21):
+            try:
+                resultados = get_ended(p, day=day_str)
+                if not resultados:
+                    break
+                for ev in resultados:
+                    guardar_partido(ev)
+                    total += 1
+            except:
+                break
+        fecha_actual -= timedelta(days=1)
+        if total % 500 == 0 and total > 0:
+            print(f"Progreso: {total} partidos guardados...")
     set_meta("ultima_carga", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
-    print(f"Carga inicial completada: {total} partidos")
+    print(f"Carga completada: {total} partidos totales")
 
 def actualizar_datos_hoy():
     hoy = datetime.utcnow().strftime("%Y%m%d")
