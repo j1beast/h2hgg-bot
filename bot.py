@@ -200,16 +200,40 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
 def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis):
     msg = f"🏀 *{jugador_a} ({franq_a}) vs {jugador_b} ({franq_b})*\n\n"
     msg += f"📊 *Datos analizados:*\n"
-    msg += f"• H2H total: {analisis.get('h2h_total', 0)} partidos\n"
-    msg += f"• H2H con estos equipos: {analisis.get('h2h_equipos', 0)} partidos\n"
-    if analisis.get('forma_a') is not None:
+
+    # H2H histórico con resultado de cada partido
+    total_h2h = analisis.get('h2h_total', 0)
+    if total_h2h > 0:
+        wins_a = analisis.get('h2h_wins_a', 0)
+        wins_b = total_h2h - wins_a
+        msg += f"• H2H total: {total_h2h} partidos — {jugador_a} {wins_a}W/{wins_b}L vs {jugador_b}\n"
+    else:
+        msg += f"• H2H total: 0 partidos\n"
+
+    # H2H con equipos actuales
+    h2h_equipos = analisis.get('h2h_equipos', 0)
+    if h2h_equipos > 0:
+        wins_eq_a = analisis.get('h2h_wins_eq_a', 0)
+        wins_eq_b = h2h_equipos - wins_eq_a
+        msg += f"• H2H con estos equipos: {h2h_equipos} partidos — {jugador_a} {wins_eq_a}W/{wins_eq_b}L\n"
+    else:
+        msg += f"• H2H con estos equipos: 0 partidos\n"
+
+    # Forma reciente con racha W/L
+    if analisis.get('racha_a') and analisis.get('racha_b'):
+        msg += f"• Forma reciente {jugador_a}: {analisis['racha_a']}\n"
+        msg += f"• Forma reciente {jugador_b}: {analisis['racha_b']}\n"
+    elif analisis.get('forma_a') is not None:
         msg += f"• Forma reciente {jugador_a}: {analisis['forma_a']}% victorias\n"
         msg += f"• Forma reciente {jugador_b}: {analisis['forma_b']}% victorias\n"
+
     if analisis.get('winrate_a_franq') is not None:
         msg += f"• {jugador_a} con {franq_a}: {analisis['winrate_a_franq']}% victorias ({analisis['partidos_a_franq']} partidos)\n"
         msg += f"• {jugador_b} con {franq_b}: {analisis['winrate_b_franq']}% victorias ({analisis['partidos_b_franq']} partidos)\n"
+
     msg += f"\n🎯 *GANADOR*\n"
     msg += f"{jugador_a}: `{analisis['cuota_a']}` — {jugador_b}: `{analisis['cuota_b']}`\n"
+
     if analisis.get('linea_a'):
         msg += f"\n📈 *PUNTOS {jugador_a.upper()}*\n"
         msg += f"Línea: {analisis['linea_a']} pts\n"
@@ -228,12 +252,12 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis):
                 msg += f"\n⚖️ *HÁNDICAP*\n{jugador_a} +{abs(hcp)} pts\n"
             else:
                 msg += f"\n⚖️ *HÁNDICAP*\nPartido igualado\n"
+
     if analisis.get('avg_pts_a') and analisis.get('std_pts_a'):
         msg += f"\n📉 *CONSISTENCIA*\n"
         msg += f"{jugador_a}: media {analisis['avg_pts_a']} pts (±{analisis['std_pts_a']})\n"
         msg += f"{jugador_b}: media {analisis['avg_pts_b']} pts (±{analisis['std_pts_b']})\n"
     return msg
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = (
         "🏀 *Bot H2H GG League*\n\n"
