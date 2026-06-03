@@ -376,6 +376,31 @@ async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("Escribe algo como: *MYTH vs MALICE* o usa /pronostico MYTH vs MALICE", parse_mode="Markdown")
 
+async def h2h(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    texto = " ".join(context.args).upper()
+    if "VS" not in texto:
+        await update.message.reply_text("Uso: /h2h JUGADORA vs JUGADORB\nEjemplo: /h2h MYTH vs MALICE")
+        return
+    partes = texto.split("VS")
+    jugador_a = partes[0].strip()
+    jugador_b = partes[1].strip()
+    await update.message.reply_text(f"🔍 Buscando historial {jugador_a} vs {jugador_b}...")
+    partidos_h2h, _, _ = buscar_historial(jugador_a, jugador_b, paginas=50)
+    if not partidos_h2h:
+        await update.message.reply_text(f"No encontré enfrentamientos entre {jugador_a} y {jugador_b}.")
+        return
+    msg = f"🏀 *H2H {jugador_a} vs {jugador_b}*\n"
+    msg += f"Total: {len(partidos_h2h)} partidos\n\n"
+    wins_a = sum(1 for p in partidos_h2h if p["gano_a"])
+    wins_b = len(partidos_h2h) - wins_a
+    msg += f"{jugador_a}: {wins_a}W/{wins_b}L\n"
+    msg += f"{jugador_b}: {wins_b}W/{wins_a}L\n\n"
+    msg += f"📋 *Resultados:*\n"
+    for i, p in enumerate(partidos_h2h, 1):
+        ganador = jugador_a if p["gano_a"] else jugador_b
+        msg += f"{i}. {jugador_a} ({p.get('franq_a','?')}) {p['pts_a']} — {p['pts_b']} {jugador_b} ({p.get('franq_b','?')}) → {ganador}\n"
+    await update.message.reply_text(msg, parse_mode="Markdown")
+    
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -383,6 +408,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("resultados", resultados))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("pronostico", pronostico))
+    app.add_handler(CommandHandler("h2h", h2h))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
     print("Bot iniciado...")
     app.run_polling()
