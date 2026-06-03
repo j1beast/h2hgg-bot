@@ -126,8 +126,8 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         resultado["winrate_a_franq"] = None
         resultado["winrate_b_franq"] = None
     # Forma reciente (20%)
-    recientes_a = partidos_a[-15:] if len(partidos_a) >= 15 else partidos_a
-    recientes_b = partidos_b[-15:] if len(partidos_b) >= 15 else partidos_b
+    recientes_a = partidos_a[:15] if len(partidos_a) >= 15 else partidos_a
+    recientes_b = partidos_b[:15] if len(partidos_b) >= 15 else partidos_b
     if recientes_a and recientes_b:
         forma_a = sum(1 for p in recientes_a if p["gano"]) / len(recientes_a)
         forma_b = sum(1 for p in recientes_b if p["gano"]) / len(recientes_b)
@@ -139,7 +139,7 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         resultado["forma_a"] = None
         resultado["forma_b"] = None
     # Tendencia reciente H2H (10%)
-    h2h_reciente = partidos_h2h[-10:] if len(partidos_h2h) >= 10 else partidos_h2h
+    h2h_reciente = partidos_h2h[:10] if len(partidos_h2h) >= 10 else partidos_h2h
     if h2h_reciente:
         wins_rec = sum(1 for p in h2h_reciente if p["gano_a"])
         prob_h2h_rec = wins_rec / len(h2h_reciente)
