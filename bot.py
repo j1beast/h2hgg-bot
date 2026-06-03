@@ -134,10 +134,10 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         forma_b = sum(1 for p in recientes_b if p["gano"]) / len(recientes_b)
         prob_forma = forma_a / (forma_a + forma_b) if (forma_a + forma_b) > 0 else 0.5
         resultado["forma_a"] = round(forma_a * 100, 1)
-            resultado["forma_b"] = round(forma_b * 100, 1)
-            resultado["racha_a"] = " ".join(["W" if p["gano"] else "L" for p in recientes_a[:10]])
-            resultado["racha_b"] = " ".join(["W" if p["gano"] else "L" for p in recientes_b[:10]])
-            else:
+        resultado["forma_b"] = round(forma_b * 100, 1)
+        resultado["racha_a"] = " ".join(["W" if p["gano"] else "L" for p in recientes_a[:10]])
+        resultado["racha_b"] = " ".join(["W" if p["gano"] else "L" for p in recientes_b[:10]])
+        else:
         prob_forma = 0.5
         resultado["forma_a"] = None
         resultado["forma_b"] = None
