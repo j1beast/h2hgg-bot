@@ -685,6 +685,40 @@ async def pronostico(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis)
     await update.message.reply_text(msg, parse_mode="Markdown")
 
+async def ranking(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        await update.message.reply_text("No tienes acceso a este bot.")
+        return
+    await update.message.reply_text("🔍 Calculando ranking...")
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT home_jugador, COUNT(*) as total,
+                 SUM(CASE WHEN score_home > score_away THEN 1 ELSE 0 END) as victorias
+                 FROM partidos GROUP BY UPPER(home_jugador)
+                 UNION ALL
+                 SELECT away_jugador, COUNT(*) as total,
+                 SUM(CASE WHEN score_away > score_home THEN 1 ELSE 0 END) as victorias
+                 FROM partidos GROUP BY UPPER(away_jugador)''')
+    rows = c.fetchall()
+    conn.close()
+    jugadores = {}
+    for jugador, total, victorias in rows:
+        j = jugador.upper()
+        if j not in jugadores:
+            jugadores[j] = {"total": 0, "victorias": 0}
+        jugadores[j]["total"] += total
+        jugadores[j]["victorias"] += victorias
+    ranking_list = [
+        (j, d["victorias"], d["total"], round(d["victorias"] / d["total"] * 100, 1))
+        for j, d in jugadores.items()
+        if d["total"] >= 50
+    ]
+    ranking_list.sort(key=lambda x: x[3], reverse=True)
+    ranking_list = ranking_list[:20]
+    msg = "🏆 *Ranking H2H GG League*\n\n"
+    for i, (jugador, victorias, total, winrate) in enumerate(ranking_list, 1):
+        msg += f"{i}. {jugador} — {winrate}%W ({total} partidos)\n"
+    await update.message.reply_text(msg, parse_mode="Markdown")
 async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         await update.message.reply_text("No tienes acceso a este bot.")
@@ -735,6 +769,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("pronostico", pronostico))
     app.add_handler(CommandHandler("h2h", h2h))
     app.add_handler(CommandHandler("forma", forma))
+    app.add_handler(CommandHandler("ranking", ranking))
     app.add_handler(CommandHandler("actualizar", actualizar))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
