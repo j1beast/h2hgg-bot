@@ -403,11 +403,11 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
             avg_h2h_eq_b * 0.10, 1)
 
         linea_total = round(
-            avg_total_h2h * 0.20 +
-            (resultado["avg_pts_a"] + resultado["avg_pts_b"]) * 0.25 +
-            ((consistencia_a + consistencia_b)) * 0.10 +
+            avg_total_h2h * 0.30 +
+            (resultado["avg_pts_a"] + resultado["avg_pts_b"]) * 0.18 +
+            (consistencia_a + consistencia_b) * 0.10 +
             (adj_a + adj_b) * 0.15 +
-            (avg_reciente_a + avg_reciente_b) * 0.20 +
+            (avg_reciente_a + avg_reciente_b) * 0.17 +
             (avg_h2h_eq_a + avg_h2h_eq_b) * 0.10, 1)
 
         confianza_a = max(0.52, min(0.75, 0.5 + (1 / (1 + std_a / 10)) * 0.25))
