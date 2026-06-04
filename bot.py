@@ -728,6 +728,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("pronostico", pronostico))
     app.add_handler(CommandHandler("h2h", h2h))
+    app.add_handler(CommandHandler("forma", forma))
     app.add_handler(CommandHandler("actualizar", actualizar))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
