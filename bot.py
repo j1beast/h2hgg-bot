@@ -189,7 +189,8 @@ def prob_to_odds(prob):
 def calcular_std(valores):
     if len(valores) < 2:
         return 0
-    return round(statistics.stdev(valores), 1)
+    margen = 1.06
+    return round(1 / (prob * margen), 2)
 
 # ─────────────────────────────────────────────
 # CONSULTAS A LA BASE DE DATOS
