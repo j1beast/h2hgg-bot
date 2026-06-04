@@ -255,7 +255,7 @@ async def tarea_predicciones_automaticas(app_ref):
             verificar_predicciones()
         except Exception as e:
             print(f"Error en predicciones automáticas: {e}")
-        await asyncio.sleep(1800)  # 30 minutos
+        await asyncio.sleep(300)  # 5 minutos
         
 # ─────────────────────────────────────────────
 # HELPERS
