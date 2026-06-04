@@ -589,7 +589,11 @@ async def h2h(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = f"🏀 *H2H {jugador_a} vs {jugador_b}*\n"
     msg += f"Total: {len(partidos_h2h)} partidos\n"
     msg += f"{jugador_a}: {wins_a}W/{wins_b}L\n"
-    msg += f"{jugador_b}: {wins_b}W/{wins_a}L\n\n"
+    msg += f"{jugador_b}: {wins_b}W/{wins_a}L\n"
+    avg_a = round(sum(p["pts_a"] for p in partidos_h2h) / len(partidos_h2h), 1)
+    avg_b = round(sum(p["pts_b"] for p in partidos_h2h) / len(partidos_h2h), 1)
+    avg_total = round(sum(p["pts_a"] + p["pts_b"] for p in partidos_h2h) / len(partidos_h2h), 1)
+    msg += f"Promedio: {jugador_a} {avg_a} pts — {jugador_b} {avg_b} pts — Total {avg_total} pts\n\n"
     msg += f"📋 *Resultados:*\n"
     for i, p in enumerate(partidos_h2h, 1):
         ganador = jugador_a if p["gano_a"] else jugador_b
