@@ -16,6 +16,7 @@ SPORT_ID = "18"
 BASE_URL = "https://api.b365api.com"
 DB_PATH = "/app/data/cache.db"
 USUARIOS_PERMITIDOS = [7339330267, 1021947497, 409760550, 1316315194, 1478076850]
+CANAL_ID = -1003990501738
 def es_permitido(update):
     return update.effective_user.id in USUARIOS_PERMITIDOS
     
@@ -228,7 +229,7 @@ def verificar_predicciones():
     conn.commit()
     conn.close()
 
-async def tarea_predicciones_automaticas():
+async def tarea_predicciones_automaticas(app_ref):
     while True:
         try:
             proximos = get_upcoming()
@@ -245,6 +246,12 @@ async def tarea_predicciones_automaticas():
                 if partidos_a and partidos_b:
                     analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
                     guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis)
+                    if analisis.get("confianza") == "🟢 Alta":
+                        msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis)
+                        try:
+                            await app_ref.bot.send_message(chat_id=CANAL_ID, text=msg, parse_mode="Markdown")
+                        except Exception as e:
+                            print(f"Error enviando al canal: {e}")
             verificar_predicciones()
         except Exception as e:
             print(f"Error en predicciones automáticas: {e}")
@@ -959,7 +966,7 @@ if __name__ == "__main__":
 
     loop = asyncio.get_event_loop()
     loop.create_task(tarea_actualizacion_diaria())
-    loop.create_task(tarea_predicciones_automaticas())
+    loop.create_task(tarea_predicciones_automaticas(app))
 
     print("Bot iniciado...")
     app.run_polling()
