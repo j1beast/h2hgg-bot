@@ -604,6 +604,32 @@ async def h2h(update: Update, context: ContextTypes.DEFAULT_TYPE):
             break
     await update.message.reply_text(msg, parse_mode="Markdown")
 
+async def forma(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        await update.message.reply_text("No tienes acceso a este bot.")
+        return
+    if not context.args:
+        await update.message.reply_text("Uso: /forma JUGADOR\nEjemplo: /forma MYTH")
+        return
+    jugador = " ".join(context.args).upper()
+    await update.message.reply_text(f"🔍 Buscando forma reciente de {jugador}...")
+    partidos = buscar_partidos_jugador_db(jugador)
+    if not partidos:
+        await update.message.reply_text(f"No encontré partidos de {jugador}.")
+        return
+    recientes = partidos[:10]
+    victorias = sum(1 for p in recientes if p["gano"])
+    derrotas = len(recientes) - victorias
+    avg_pts = round(sum(p["pts_favor"] for p in recientes) / len(recientes), 1)
+    avg_total = round(sum(p["pts_favor"] + p["pts_contra"] for p in recientes) / len(recientes), 1)
+    msg = f"📊 *Forma reciente de {jugador}*\n\n"
+    msg += f"{victorias}W / {derrotas}L (últimos {len(recientes)})\n"
+    msg += f"Promedio {jugador}: {avg_pts} pts\n"
+    msg += f"Promedio total partido: {avg_total} pts\n\n"
+    for i, p in enumerate(recientes, 1):
+        icono = "✅" if p["gano"] else "❌"
+        msg += f"{i}. {icono} {jugador} {p['pts_favor']} - {p['pts_contra']} ({p.get('fecha', '')})\n"
+    await update.message.reply_text(msg, parse_mode="Markdown")
 async def actualizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         await update.message.reply_text("No tienes acceso a este bot.")
