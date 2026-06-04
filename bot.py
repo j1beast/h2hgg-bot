@@ -243,6 +243,72 @@ def buscar_partidos_jugador_db(jugador):
 # ANALISIS
 # ─────────────────────────────────────────────
 
+def calcular_confianza(analisis, partidos_a, partidos_b):
+    puntos = 0
+    total_factores = 5
+
+    # H2H total
+    h2h = analisis.get("h2h_total", 0)
+    if h2h > 20:
+        puntos += 3
+    elif h2h >= 5:
+        puntos += 2
+    else:
+        puntos += 1
+
+    # H2H mismos equipos
+    h2h_eq = analisis.get("h2h_equipos", 0)
+    if h2h_eq > 5:
+        puntos += 3
+    elif h2h_eq >= 2:
+        puntos += 2
+    else:
+        puntos += 1
+
+    # Partidos con equipo actual
+    franq_a = analisis.get("partidos_a_franq") or 0
+    franq_b = analisis.get("partidos_b_franq") or 0
+    avg_franq = (franq_a + franq_b) / 2
+    if avg_franq > 15:
+        puntos += 3
+    elif avg_franq >= 5:
+        puntos += 2
+    else:
+        puntos += 1
+
+    # Total partidos jugador
+    total_a = len(partidos_a)
+    total_b = len(partidos_b)
+    avg_total = (total_a + total_b) / 2
+    if avg_total > 400:
+        puntos += 3
+    elif avg_total >= 70:
+        puntos += 2
+    else:
+        puntos += 1
+
+    # Consistencia
+    std_a = analisis.get("std_pts_a") or 15
+    std_b = analisis.get("std_pts_b") or 15
+    avg_std = (std_a + std_b) / 2
+    if avg_std < 8:
+        puntos += 3
+    elif avg_std <= 15:
+        puntos += 2
+    else:
+        puntos += 1
+
+    # Calcular nivel
+    max_puntos = 15
+    porcentaje = puntos / max_puntos
+
+    if porcentaje >= 0.75:
+        return "🟢 Alta"
+    elif porcentaje >= 0.45:
+        return "🟡 Media"
+    else:
+        return "🔴 Baja"
+        
 def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b):
     resultado = {}
     # H2H histórico general (25%)
