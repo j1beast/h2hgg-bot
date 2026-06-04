@@ -44,6 +44,23 @@ def init_db():
         clave TEXT PRIMARY KEY,
         valor TEXT
     )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS predicciones (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        jugador_a TEXT,
+        jugador_b TEXT,
+        franq_a TEXT,
+        franq_b TEXT,
+        ganador_predicho TEXT,
+        cuota_ganador REAL,
+        linea_total REAL,
+        cuota_over REAL,
+        cuota_under REAL,
+        fecha_prediccion TEXT,
+        resultado_real TEXT,
+        acierto_ganador INTEGER,
+        acierto_ou INTEGER,
+        procesado INTEGER DEFAULT 0
+    )''')
     conn.commit()
     conn.close()
 
@@ -169,6 +186,70 @@ async def tarea_actualizacion_diaria():
         await asyncio.sleep(segundos)
         actualizar_datos_hoy()
 
+def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis):
+    conn = get_db()
+    c = conn.cursor()
+    ganador = jugador_a if analisis["prob_a"] > analisis["prob_b"] else jugador_b
+    cuota_ganador = analisis["cuota_a"] if analisis["prob_a"] > analisis["prob_b"] else analisis["cuota_b"]
+    c.execute('''INSERT OR IGNORE INTO predicciones
+        (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador, linea_total, cuota_over, cuota_under, fecha_prediccion, procesado)
+        VALUES (?,?,?,?,?,?,?,?,?,?,0)''',
+        (jugador_a, jugador_b, franq_a, franq_b, ganador, cuota_ganador,
+         analisis.get("linea_total"), analisis.get("over_total"), analisis.get("under_total"),
+         datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+    conn.commit()
+    conn.close()
+
+def verificar_predicciones():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT id, jugador_a, jugador_b, ganador_predicho, linea_total FROM predicciones WHERE procesado = 0")
+    pendientes = c.fetchall()
+    for pred_id, jugador_a, jugador_b, ganador_predicho, linea_total in pendientes:
+        partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
+        if not partidos_h2h:
+            continue
+        ultimo = partidos_h2h[0]
+        fecha_pred = None
+        c.execute("SELECT fecha_prediccion FROM predicciones WHERE id=?", (pred_id,))
+        row = c.fetchone()
+        if row:
+            fecha_pred = row[0]
+        if not fecha_pred:
+            continue
+        fecha_pred_dt = datetime.strptime(fecha_pred, "%Y-%m-%d %H:%M:%S")
+        if ultimo.get("fecha") and ultimo["fecha"] >= fecha_pred_dt.strftime("%Y-%m-%d"):
+            ganador_real = jugador_a if ultimo["gano_a"] else jugador_b
+            acierto_ganador = 1 if ganador_real == ganador_predicho else 0
+            total_real = ultimo["pts_a"] + ultimo["pts_b"]
+            acierto_ou = 1 if (linea_total and total_real > linea_total) else 0
+            c.execute('''UPDATE predicciones SET resultado_real=?, acierto_ganador=?, acierto_ou=?, procesado=1
+                         WHERE id=?''', (ganador_real, acierto_ganador, acierto_ou, pred_id))
+    conn.commit()
+    conn.close()
+
+async def tarea_predicciones_automaticas():
+    while True:
+        try:
+            proximos = get_upcoming()
+            for ev in proximos:
+                home = ev.get("home", {}).get("name", "")
+                away = ev.get("away", {}).get("name", "")
+                jugador_a = extraer_nombre_jugador(home).upper()
+                jugador_b = extraer_nombre_jugador(away).upper()
+                franq_a = extraer_franquicia(home)
+                franq_b = extraer_franquicia(away)
+                partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
+                partidos_a = buscar_partidos_jugador_db(jugador_a)
+                partidos_b = buscar_partidos_jugador_db(jugador_b)
+                if partidos_a and partidos_b:
+                    analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
+                    guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis)
+            verificar_predicciones()
+        except Exception as e:
+            print(f"Error en predicciones automáticas: {e}")
+        await asyncio.sleep(1800)  # 30 minutos
+        
 # ─────────────────────────────────────────────
 # HELPERS
 # ─────────────────────────────────────────────
@@ -793,6 +874,34 @@ async def ranking(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for i, (jugador, victorias, total, winrate) in enumerate(ranking_list, 1):
         msg += f"{i}. {jugador} — {winrate}%W ({total} partidos)\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
+    
+async def rendimiento(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        await update.message.reply_text("No tienes acceso a este bot.")
+        return
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM predicciones WHERE procesado = 1")
+    total = c.fetchone()[0]
+    if total == 0:
+        await update.message.reply_text("No hay predicciones procesadas aún.")
+        conn.close()
+        return
+    c.execute("SELECT SUM(acierto_ganador), SUM(acierto_ou) FROM predicciones WHERE procesado = 1")
+    row = c.fetchone()
+    aciertos_ganador = row[0] or 0
+    aciertos_ou = row[1] or 0
+    c.execute("SELECT acierto_ganador FROM predicciones WHERE procesado = 1 ORDER BY id DESC LIMIT 10")
+    ultimos = c.fetchall()
+    conn.close()
+    racha = "-".join(["✅" if r[0] == 1 else "❌" for r in ultimos])
+    msg = f"📊 *Rendimiento del bot*\n\n"
+    msg += f"Total predicciones: {total}\n"
+    msg += f"✅ Ganador acertado: {aciertos_ganador}/{total} → {round(aciertos_ganador/total*100, 1)}%\n"
+    msg += f"✅ Over/Under acertado: {aciertos_ou}/{total} → {round(aciertos_ou/total*100, 1)}%\n\n"
+    msg += f"Últimos 10: {racha}\n"
+    await update.message.reply_text(msg, parse_mode="Markdown")
+    
 async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         await update.message.reply_text("No tienes acceso a este bot.")
@@ -844,11 +953,13 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("h2h", h2h))
     app.add_handler(CommandHandler("forma", forma))
     app.add_handler(CommandHandler("ranking", ranking))
+    app.add_handler(CommandHandler("rendimiento", rendimiento))
     app.add_handler(CommandHandler("actualizar", actualizar))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
     loop = asyncio.get_event_loop()
     loop.create_task(tarea_actualizacion_diaria())
+    loop.create_task(tarea_predicciones_automaticas())
 
     print("Bot iniciado...")
     app.run_polling()
