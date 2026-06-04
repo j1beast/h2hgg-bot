@@ -312,7 +312,11 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         prob_h2h_rec = 0.5
 
     # Probabilidad final ponderada
-    prob_final_a = (prob_h2h * 0.25) + (prob_equipo * 0.25) + (prob_h2h_eq * 0.20) + (prob_forma * 0.20) + (prob_h2h_rec * 0.10)
+    pocos_partidos_franq = (resultado.get("partidos_a_franq") or 0) < 5 or (resultado.get("partidos_b_franq") or 0) < 5
+        if pocos_partidos_franq:
+            prob_final_a = (prob_h2h * 0.30) + (prob_equipo * 0.10) + (prob_h2h_eq * 0.20) + (prob_forma * 0.25) + (prob_h2h_rec * 0.15)
+        else:
+            prob_final_a = (prob_h2h * 0.25) + (prob_equipo * 0.25) + (prob_h2h_eq * 0.20) + (prob_forma * 0.20) + (prob_h2h_rec * 0.10)
     prob_final_b = 1 - prob_final_a
     resultado["prob_a"] = round(prob_final_a, 4)
     resultado["prob_b"] = round(prob_final_b, 4)
