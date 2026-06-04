@@ -61,6 +61,8 @@ def guardar_partido(ev):
         score_h, score_a = map(int, ss.split("-"))
     except:
         return
+    if score_h == 0 and score_a == 0:
+        return
     home_jugador = extraer_nombre_jugador(home)
     away_jugador = extraer_nombre_jugador(away)
     home_franq = extraer_franquicia(home)
@@ -715,6 +717,13 @@ if __name__ == "__main__":
     import time
     time.sleep(15)
     init_db()
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("DELETE FROM partidos WHERE score_home = 0 AND score_away = 0")
+    borrados = c.rowcount
+    conn.commit()
+    conn.close()
+    print(f"Partidos 0-0 eliminados: {borrados}")
     if total_partidos_db() == 0:
         print("Base de datos vacía, cargando datos iniciales...")
         cargar_datos_iniciales(meses=11)
