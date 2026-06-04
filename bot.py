@@ -490,6 +490,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• `/pronostico JUGADORA vs JUGADORB` — análisis completo\n"
         "• `/h2h JUGADORA vs JUGADORB` — historial de enfrentamientos\n"
         "• `/stats JUGADOR` — estadísticas de un jugador\n"
+        "• `/forma JUGADOR` — últimos 10 resultados\n"
+        "• `/ranking` — top 20 jugadores por winrate\n"
         "• `/proximos` — próximos partidos\n"
         "• `/resultados` — últimos resultados\n"
         "• `/actualizar` — actualizar datos manualmente\n\n"
