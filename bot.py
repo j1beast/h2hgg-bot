@@ -184,14 +184,13 @@ def extraer_franquicia(nombre_equipo):
 def prob_to_odds(prob):
     if prob <= 0 or prob >= 1:
         return 1.01
-    return round(1 / prob, 2)
+    margen = 1.06
+    return round(1 / (prob * margen), 2)
 
 def calcular_std(valores):
     if len(valores) < 2:
         return 0
-    margen = 1.06
-    return round(1 / (prob * margen), 2)
-
+    return round(statistics.stdev(valores), 1)
 # ─────────────────────────────────────────────
 # CONSULTAS A LA BASE DE DATOS
 # ─────────────────────────────────────────────
