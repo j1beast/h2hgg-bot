@@ -488,6 +488,7 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         resultado["under_b"] = prob_to_odds(1 - confianza_b)
         resultado["over_total"] = prob_to_odds(confianza_total)
         resultado["under_total"] = prob_to_odds(1 - confianza_total)
+        resultado["confianza"] = calcular_confianza(resultado, partidos_a, partidos_b)
 
     return resultado
 
@@ -528,6 +529,7 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis):
         msg += f"• {jugador_a} con {franq_a}: {analisis['winrate_a_franq']}% victorias ({analisis['partidos_a_franq']} partidos)\n"
         msg += f"• {jugador_b} con {franq_b}: {analisis['winrate_b_franq']}% victorias ({analisis['partidos_b_franq']} partidos)\n"
 
+    msg += f"\n🔮 *Confianza predicción: {analisis.get('confianza', 'N/A')}*\n"
     msg += f"\n🎯 *GANADOR*\n"
     msg += f"{jugador_a}: `{analisis['cuota_a']}` — {jugador_b}: `{analisis['cuota_b']}`\n"
 
