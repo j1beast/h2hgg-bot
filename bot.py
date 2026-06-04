@@ -328,6 +328,14 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
     todos_pts_b = [p["pts_favor"] for p in partidos_b]
     pts_totales_h2h = [p["pts_a"] + p["pts_b"] for p in partidos_h2h] if partidos_h2h else []
 
+    # Forma reciente de anotación (últimos 7 partidos)
+    recientes_pts_a = [p["pts_favor"] for p in partidos_a[:7]]
+    recientes_pts_b = [p["pts_favor"] for p in partidos_b[:7]]
+
+    # H2H con mismos equipos - puntos
+    pts_a_h2h_eq = [p["pts_a"] for p in h2h_equipos]
+    pts_b_h2h_eq = [p["pts_b"] for p in h2h_equipos]
+
     if todos_pts_a:
         resultado["avg_pts_a"] = round(sum(todos_pts_a) / len(todos_pts_a), 1)
         resultado["std_pts_a"] = calcular_std(todos_pts_a)
@@ -348,17 +356,62 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         resultado["avg_total_h2h"] = None
 
     if resultado["avg_pts_a"] and resultado["avg_pts_b"]:
-        linea_a = resultado["avg_pts_a"]
-        linea_b = resultado["avg_pts_b"]
-        if resultado["avg_total_h2h"]:
-            linea_total = round((resultado["avg_total_h2h"] + linea_a + linea_b) / 2, 1)
-        else:
-            linea_total = round(linea_a + linea_b, 1)
+        # Forma reciente anotación
+        avg_reciente_a = round(sum(recientes_pts_a) / len(recientes_pts_a), 1) if recientes_pts_a else resultado["avg_pts_a"]
+        avg_reciente_b = round(sum(recientes_pts_b) / len(recientes_pts_b), 1) if recientes_pts_b else resultado["avg_pts_b"]
+
+        # H2H mismos equipos puntos
+        avg_h2h_eq_a = round(sum(pts_a_h2h_eq) / len(pts_a_h2h_eq), 1) if pts_a_h2h_eq else resultado["avg_pts_a"]
+        avg_h2h_eq_b = round(sum(pts_b_h2h_eq) / len(pts_b_h2h_eq), 1) if pts_b_h2h_eq else resultado["avg_pts_b"]
+
+        # Ajuste equipo actual
+        adj_a = resultado["avg_pts_a"]
+        adj_b = resultado["avg_pts_b"]
+    if partidos_a_franq:
+        pts_franq_a = [p["pts_favor"] for p in partidos_a_franq]
+        adj_a = round(sum(pts_franq_a) / len(pts_franq_a), 1)
+    if partidos_b_franq:
+        pts_franq_b = [p["pts_favor"] for p in partidos_b_franq]
+        adj_b = round(sum(pts_franq_b) / len(pts_franq_b), 1)
+
+        # Línea ponderada jugador A: 25% histórico + 20% h2h total + 10% consistencia + 15% equipo actual + 20% forma reciente + 10% h2h mismos equipos
         std_a = resultado["std_pts_a"] or 5
         std_b = resultado["std_pts_b"] or 5
+        consistencia_a = resultado["avg_pts_a"] * (1 - min(std_a / 100, 0.15))
+        consistencia_b = resultado["avg_pts_b"] * (1 - min(std_b / 100, 0.15))
+
+        avg_h2h_a = resultado.get("h2h_avg_a") or resultado["avg_pts_a"]
+        avg_h2h_b = resultado.get("h2h_avg_b") or resultado["avg_pts_b"]
+        avg_total_h2h = resultado["avg_total_h2h"] or (resultado["avg_pts_a"] + resultado["avg_pts_b"])
+
+        linea_a = round(
+            resultado["avg_pts_a"] * 0.25 +
+            avg_h2h_a * 0.20 +
+            consistencia_a * 0.10 +
+            adj_a * 0.15 +
+            avg_reciente_a * 0.20 +
+            avg_h2h_eq_a * 0.10, 1)
+
+        linea_b = round(
+            resultado["avg_pts_b"] * 0.25 +
+            avg_h2h_b * 0.20 +
+            consistencia_b * 0.10 +
+            adj_b * 0.15 +
+            avg_reciente_b * 0.20 +
+            avg_h2h_eq_b * 0.10, 1)
+
+        linea_total = round(
+            avg_total_h2h * 0.20 +
+            (resultado["avg_pts_a"] + resultado["avg_pts_b"]) * 0.25 +
+            ((consistencia_a + consistencia_b)) * 0.10 +
+            (adj_a + adj_b) * 0.15 +
+            (avg_reciente_a + avg_reciente_b) * 0.20 +
+            (avg_h2h_eq_a + avg_h2h_eq_b) * 0.10, 1)
+
         confianza_a = max(0.52, min(0.75, 0.5 + (1 / (1 + std_a / 10)) * 0.25))
         confianza_b = max(0.52, min(0.75, 0.5 + (1 / (1 + std_b / 10)) * 0.25))
         confianza_total = max(0.52, min(0.72, 0.5 + (1 / (1 + ((std_a + std_b) / 2) / 10)) * 0.22))
+
         resultado["linea_a"] = linea_a
         resultado["linea_b"] = linea_b
         resultado["linea_total"] = linea_total
