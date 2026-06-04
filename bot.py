@@ -15,7 +15,7 @@ LEAGUE_ID = "25067"
 SPORT_ID = "18"
 BASE_URL = "https://api.b365api.com"
 DB_PATH = "/app/data/cache.db"
-USUARIOS_PERMITIDOS = [7339330267, 1021947497, 409760550]
+USUARIOS_PERMITIDOS = [7339330267, 1021947497, 409760550, 1316315194, 1478076850]
 def es_permitido(update):
     return update.effective_user.id in USUARIOS_PERMITIDOS
     
