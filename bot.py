@@ -475,9 +475,13 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
             (adj_a + adj_b) * 0.15 +
             (avg_reciente_a + avg_reciente_b) * 0.17 +
             (avg_h2h_eq_a + avg_h2h_eq_b) * 0.10, 1)
-        confianza_a = max(0.52, min(0.75, 0.5 + (1 / (1 + std_a / 10)) * 0.25))
-        confianza_b = max(0.52, min(0.75, 0.5 + (1 / (1 + std_b / 10)) * 0.25))
-        confianza_total = max(0.52, min(0.72, 0.5 + (1 / (1 + ((std_a + std_b) / 2) / 10)) * 0.22))
+        confianza_over_a = 0.5 + (1 / (1 + std_a / 10)) * 0.20 if linea_a <= resultado["avg_pts_a"] else 0.5 - (1 / (1 + std_a / 10)) * 0.20
+        confianza_a = max(0.40, min(0.75, confianza_over_a))
+        confianza_over_b = 0.5 + (1 / (1 + std_b / 10)) * 0.20 if linea_b <= resultado["avg_pts_b"] else 0.5 - (1 / (1 + std_b / 10)) * 0.20
+        confianza_b = max(0.40, min(0.75, confianza_over_b))
+        avg_historico_total = resultado["avg_pts_a"] + resultado["avg_pts_b"]
+        confianza_over_total = 0.5 + (1 / (1 + ((std_a + std_b) / 2) / 10)) * 0.18 if linea_total <= avg_historico_total else 0.5 - (1 / (1 + ((std_a + std_b) / 2) / 10)) * 0.18
+        confianza_total = max(0.40, min(0.72, confianza_over_total))
 
         resultado["linea_a"] = linea_a
         resultado["linea_b"] = linea_b
