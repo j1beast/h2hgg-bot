@@ -466,13 +466,7 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis):
     msg += f"\n🎯 *GANADOR*\n"
     msg += f"{jugador_a}: `{analisis['cuota_a']}` — {jugador_b}: `{analisis['cuota_b']}`\n"
 
-    if analisis.get('linea_a'):
-        msg += f"\n📈 *PUNTOS {jugador_a.upper()}*\n"
-        msg += f"Línea: {analisis['linea_a']} pts\n"
-        msg += f"Over `{analisis['over_a']}` / Under `{analisis['under_a']}`\n"
-        msg += f"\n📈 *PUNTOS {jugador_b.upper()}*\n"
-        msg += f"Línea: {analisis['linea_b']} pts\n"
-        msg += f"Over `{analisis['over_b']}` / Under `{analisis['under_b']}`\n"
+    if analisis.get('linea_total'):
         msg += f"\n🔢 *TOTAL DEL PARTIDO*\n"
         msg += f"Línea: {analisis['linea_total']} pts\n"
         msg += f"Over `{analisis['over_total']}` / Under `{analisis['under_total']}`\n"
