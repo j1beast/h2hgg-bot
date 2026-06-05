@@ -659,7 +659,7 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis):
     else:
         msg += f"• H2H con estos equipos: 0 partidos\n"
         
-        if analisis.get('matchup_total') is not None:
+    if analisis.get('matchup_total') is not None:
         matchup_pct = round(analisis['matchup_total'] * 100, 1)
         msg += f"• Matchup {franq_a} vs {franq_b}: {franq_a} gana {matchup_pct}% histórico\n"
 
