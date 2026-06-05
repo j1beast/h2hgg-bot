@@ -658,6 +658,10 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis):
         msg += f"• H2H con estos equipos: {h2h_equipos} partidos — {jugador_a} {wins_eq_a}W/{wins_eq_b}L vs {jugador_b} {wins_eq_b}W/{wins_eq_a}L\n"
     else:
         msg += f"• H2H con estos equipos: 0 partidos\n"
+        
+        if analisis.get('matchup_total') is not None:
+        matchup_pct = round(analisis['matchup_total'] * 100, 1)
+        msg += f"• Matchup {franq_a} vs {franq_b}: {franq_a} gana {matchup_pct}% histórico\n"
 
     if analisis.get('racha_a') and analisis.get('racha_b'):
         racha_a = "-".join(analisis['racha_a'].split())
