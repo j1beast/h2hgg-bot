@@ -322,13 +322,20 @@ async def get_cuotas_coolbet():
                         respuestas.append(data)
                     except:
                         pass
-            page.on("response", capturar_respuesta)
-
             print("Cargando página Coolbet...")
             await page.goto("https://www.coolbet.com/en/sports/basketball/eBasketball/eBasketball-H2H-GG-League-Mixed", wait_until="domcontentloaded", timeout=20000)
-            print("Página cargada, esperando datos...")
-            await page.wait_for_timeout(5000)
-            print("Datos esperados, cerrando browser...")
+            print("Página cargada, haciendo fetch interno...")
+            await page.wait_for_timeout(3000)
+            data = await page.evaluate('''async () => {
+                try {
+                    const r = await fetch("/s/sbgate/category/by-slug/en/basketball/eBasketball/eBasketball-H2H-GG-League-Mixed");
+                    return await r.json();
+                } catch(e) {
+                    return {"error": e.toString()};
+                }
+            }''')
+            print(f"Data obtenida: {str(data)[:200]}")
+            respuestas = [data] if data and "error" not in data else []
             await browser.close()
 
         print(f"Respuestas capturadas: {len(respuestas)}")
