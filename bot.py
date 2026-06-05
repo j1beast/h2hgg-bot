@@ -56,6 +56,7 @@ def init_db():
         linea_total REAL,
         cuota_over REAL,
         cuota_under REAL,
+        prediccion_ou TEXT,
         fecha_prediccion TEXT,
         resultado_real TEXT,
         acierto_ganador INTEGER,
@@ -197,13 +198,15 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis):
     if c.fetchone():
         conn.close()
         return
+    prediccion_ou = "Over" if (analisis.get("over_total") or 99) < (analisis.get("under_total") or 99) else "Under"
     ganador = jugador_a if analisis["prob_a"] > analisis["prob_b"] else jugador_b
     cuota_ganador = analisis["cuota_a"] if analisis["prob_a"] > analisis["prob_b"] else analisis["cuota_b"]
     c.execute('''INSERT INTO predicciones
-        (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador, linea_total, cuota_over, cuota_under, fecha_prediccion, procesado)
-        VALUES (?,?,?,?,?,?,?,?,?,?,0)''',
+        (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador, linea_total, cuota_over, cuota_under, prediccion_ou, fecha_prediccion, procesado)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,0)''',
         (jugador_a, jugador_b, franq_a, franq_b, ganador, cuota_ganador,
          analisis.get("linea_total"), analisis.get("over_total"), analisis.get("under_total"),
+         analisis.get("under_total"), prediccion_ou, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
          datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
     conn.commit()
     conn.close()
@@ -230,7 +233,13 @@ def verificar_predicciones():
             ganador_real = jugador_a if ultimo["gano_a"] else jugador_b
             acierto_ganador = 1 if ganador_real == ganador_predicho else 0
             total_real = ultimo["pts_a"] + ultimo["pts_b"]
-            acierto_ou = 1 if (linea_total and total_real > linea_total) else 0
+            c.execute("SELECT prediccion_ou FROM predicciones WHERE id=?", (pred_id,))
+            row_ou = c.fetchone()
+            prediccion_ou = row_ou[0] if row_ou else "Over"
+            if linea_total and prediccion_ou == "Over":
+                acierto_ou = 1 if total_real > linea_total else 0
+            else:
+                acierto_ou = 1 if total_real < linea_total else 0
             c.execute('''UPDATE predicciones SET resultado_real=?, acierto_ganador=?, acierto_ou=?, procesado=1
                          WHERE id=?''', (ganador_real, acierto_ganador, acierto_ou, pred_id))
     conn.commit()
