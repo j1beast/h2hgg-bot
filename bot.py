@@ -1104,6 +1104,27 @@ async def test_coolbet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         msg = "❌ No se pudieron obtener cuotas"
     await update.message.reply_text(msg)
+
+async def test_odds_api(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    await update.message.reply_text("🔍 Consultando Odds-API...")
+    try:
+        API_KEY = "4ffc305b73bbd6e19d68324799824ec0ab43628f68acc6332e137dafd01e45f4"
+        r = requests.get(
+            "https://api.odds-api.io/v3/sports",
+            params={"apiKey": API_KEY},
+            timeout=10
+        )
+        data = r.json()
+        sports = [s.get("name", "") or s.get("key", "") for s in data] if isinstance(data, list) else list(data.keys())
+        basket = [s for s in sports if "basket" in s.lower() or "ebasket" in s.lower()]
+        msg = f"✅ Sports disponibles: {len(sports)}\n"
+        msg += f"Basketball: {basket[:10]}\n"
+        msg += f"Primeros 5: {sports[:5]}"
+        await update.message.reply_text(msg)
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {e}")
     
 async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
@@ -1159,6 +1180,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("rendimiento", rendimiento))
     app.add_handler(CommandHandler("actualizar", actualizar))
     app.add_handler(CommandHandler("testcoolbet", test_coolbet))
+    app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
     loop = asyncio.get_event_loop()
