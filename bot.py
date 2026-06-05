@@ -397,7 +397,7 @@ def calcular_confianza(analisis, partidos_a, partidos_b):
     max_puntos = 15
     porcentaje = puntos / max_puntos
 
-    if porcentaje >= 0.75:
+    if porcentaje >= 0.85:
         return "🟢 Alta"
     elif porcentaje >= 0.45:
         return "🟡 Media"
