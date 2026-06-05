@@ -9,7 +9,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 import asyncio
 import time
 
-TELEGRAM_TOKEN = "8917382762:AAGJI3_MKRiEe5nSb1uz56Q-fJYfIchzWuQ"
+TELEGRAM_TOKEN = "8917382762:AAEto7rP7TPdktRKbkzTPI312WeWCAr1X0I"
 BETSAPI_TOKEN = "255743-DXkD4nrqNqXhJq"
 LEAGUE_ID = "25067"
 SPORT_ID = "18"
