@@ -1062,6 +1062,19 @@ async def rendimiento(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ou = ou or 0
             msg += f"{dia}: {gan}/{total} ganador ({round(gan/total*100,1)}%) | {ou}/{total} O/U ({round(ou/total*100,1)}%)\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def test_coolbet(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    await update.message.reply_text("🔍 Probando scraping Coolbet...")
+    cuotas = await get_cuotas_coolbet()
+    if cuotas:
+        msg = f"✅ Cuotas obtenidas: {len(cuotas)} partidos\n"
+        for key, val in list(cuotas.items())[:3]:
+            msg += f"• {val['home']} vs {val['away']}: {val['cuota_a']} / {val['cuota_b']}\n"
+    else:
+        msg = "❌ No se pudieron obtener cuotas"
+    await update.message.reply_text(msg)
     
 async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
@@ -1116,6 +1129,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("ranking", ranking))
     app.add_handler(CommandHandler("rendimiento", rendimiento))
     app.add_handler(CommandHandler("actualizar", actualizar))
+    app.add_handler(CommandHandler("testcoolbet", test_coolbet))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
     loop = asyncio.get_event_loop()
