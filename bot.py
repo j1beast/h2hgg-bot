@@ -1108,17 +1108,22 @@ async def test_coolbet(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def test_odds_api(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         return
-    await update.message.reply_text("🔍 Explorando Odds-API...")
+    await update.message.reply_text("🔍 Buscando ligas esports y basketball...")
     try:
         API_KEY = "4ffc305b73bbd6e19d68324799824ec0ab43628f68acc6332e137dafd01e45f4"
+        # Probar con esports
         r = requests.get(
-            "https://api.odds-api.io/v3/sports",
-            params={"apiKey": API_KEY},
+            "https://api.odds-api.io/v3/events",
+            params={"apiKey": API_KEY, "sport": "esports"},
             timeout=10
         )
         data = r.json()
-        print(f"Sports raw: {str(data)[:1000]}")
-        msg = f"Raw response:\n{str(data)[:3000]}"
+        eventos = data if isinstance(data, list) else data.get("data", [])
+        ligas = list(set([str(e.get("league") or e.get("competition") or e.get("tournament") or "?") for e in eventos]))
+        msg = f"Esports eventos: {len(eventos)}\n"
+        msg += f"Ligas: {ligas[:20]}\n"
+        if eventos:
+            msg += f"Ejemplo: {str(eventos[0])[:400]}"
         await update.message.reply_text(msg[:4000])
     except Exception as e:
         await update.message.reply_text(f"❌ Error: {e}")
