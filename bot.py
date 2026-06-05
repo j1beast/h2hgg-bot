@@ -300,10 +300,14 @@ def extraer_franquicia(nombre_equipo):
 
 async def get_cuotas_coolbet():
     try:
+        print("Iniciando scraping Coolbet...")
         from playwright.async_api import async_playwright
+        print("Playwright importado OK")
         cuotas = {}
         async with async_playwright() as p:
+            print("Playwright context OK")
             browser = await p.chromium.launch(headless=True)
+            print("Browser lanzado OK")
             context = await browser.new_context(
                 user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
             )
