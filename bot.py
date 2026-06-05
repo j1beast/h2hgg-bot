@@ -66,7 +66,7 @@ def init_db():
         prob_equipo REAL,
         prob_h2h_eq REAL,
         prob_forma REAL,
-        prob_h2h_rec REAL,
+        prob_h2h_rec REAL
     )''')
     conn.commit()
     conn.close()
