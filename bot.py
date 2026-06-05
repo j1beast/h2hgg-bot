@@ -1111,26 +1111,16 @@ async def test_odds_api(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🔍 Explorando Odds-API...")
     try:
         API_KEY = "4ffc305b73bbd6e19d68324799824ec0ab43628f68acc6332e137dafd01e45f4"
-        # Probar eventos directamente
         r = requests.get(
-            "https://api.odds-api.io/v3/events",
-            params={"apiKey": API_KEY, "sport": "Basketball"},
+            "https://api.odds-api.io/v3/sports",
+            params={"apiKey": API_KEY},
             timeout=10
         )
-        print(f"Status: {r.status_code}")
-        print(f"Response: {r.text[:500]}")
         data = r.json()
-        eventos = data if isinstance(data, list) else data.get("data", [])
-        ligas = list(set([e.get("league") or e.get("competition") or e.get("tournament") or "?" for e in eventos]))
-        msg = f"Status: {r.status_code}\n"
-        msg += f"Total eventos: {len(eventos)}\n"
-        msg += f"Ligas: {ligas[:15]}\n"
-        if eventos:
-            msg += f"Ejemplo evento: {str(eventos[0])[:300]}"
+        print(f"Sports raw: {str(data)[:1000]}")
+        msg = f"Raw response:\n{str(data)[:3000]}"
         await update.message.reply_text(msg[:4000])
     except Exception as e:
-        import traceback
-        print(traceback.format_exc())
         await update.message.reply_text(f"❌ Error: {e}")
     
 async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
