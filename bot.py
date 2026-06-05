@@ -922,6 +922,25 @@ async def rendimiento(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg += f"✅ Ganador acertado: {aciertos_ganador}/{total} → {round(aciertos_ganador/total*100, 1)}%\n"
     msg += f"✅ Over/Under acertado: {aciertos_ou}/{total} → {round(aciertos_ou/total*100, 1)}%\n\n"
     msg += f"Últimos 10: {racha}\n"
+    conn2 = get_db()
+    c2 = conn2.cursor()
+    c2.execute('''SELECT DATE(fecha_prediccion) as dia, 
+                 COUNT(*) as total,
+                 SUM(acierto_ganador) as gan,
+                 SUM(acierto_ou) as ou
+                 FROM predicciones 
+                 WHERE procesado = 1
+                 GROUP BY dia 
+                 ORDER BY dia DESC 
+                 LIMIT 10''')
+    dias = c2.fetchall()
+    conn2.close()
+    if dias:
+        msg += f"\n📅 *Últimos 10 días:*\n"
+        for dia, total, gan, ou in dias:
+            gan = gan or 0
+            ou = ou or 0
+            msg += f"{dia}: {gan}/{total} ganador ({round(gan/total*100,1)}%) | {ou}/{total} O/U ({round(ou/total*100,1)}%)\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
     
 async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
