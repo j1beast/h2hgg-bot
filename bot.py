@@ -204,8 +204,10 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis):
         conn.close()
         return
     prediccion_ou = "Over" if (analisis.get("over_total") or 99) < (analisis.get("under_total") or 99) else "Under"
-    ganador = jugador_a if analisis["prob_a"] > analisis["prob_b"] else jugador_b
-    cuota_ganador = analisis["cuota_a"] if analisis["prob_a"] > analisis["prob_b"] else analisis["cuota_b"]
+    prob_a = analisis.get("prob_a") or 0.5
+    prob_b = analisis.get("prob_b") or 0.5
+    ganador = jugador_a if prob_a > prob_b else jugador_b
+    cuota_ganador = analisis.get("cuota_a", 1.01) if prob_a > prob_b else analisis.get("cuota_b", 1.01)
     c.execute('''INSERT INTO predicciones
        (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador, linea_total, cuota_over, cuota_under, prediccion_ou, fecha_prediccion, procesado, prob_h2h, prob_equipo, prob_h2h_eq, prob_forma, prob_h2h_rec)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?)''',
@@ -234,7 +236,7 @@ def verificar_predicciones():
         if not fecha_pred:
             continue
         fecha_pred_dt = datetime.strptime(fecha_pred, "%Y-%m-%d %H:%M:%S")
-        if ultimo.get("fecha") and ultimo["fecha"] >= fecha_pred_dt.strftime("%Y-%m-%d"):
+        if ultimo.get("fecha") and isinstance(ultimo["fecha"], str) and ultimo["fecha"] >= fecha_pred_dt.strftime("%Y-%m-%d"):
             ganador_real = jugador_a if ultimo["gano_a"] else jugador_b
             acierto_ganador = 1 if ganador_real == ganador_predicho else 0
             total_real = ultimo["pts_a"] + ultimo["pts_b"]
