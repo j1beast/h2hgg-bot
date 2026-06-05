@@ -324,7 +324,13 @@ async def get_cuotas_coolbet():
                         pass
             page.on("response", capturar_respuesta)
 
-            await page.goto("https://www.coolbet.com/en/sports/basketball/eBasketball/eBasketball-H2H-GG-League-Mixed", wait_until="networkidle", timeout=30000)
+            print("Cargando página Coolbet...")
+            await page.goto("https://www.coolbet.com/en/sports/basketball/eBasketball/eBasketball-H2H-GG-League-Mixed", wait_until="domcontentloaded", timeout=20000)
+            print("Página cargada, esperando datos...")
+            await page.wait_for_timeout(5000)
+            print("Datos esperados, cerrando browser...")
+            await browser.close()
+            print(f"Respuestas capturadas: {len(respuestas)}")
             await browser.close()
 
             for data in respuestas:
