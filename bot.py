@@ -306,11 +306,22 @@ async def get_cuotas_coolbet():
         cuotas = {}
         async with async_playwright() as p:
             print("Playwright context OK")
-            browser = await p.chromium.launch(headless=True)
+            browser = await p.chromium.launch(
+                headless=True,
+                args=["--no-sandbox", "--disable-blink-features=AutomationControlled"]
+            )
             print("Browser lanzado OK")
             context = await browser.new_context(
-                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+                locale="es-ES",
+                timezone_id="Europe/Madrid",
+                viewport={"width": 1280, "height": 800},
+                extra_http_headers={
+                    "Accept-Language": "es-ES,es;q=0.9",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                }
             )
+            await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             page = await context.new_page()
 
             # Interceptar las respuestas de la API
