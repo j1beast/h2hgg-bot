@@ -297,7 +297,64 @@ def extraer_franquicia(nombre_equipo):
     if "(" in nombre_equipo:
         return nombre_equipo.split("(")[0].strip()
     return nombre_equipo.strip()
-    
+
+async def get_cuotas_coolbet():
+    try:
+        from playwright.async_api import async_playwright
+        cuotas = {}
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context(
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
+            )
+            page = await context.new_page()
+
+            # Interceptar las respuestas de la API
+            respuestas = []
+            async def capturar_respuesta(response):
+                if "sbgate" in response.url and "eBasketball-H2H" in response.url:
+                    try:
+                        data = await response.json()
+                        respuestas.append(data)
+                    except:
+                        pass
+            page.on("response", capturar_respuesta)
+
+            await page.goto("https://www.coolbet.com/en/sports/basketball/eBasketball/eBasketball-H2H-GG-League-Mixed", wait_until="networkidle", timeout=30000)
+            await browser.close()
+
+            for data in respuestas:
+                fixtures = data.get("fixtures") or data.get("events") or data.get("data") or []
+                if isinstance(fixtures, list):
+                    for fixture in fixtures:
+                        try:
+                            home = fixture.get("home", {}).get("name", "") or fixture.get("homeName", "")
+                            away = fixture.get("away", {}).get("name", "") or fixture.get("awayName", "")
+                            if not home or not away:
+                                continue
+                            home_j = extraer_nombre_jugador(home).upper()
+                            away_j = extraer_nombre_jugador(away).upper()
+                            markets = fixture.get("markets") or fixture.get("odds") or []
+                            for market in markets:
+                                outcomes = market.get("outcomes") or market.get("selections") or []
+                                if len(outcomes) >= 2:
+                                    cuota_home = outcomes[0].get("odds") or outcomes[0].get("price")
+                                    cuota_away = outcomes[1].get("odds") or outcomes[1].get("price")
+                                    if cuota_home and cuota_away:
+                                        cuotas[f"{home_j}_vs_{away_j}"] = {
+                                            "cuota_a": float(cuota_home),
+                                            "cuota_b": float(cuota_away),
+                                            "home": home_j,
+                                            "away": away_j
+                                        }
+                                        break
+                        except:
+                            continue
+        return cuotas
+    except Exception as e:
+        print(f"Error scraping Coolbet: {e}")
+        return {}
+        
 def calcular_peso_fecha(fecha_str):
     if not fecha_str:
         return 0.5
