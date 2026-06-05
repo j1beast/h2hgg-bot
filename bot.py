@@ -277,7 +277,9 @@ async def tarea_predicciones_automaticas(app_ref):
                             print(f"Error enviando al canal: {e}")
             verificar_predicciones()
         except Exception as e:
+            import traceback
             print(f"Error en predicciones automáticas: {e}")
+            print(traceback.format_exc())
         await asyncio.sleep(300)  # 5 minutos
         
 # ─────────────────────────────────────────────
