@@ -291,7 +291,24 @@ def extraer_franquicia(nombre_equipo):
     if "(" in nombre_equipo:
         return nombre_equipo.split("(")[0].strip()
     return nombre_equipo.strip()
-
+    
+def calcular_peso_fecha(fecha_str):
+    if not fecha_str:
+        return 0.5
+    try:
+        fecha = datetime.strptime(fecha_str, "%Y-%m-%d")
+        dias = (datetime.utcnow() - fecha).days
+        if dias <= 30:
+            return 1.0
+        elif dias <= 90:
+            return 0.7
+        elif dias <= 180:
+            return 0.4
+        else:
+            return 0.2
+    except:
+        return 0.5
+        
 def prob_to_odds(prob):
     if prob <= 0 or prob >= 1:
         return 1.01
@@ -443,9 +460,10 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
     resultado = {}
     # H2H histórico general (25%)
     if partidos_h2h:
-        wins_a = sum(1 for p in partidos_h2h if p["gano_a"])
+        peso_total = sum(calcular_peso_fecha(p.get("fecha")) for p in partidos_h2h)
+        wins_a = sum(calcular_peso_fecha(p.get("fecha")) for p in partidos_h2h if p["gano_a"])
         total_h2h = len(partidos_h2h)
-        prob_h2h = wins_a / total_h2h
+        prob_h2h = wins_a / peso_total if peso_total > 0 else 0.5
         pts_a_h2h = [p["pts_a"] for p in partidos_h2h]
         pts_b_h2h = [p["pts_b"] for p in partidos_h2h]
         resultado["h2h_total"] = total_h2h
@@ -477,8 +495,10 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
     partidos_a_franq = [p for p in partidos_a if p.get("franquicia", "").upper() == franq_a.upper()]
     partidos_b_franq = [p for p in partidos_b if p.get("franquicia", "").upper() == franq_b.upper()]
     if partidos_a_franq and partidos_b_franq:
-        win_rate_a = sum(1 for p in partidos_a_franq if p["gano"]) / len(partidos_a_franq)
-        win_rate_b = sum(1 for p in partidos_b_franq if p["gano"]) / len(partidos_b_franq)
+       peso_a_franq = sum(calcular_peso_fecha(p.get("fecha")) for p in partidos_a_franq)
+        peso_b_franq = sum(calcular_peso_fecha(p.get("fecha")) for p in partidos_b_franq)
+        win_rate_a = sum(calcular_peso_fecha(p.get("fecha")) for p in partidos_a_franq if p["gano"]) / peso_a_franq if peso_a_franq > 0 else 0.5
+        win_rate_b = sum(calcular_peso_fecha(p.get("fecha")) for p in partidos_b_franq if p["gano"]) / peso_b_franq if peso_b_franq > 0 else 0.5
         prob_equipo = win_rate_a / (win_rate_a + win_rate_b) if (win_rate_a + win_rate_b) > 0 else 0.5
         resultado["winrate_a_franq"] = round(win_rate_a * 100, 1)
         resultado["winrate_b_franq"] = round(win_rate_b * 100, 1)
@@ -493,8 +513,10 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
     recientes_a = partidos_a[:15]
     recientes_b = partidos_b[:15]
     if recientes_a and recientes_b:
-        forma_a = sum(1 for p in recientes_a if p["gano"]) / len(recientes_a)
-        forma_b = sum(1 for p in recientes_b if p["gano"]) / len(recientes_b)
+        peso_a = sum(calcular_peso_fecha(p.get("fecha")) for p in recientes_a)
+        peso_b = sum(calcular_peso_fecha(p.get("fecha")) for p in recientes_b)
+        forma_a = sum(calcular_peso_fecha(p.get("fecha")) for p in recientes_a if p["gano"]) / peso_a if peso_a > 0 else 0.5
+        forma_b = sum(calcular_peso_fecha(p.get("fecha")) for p in recientes_b if p["gano"]) / peso_b if peso_b > 0 else 0.5
         prob_forma = forma_a / (forma_a + forma_b) if (forma_a + forma_b) > 0 else 0.5
         resultado["forma_a"] = round(forma_a * 100, 1)
         resultado["forma_b"] = round(forma_b * 100, 1)
@@ -508,8 +530,9 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
     # Tendencia reciente H2H (10%)
     h2h_reciente = partidos_h2h[:10]
     if h2h_reciente:
-        wins_rec = sum(1 for p in h2h_reciente if p["gano_a"])
-        prob_h2h_rec = wins_rec / len(h2h_reciente)
+        peso_rec = sum(calcular_peso_fecha(p.get("fecha")) for p in h2h_reciente)
+        wins_rec = sum(calcular_peso_fecha(p.get("fecha")) for p in h2h_reciente if p["gano_a"])
+        prob_h2h_rec = wins_rec / peso_rec if peso_rec > 0 else 0.5
     else:
         prob_h2h_rec = 0.5
 
