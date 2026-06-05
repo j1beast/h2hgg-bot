@@ -190,9 +190,16 @@ async def tarea_actualizacion_diaria():
 def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis):
     conn = get_db()
     c = conn.cursor()
+    hoy = datetime.utcnow().strftime("%Y-%m-%d")
+    c.execute('''SELECT id FROM predicciones 
+                 WHERE jugador_a=? AND jugador_b=? AND fecha_prediccion LIKE ?''',
+              (jugador_a, jugador_b, f"{hoy}%"))
+    if c.fetchone():
+        conn.close()
+        return
     ganador = jugador_a if analisis["prob_a"] > analisis["prob_b"] else jugador_b
     cuota_ganador = analisis["cuota_a"] if analisis["prob_a"] > analisis["prob_b"] else analisis["cuota_b"]
-    c.execute('''INSERT OR IGNORE INTO predicciones
+    c.execute('''INSERT INTO predicciones
         (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador, linea_total, cuota_over, cuota_under, fecha_prediccion, procesado)
         VALUES (?,?,?,?,?,?,?,?,?,?,0)''',
         (jugador_a, jugador_b, franq_a, franq_b, ganador, cuota_ganador,
