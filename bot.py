@@ -208,11 +208,11 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis):
     cuota_ganador = analisis["cuota_a"] if analisis["prob_a"] > analisis["prob_b"] else analisis["cuota_b"]
     c.execute('''INSERT INTO predicciones
        (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador, linea_total, cuota_over, cuota_under, prediccion_ou, fecha_prediccion, procesado, prob_h2h, prob_equipo, prob_h2h_eq, prob_forma, prob_h2h_rec)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?)''',
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?)''',
         (jugador_a, jugador_b, franq_a, franq_b, ganador, cuota_ganador,
          analisis.get("linea_total"), analisis.get("over_total"), analisis.get("under_total"),
-       prediccion_ou, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-       analisis.get("prob_h2h"), analisis.get("prob_equipo"), analisis.get("prob_h2h_eq"), analisis.get("prob_forma"), analisis.get("prob_h2h_rec")))
+         prediccion_ou, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+         analisis.get("prob_h2h"), analisis.get("prob_equipo"), analisis.get("prob_h2h_eq"), analisis.get("prob_forma"), analisis.get("prob_h2h_rec")))
     conn.commit()
     conn.close()
 
