@@ -588,11 +588,11 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         adj_a = resultado["avg_pts_a"]
         adj_b = resultado["avg_pts_b"]
         if partidos_a_franq:
-        pts_franq_a = [p["pts_favor"] for p in partidos_a_franq]
-        adj_a = round(sum(pts_franq_a) / len(pts_franq_a), 1)
+            pts_franq_a = [p["pts_favor"] for p in partidos_a_franq]
+            adj_a = round(sum(pts_franq_a) / len(pts_franq_a), 1)
         if partidos_b_franq:
-        pts_franq_b = [p["pts_favor"] for p in partidos_b_franq]
-        adj_b = round(sum(pts_franq_b) / len(pts_franq_b), 1)
+            pts_franq_b = [p["pts_favor"] for p in partidos_b_franq]
+            adj_b = round(sum(pts_franq_b) / len(pts_franq_b), 1)
 
         std_a = resultado["std_pts_a"] or 5
         std_b = resultado["std_pts_b"] or 5
