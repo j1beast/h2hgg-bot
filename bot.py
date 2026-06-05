@@ -62,6 +62,11 @@ def init_db():
         acierto_ganador INTEGER,
         acierto_ou INTEGER,
         procesado INTEGER DEFAULT 0
+        prob_h2h REAL,
+        prob_equipo REAL,
+        prob_h2h_eq REAL,
+        prob_forma REAL,
+        prob_h2h_rec REAL,
     )''')
     conn.commit()
     conn.close()
@@ -202,11 +207,12 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis):
     ganador = jugador_a if analisis["prob_a"] > analisis["prob_b"] else jugador_b
     cuota_ganador = analisis["cuota_a"] if analisis["prob_a"] > analisis["prob_b"] else analisis["cuota_b"]
     c.execute('''INSERT INTO predicciones
-        (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador, linea_total, cuota_over, cuota_under, prediccion_ou, fecha_prediccion, procesado)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,0)''',
+       (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador, linea_total, cuota_over, cuota_under, prediccion_ou, fecha_prediccion, procesado, prob_h2h, prob_equipo, prob_h2h_eq, prob_forma, prob_h2h_rec)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?)''',
         (jugador_a, jugador_b, franq_a, franq_b, ganador, cuota_ganador,
          analisis.get("linea_total"), analisis.get("over_total"), analisis.get("under_total"),
-         analisis.get("under_total"), prediccion_ou, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+        analisis.get("under_total"), prediccion_ou, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        analisis.get("prob_h2h"), analisis.get("prob_equipo"), analisis.get("prob_h2h_eq"), analisis.get("prob_forma"), analisis.get("prob_h2h_rec"))))
     conn.commit()
     conn.close()
 
@@ -596,6 +602,11 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         resultado["over_total"] = prob_to_odds(confianza_total)
         resultado["under_total"] = prob_to_odds(1 - confianza_total)
         resultado["confianza"] = calcular_confianza(resultado, partidos_a, partidos_b)
+        resultado["prob_h2h"] = round(prob_h2h, 4)
+        resultado["prob_equipo"] = round(prob_equipo, 4)
+        resultado["prob_h2h_eq"] = round(prob_h2h_eq, 4)
+        resultado["prob_forma"] = round(prob_forma, 4)
+        resultado["prob_h2h_rec"] = round(prob_h2h_rec, 4)
 
     return resultado
 
