@@ -207,7 +207,6 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis):
         (jugador_a, jugador_b, franq_a, franq_b, ganador, cuota_ganador,
          analisis.get("linea_total"), analisis.get("over_total"), analisis.get("under_total"),
          analisis.get("under_total"), prediccion_ou, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
-         datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
     conn.commit()
     conn.close()
 
