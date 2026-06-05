@@ -62,12 +62,12 @@ def init_db():
         acierto_ganador INTEGER,
         acierto_ou INTEGER,
         procesado INTEGER DEFAULT 0
-        prob_h2h REAL,
-        prob_equipo REAL,
-        prob_h2h_eq REAL,
-        prob_forma REAL,
-        prob_h2h_rec REAL
     )''')
+    for col in ["prob_h2h", "prob_equipo", "prob_h2h_eq", "prob_forma", "prob_h2h_rec"]:
+        try:
+            c.execute(f"ALTER TABLE predicciones ADD COLUMN {col} REAL")
+        except:
+            pass
     conn.commit()
     conn.close()
 
