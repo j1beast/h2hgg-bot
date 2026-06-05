@@ -211,7 +211,7 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis):
        VALUES (?,?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?)''',
         (jugador_a, jugador_b, franq_a, franq_b, ganador, cuota_ganador,
          analisis.get("linea_total"), analisis.get("over_total"), analisis.get("under_total"),
-        analisis.get("under_total"), prediccion_ou, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+       prediccion_ou, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
        analisis.get("prob_h2h"), analisis.get("prob_equipo"), analisis.get("prob_h2h_eq"), analisis.get("prob_forma"), analisis.get("prob_h2h_rec")))
     conn.commit()
     conn.close()
