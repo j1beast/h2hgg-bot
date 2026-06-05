@@ -495,7 +495,7 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
     partidos_a_franq = [p for p in partidos_a if p.get("franquicia", "").upper() == franq_a.upper()]
     partidos_b_franq = [p for p in partidos_b if p.get("franquicia", "").upper() == franq_b.upper()]
     if partidos_a_franq and partidos_b_franq:
-       peso_a_franq = sum(calcular_peso_fecha(p.get("fecha")) for p in partidos_a_franq)
+        peso_a_franq = sum(calcular_peso_fecha(p.get("fecha")) for p in partidos_a_franq)
         peso_b_franq = sum(calcular_peso_fecha(p.get("fecha")) for p in partidos_b_franq)
         win_rate_a = sum(calcular_peso_fecha(p.get("fecha")) for p in partidos_a_franq if p["gano"]) / peso_a_franq if peso_a_franq > 0 else 0.5
         win_rate_b = sum(calcular_peso_fecha(p.get("fecha")) for p in partidos_b_franq if p["gano"]) / peso_b_franq if peso_b_franq > 0 else 0.5
