@@ -1108,22 +1108,23 @@ async def test_coolbet(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def test_odds_api(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         return
-    await update.message.reply_text("🔍 Buscando ligas basketball...")
+    await update.message.reply_text("🔍 Buscando H2H GG en todas las ligas...")
     try:
         API_KEY = "4ffc305b73bbd6e19d68324799824ec0ab43628f68acc6332e137dafd01e45f4"
-        r = requests.get(
-            "https://api.odds-api.io/v3/events",
-            params={"apiKey": API_KEY, "sport": "basketball"},
-            timeout=10
-        )
-        data = r.json()
-        eventos = data if isinstance(data, list) else data.get("data", [])
-        ligas = list(set([str(e.get("league", {}).get("name", "?")) for e in eventos]))
-        ligas_gg = [l for l in ligas if "gg" in l.lower() or "h2h" in l.lower() or "ebasket" in l.lower()]
-        msg = f"Basketball eventos: {len(eventos)}\n"
-        msg += f"Ligas GG/H2H: {ligas_gg}\n"
-        msg += f"Todas las ligas: {ligas[:30]}"
-        await update.message.reply_text(msg[:4000])
+        for sport in ["basketball", "esports"]:
+            r = requests.get(
+                "https://api.odds-api.io/v3/events",
+                params={"apiKey": API_KEY, "sport": sport, "status": "upcoming"},
+                timeout=10
+            )
+            data = r.json()
+            eventos = data if isinstance(data, list) else data.get("data", [])
+            ligas = list(set([str(e.get("league", {}).get("name", "?")) for e in eventos]))
+            gg = [l for l in ligas if "gg" in l.lower() or "h2h" in l.lower() or "ebasket" in l.lower() or "electronic" in l.lower()]
+            if gg:
+                await update.message.reply_text(f"✅ Encontrado en {sport}: {gg}")
+                return
+        await update.message.reply_text("❌ No encontrado en ningún sport")
     except Exception as e:
         await update.message.reply_text(f"❌ Error: {e}")
     
