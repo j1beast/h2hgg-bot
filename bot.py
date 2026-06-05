@@ -243,7 +243,9 @@ def verificar_predicciones():
             c.execute("SELECT prediccion_ou FROM predicciones WHERE id=?", (pred_id,))
             row_ou = c.fetchone()
             prediccion_ou = row_ou[0] if row_ou else "Over"
-            if linea_total and prediccion_ou == "Over":
+            if linea_total is None:
+                acierto_ou = 0
+            elif prediccion_ou == "Over":
                 acierto_ou = 1 if total_real > linea_total else 0
             else:
                 acierto_ou = 1 if total_real < linea_total else 0
