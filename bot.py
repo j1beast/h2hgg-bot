@@ -1108,21 +1108,21 @@ async def test_coolbet(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def test_odds_api(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         return
-    await update.message.reply_text("🔍 Consultando Odds-API...")
+    await update.message.reply_text("🔍 Buscando ligas de eBasketball...")
     try:
         API_KEY = "4ffc305b73bbd6e19d68324799824ec0ab43628f68acc6332e137dafd01e45f4"
         r = requests.get(
-            "https://api.odds-api.io/v3/sports",
-            params={"apiKey": API_KEY},
+            "https://api.odds-api.io/v3/leagues",
+            params={"apiKey": API_KEY, "sport": "Basketball"},
             timeout=10
         )
         data = r.json()
-        sports = [s.get("name", "") or s.get("key", "") for s in data] if isinstance(data, list) else list(data.keys())
-        basket = [s for s in sports if "basket" in s.lower() or "ebasket" in s.lower()]
-        msg = f"✅ Sports disponibles: {len(sports)}\n"
-        msg += f"Basketball: {basket[:10]}\n"
-        msg += f"Primeros 5: {sports[:5]}"
-        await update.message.reply_text(msg)
+        ligas = data if isinstance(data, list) else data.get("data", [])
+        ebasket = [l for l in ligas if "basket" in str(l).lower() and "e" in str(l).lower()]
+        msg = f"Total ligas Basketball: {len(ligas)}\n"
+        msg += f"eBasketball: {ebasket[:5]}\n"
+        msg += f"Primeras 10: {[l.get('name') or l.get('key') or str(l)[:50] for l in ligas[:10]]}"
+        await update.message.reply_text(msg[:4000])
     except Exception as e:
         await update.message.reply_text(f"❌ Error: {e}")
     
