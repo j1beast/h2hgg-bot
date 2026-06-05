@@ -63,9 +63,9 @@ def init_db():
         acierto_ou INTEGER,
         procesado INTEGER DEFAULT 0
     )''')
-    for col in ["prob_h2h", "prob_equipo", "prob_h2h_eq", "prob_forma", "prob_h2h_rec"]:
+    for col, tipo in [("prediccion_ou", "TEXT"), ("prob_h2h", "REAL"), ("prob_equipo", "REAL"), ("prob_h2h_eq", "REAL"), ("prob_forma", "REAL"), ("prob_h2h_rec", "REAL")]:
         try:
-            c.execute(f"ALTER TABLE predicciones ADD COLUMN {col} REAL")
+            c.execute(f"ALTER TABLE predicciones ADD COLUMN {col} {tipo}")
         except:
             pass
     conn.commit()
