@@ -352,7 +352,9 @@ async def get_cuotas_coolbet():
                             continue
         return cuotas
     except Exception as e:
+        import traceback
         print(f"Error scraping Coolbet: {e}")
+        print(traceback.format_exc())
         return {}
         
 def calcular_peso_fecha(fecha_str):
