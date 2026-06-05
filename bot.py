@@ -348,6 +348,27 @@ def buscar_partidos_jugador_db(jugador):
             partidos.append({"pts_favor": sc_a, "pts_contra": sc_h, "gano": sc_a > sc_h, "franquicia": away_f, "fecha": fecha})
     return partidos
 
+def buscar_matchup_franquicias(franq_a, franq_b):
+    conn = get_db()
+    c = conn.cursor()
+    fa = franq_a.upper()
+    fb = franq_b.upper()
+    c.execute('''SELECT COUNT(*) as total,
+                 SUM(CASE WHEN UPPER(home_franquicia)=? AND score_home > score_away THEN 1
+                          WHEN UPPER(away_franquicia)=? AND score_away > score_home THEN 1
+                          ELSE 0 END) as victorias_a
+                 FROM partidos
+                 WHERE (UPPER(home_franquicia)=? AND UPPER(away_franquicia)=?)
+                    OR (UPPER(home_franquicia)=? AND UPPER(away_franquicia)=?)''',
+              (fa, fa, fa, fb, fb, fa))
+    row = c.fetchone()
+    conn.close()
+    total = row[0] or 0
+    victorias_a = row[1] or 0
+    if total == 0:
+        return 0.5
+    return victorias_a / total
+
 # ─────────────────────────────────────────────
 # ANALISIS
 # ─────────────────────────────────────────────
@@ -448,6 +469,10 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         resultado["h2h_equipos"] = 0
         resultado["h2h_wins_eq_a"] = 0
 
+    # Matchup de franquicias
+    prob_matchup = buscar_matchup_franquicias(franq_a, franq_b)
+    resultado["matchup_total"] = prob_matchup
+    
     # Rendimiento con equipo actual (25%)
     partidos_a_franq = [p for p in partidos_a if p.get("franquicia", "").upper() == franq_a.upper()]
     partidos_b_franq = [p for p in partidos_b if p.get("franquicia", "").upper() == franq_b.upper()]
@@ -491,9 +516,9 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
     # Probabilidad final ponderada
     pocos_partidos_franq = (resultado.get("partidos_a_franq") or 0) < 5 or (resultado.get("partidos_b_franq") or 0) < 5
     if pocos_partidos_franq:
-        prob_final_a = (prob_h2h * 0.30) + (prob_equipo * 0.10) + (prob_h2h_eq * 0.20) + (prob_forma * 0.25) + (prob_h2h_rec * 0.15)
+        prob_final_a = (prob_h2h * 0.30) + (prob_equipo * 0.08) + (prob_forma * 0.25) + (prob_h2h_rec * 0.17) + (prob_matchup * 0.20)
     else:
-        prob_final_a = (prob_h2h * 0.25) + (prob_equipo * 0.25) + (prob_h2h_eq * 0.20) + (prob_forma * 0.20) + (prob_h2h_rec * 0.10)
+        prob_final_a = (prob_h2h * 0.25) + (prob_equipo * 0.22) + (prob_forma * 0.20) + (prob_h2h_rec * 0.13) + (prob_matchup * 0.20)
     prob_final_b = 1 - prob_final_a
     resultado["prob_a"] = round(prob_final_a, 4)
     resultado["prob_b"] = round(prob_final_b, 4)
