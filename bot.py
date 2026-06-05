@@ -330,13 +330,12 @@ async def get_cuotas_coolbet():
             await page.wait_for_timeout(5000)
             print("Datos esperados, cerrando browser...")
             await browser.close()
-            print(f"Respuestas capturadas: {len(respuestas)}")
-            await browser.close()
 
-            for data in respuestas:
-                fixtures = data.get("fixtures") or data.get("events") or data.get("data") or []
-                if isinstance(fixtures, list):
-                    for fixture in fixtures:
+        print(f"Respuestas capturadas: {len(respuestas)}")
+        for data in respuestas:
+            fixtures = data.get("fixtures") or data.get("events") or data.get("data") or []
+            if isinstance(fixtures, list):
+                for fixture in fixtures:
                         try:
                             home = fixture.get("home", {}).get("name", "") or fixture.get("homeName", "")
                             away = fixture.get("away", {}).get("name", "") or fixture.get("awayName", "")
