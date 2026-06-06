@@ -1207,11 +1207,16 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     market_id = f"m-f-{event_id}-ESNMOWINNER2W"
                 url_market = f"https://www.betsson.es/api/sb/v1/widgets/event-market/v1?includescoreboards=true&marketids={market_id}"
                 r_market = requests.get(url_market, headers=headers, timeout=10)
+                print(f"Market URL status: {r_market.status_code}")
                 if r_market.status_code == 200:
                     mdata = r_market.json()
                     mdata_raw = mdata.get("data", {})
+                    print(f"Data keys: {list(mdata_raw.keys()) if isinstance(mdata_raw, dict) else 'lista'}")
                     mselections = mdata_raw.get("marketSelections", [])
-                    print(f"Selections: {len(mselections)} — {str(mselections[:2])[:300]}")
+                    mmarkets = mdata_raw.get("markets", [])
+                    print(f"Selections: {len(mselections)}, Markets: {len(mmarkets)}")
+                    if mmarkets:
+                        print(f"Primer market: {str(mmarkets[0])[:300]}")
                     if len(mselections) >= 2:
                         cuota_home = mselections[0].get("price")
                         cuota_away = mselections[1].get("price")
