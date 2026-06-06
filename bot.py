@@ -364,12 +364,13 @@ async def tarea_predicciones_automaticas(app_ref):
                             bs_under = betsson["cuota_under"]
                             if linea_bot and bs_linea:
                                 try:
-                                    if float(linea_bot) > float(bs_linea):
-                                        valor_ou = "✅ VALOR OVER"
-                                    elif float(linea_bot) < float(bs_linea):
-                                        valor_ou = "✅ VALOR UNDER"
-                                    else:
-                                        valor_ou = ""
+                                    if abs(float(linea_bot) - float(bs_linea)) >= 5:
+                            if float(linea_bot) > float(bs_linea):
+                                valor_ou = "✅ VALOR OVER"
+                            elif float(linea_bot) < float(bs_linea):
+                                valor_ou = "✅ VALOR UNDER"
+                        else:
+                            valor_ou = ""
                                 except:
                                     valor_ou = ""
                             msg += f"O/U línea {bs_linea}: Over `{bs_over}` / Under `{bs_under}` {valor_ou}\n"
