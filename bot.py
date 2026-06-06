@@ -1137,7 +1137,7 @@ async def test_odds_api(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         return
-    await update.message.reply_text("🔍 Probando API Betsson eventos...")
+    await update.message.reply_text("🔍 Probando API eventos Betsson...")
     try:
         headers = {
             "accept": "*/*",
@@ -1150,21 +1150,13 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "x-sb-user-context-id": "stc--1670310174",
             "cookie": "OPTIMIZELY_USER_ID=19e9a0c5-a0c5-4000-89a0c5de10.-.845; fabricBeta=FABRICBETA; aws-waf-token=db101459-20a5-466e-a428-f7783d9bd8a2:HQoAvxVYPmMCAAAA:3gaE8a3szI/kz0HZVeE28gWL0pMdUbgxlGNnHgCSWhof7SL0mRW9ekrn3nWq3kSNZ7VpHICvd777oQISB6fz2azhgSMYQgqQpeArFXtDb0hUIR12IOIMGxc+eSEqSQy4TqsJITvUyRcqnOvJdqx2ZKPH2m0ZDmQpsrqx/rUUZvSlnGxKGbRs/Ks+Tw6R9Rk=; cfidsgib-w-betssones=9jyEFq/gh3coXxafbswu3Uq3mTD/6/7tHAw5yYcisXf/mHqaDCIYcJvdvAB1Gx2vtEqHj/SlHSAU6YkcHq8c1gT/EnrpQ7AU3w5pV4t9LBdrw9y14v13Y2X8bKIsAtyDkv1dtz8Eog7tay41fMz5uIN+nSkq9pkYm6SQ1Q=="
         }
-        # Probar varias URLs con el competition ID
-        urls = [
-            "https://www.betsson.es/sb/fe-api/v1/events?competitionIds=25847&includeScoreboards=true",
-            "https://www.betsson.es/sb/fe-api/v2/events?competitionIds=25847",
-            "https://www.betsson.es/sb/fe-api/v1/live-events?competitionIds=25847",
-        ]
-        for url in urls:
-            r = requests.get(url, headers=headers, timeout=15)
-            print(f"URL: {url} → Status: {r.status_code}")
-            print(f"Response: {r.text[:300]}")
-            if r.status_code == 200:
-                data = r.json()
-                await update.message.reply_text(f"✅ {url[-50:]}\nKeys: {list(data.keys()) if isinstance(data, dict) else 'lista'}\nData: {str(data)[:300]}")
-                return
-        await update.message.reply_text("❌ Ninguna URL funcionó")
+        url = "https://www.betsson.es/api/sb/v1/widgets/events/v2?categoryIds=4&competitionIds=25847&eventPhase=Live&eventSortBy=StartDate&includeSkeletons=true&maxMarketCount=1&pageNumber=1&regionIds=2438&priceFormats=1"
+        r = requests.get(url, headers=headers, timeout=15)
+        print(f"Status: {r.status_code}")
+        print(f"Response: {r.text[:500]}")
+        data = r.json()
+        msg = f"✅ Status: {r.status_code}\nKeys: {list(data.keys()) if isinstance(data, dict) else 'lista'}\nData: {str(data)[:500]}"
+        await update.message.reply_text(msg[:4000])
     except Exception as e:
         await update.message.reply_text(f"❌ Error: {e}")
         
