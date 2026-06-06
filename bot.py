@@ -1204,13 +1204,17 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 templates_disponibles = [m.get("marketTemplateId") for m in all_markets if m.get("eventId") == event_id]
                 print(f"Templates para {event_id}: {templates_disponibles}")
                 for market in all_markets:
-                    if market.get("eventId") == event_id and market.get("marketTemplateId") in ["ESNMOWINNER2W", "MW2W", "EMW2W", "MWINNER2W"]:
-                        print(f"Market keys: {list(market.keys())}")
-                        outcomes = market.get("outcomes") or market.get("selections") or market.get("prices") or []
-                        if len(outcomes) >= 2:
-                            cuota_home = outcomes[0].get("price") or outcomes[0].get("decimalPrice")
-                            cuota_away = outcomes[1].get("price") or outcomes[1].get("decimalPrice")
-                        break
+                    market_id = f"m-f-{event_id}-ESNMOWINNER2W"
+                url_market = f"https://www.betsson.es/api/sb/v1/widgets/event-market/v1?includescoreboards=true&marketids={market_id}"
+                r_market = requests.get(url_market, headers=headers, timeout=10)
+                if r_market.status_code == 200:
+                    mdata = r_market.json()
+                    mdata_raw = mdata.get("data", {})
+                    mselections = mdata_raw.get("marketSelections", [])
+                    print(f"Selections: {len(mselections)} — {str(mselections[:2])[:300]}")
+                    if len(mselections) >= 2:
+                        cuota_home = mselections[0].get("price")
+                        cuota_away = mselections[1].get("price")
                 print(f"Evento: {home} vs {away} — cuotas: {cuota_home}/{cuota_away}")
                 if home and away:
                     home_j = extraer_nombre_jugador(home).upper()
