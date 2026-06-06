@@ -277,7 +277,7 @@ async def tarea_predicciones_automaticas(app_ref):
                 if partidos_a and partidos_b:
                     analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
                     guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis)
-                   if analisis.get("confianza") in ["🟢 Alta", "🟡 Media"]:
+                if analisis.get("confianza") in ["🟢 Alta", "🟡 Media"]:
                         key_ab = f"{jugador_a}_vs_{jugador_b}"
                         key_ba = f"{jugador_b}_vs_{jugador_a}"
                         betsson = cuotas_betsson.get(key_ab) or cuotas_betsson.get(key_ba)
