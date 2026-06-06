@@ -1194,6 +1194,10 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 home = participants[0].get("label", "")
                 away = participants[1].get("label", "")
                 event_id = event.get("globalId", "").split(".")[-1]
+                print(f"event_id buscado: {event_id}")
+                all_markets = data_raw.get("markets", [])
+                market_ids_disponibles = [m.get("eventId") for m in all_markets[:5]]
+                print(f"market eventIds disponibles: {market_ids_disponibles}")
                 cuota_home = None
                 cuota_away = None
                 all_markets = data_raw.get("markets", [])
