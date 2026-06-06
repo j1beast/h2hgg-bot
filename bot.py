@@ -1201,8 +1201,10 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 cuota_home = None
                 cuota_away = None
                 all_markets = data_raw.get("markets", [])
+                templates_disponibles = [m.get("marketTemplateId") for m in all_markets if m.get("eventId") == event_id]
+                print(f"Templates para {event_id}: {templates_disponibles}")
                 for market in all_markets:
-                    if market.get("eventId") == event_id and market.get("marketTemplateId") in ["ESNMOWINNER2W", "MW2W", "EMW2W"]:
+                    if market.get("eventId") == event_id and market.get("marketTemplateId") in ["ESNMOWINNER2W", "MW2W", "EMW2W", "MWINNER2W"]:
                         selections = data_raw.get("marketSelections", [])
                         market_id = market.get("id", "")
                         market_selections = [s for s in selections if s.get("marketId") == market_id]
