@@ -71,7 +71,9 @@ def init_db():
         ("linea_betsson_ou", "REAL"), ("cuota_betsson_over", "REAL"),
         ("cuota_betsson_under", "REAL"),
         ("es_valor", "INTEGER"),
-        ("enviado_canal", "INTEGER")
+        ("enviado_canal", "INTEGER"),
+        ("pts_real_a", "INTEGER"),
+        ("pts_real_b", "INTEGER")
     ]:
         try:
             c.execute(f"ALTER TABLE predicciones ADD COLUMN {col} {tipo}")
@@ -277,8 +279,11 @@ def verificar_predicciones():
             acierto_ou = 1 if total_real > linea_betsson_ou else 0
         else:
             acierto_ou = 1 if total_real < linea_betsson_ou else 0
-        c.execute('''UPDATE predicciones SET resultado_real=?, acierto_ganador=?, acierto_ou=?, procesado=1
-                     WHERE id=?''', (ganador_real, acierto_ganador, acierto_ou, pred_id))
+        pts_a = ultimo["pts_a"]
+        pts_b = ultimo["pts_b"]
+        c.execute('''UPDATE predicciones SET resultado_real=?, acierto_ganador=?, acierto_ou=?, procesado=1,
+                     pts_real_a=?, pts_real_b=?
+                     WHERE id=?''', (ganador_real, acierto_ganador, acierto_ou, pts_a, pts_b, pred_id))
     conn.commit()
     conn.close()
 
