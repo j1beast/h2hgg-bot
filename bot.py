@@ -1184,11 +1184,30 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for event in events_list:
                 if not isinstance(event, dict):
                     continue
-                home = event.get("homeName") or event.get("home", {}).get("name", "") or event.get("participants", [{}])[0].get("name", "")
-                away = event.get("awayName") or event.get("away", {}).get("name", "") or event.get("participants", [{}])[-1].get("name", "")
-                print(f"Evento: {home} vs {away} — keys: {list(event.keys())[:10]}")
+                participants = event.get("participants", [])
+                if len(participants) < 2:
+                    continue
+                home = participants[0].get("label", "")
+                away = participants[1].get("label", "")
+                markets = event.get("markets", [])
+                cuota_home = None
+                cuota_away = None
+                for market in markets:
+                    outcomes = market.get("outcomes", [])
+                    if len(outcomes) >= 2:
+                        cuota_home = outcomes[0].get("price")
+                        cuota_away = outcomes[1].get("price")
+                        break
+                print(f"Evento: {home} vs {away} — cuotas: {cuota_home}/{cuota_away}")
                 if home and away:
-                    cuotas[f"{home}_vs_{away}"] = {"home": home, "away": away}
+                    home_j = extraer_nombre_jugador(home).upper()
+                    away_j = extraer_nombre_jugador(away).upper()
+                    cuotas[f"{home_j}_vs_{away_j}"] = {
+                        "cuota_a": cuota_home,
+                        "cuota_b": cuota_away,
+                        "home": home_j,
+                        "away": away_j
+                    }
         msg = f"Partidos encontrados: {len(cuotas)}\n"
         for k, v in list(cuotas.items())[:5]:
             msg += f"• {v['home']} vs {v['away']}\n"
