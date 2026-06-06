@@ -805,7 +805,7 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
 def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson=None):
     msg = f"🏀 *{jugador_a} vs {jugador_b}*\n"
     msg += f"{franq_a} — {franq_b}\n\n"
-   msg += f"━━━━━━━━━━━━━━━\n"
+    msg += f"━━━━━━━━━━━━━━━\n"
     msg += f"📈 *ANÁLISIS*\n"
     msg += f"━━━━━━━━━━━━━━━\n"
 
