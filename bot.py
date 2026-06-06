@@ -1199,6 +1199,13 @@ async def renovar_cookies_betsson():
         return None
 async def get_cuotas_betsson():
     try:
+        cookies_str = cargar_cookies_betsson()
+        if not cookies_str:
+            cookies_str = await renovar_cookies_betsson()
+        if not cookies_str:
+            print("No se pudieron obtener cookies de Betsson")
+            return {}
+
         headers = {
             "accept": "application/json, text/plain, */*",
             "accept-language": "es-ES,es;q=0.9",
@@ -1227,7 +1234,7 @@ async def get_cuotas_betsson():
             "x-sb-static-context-id": "stc--1670310174",
             "x-sb-type": "b2b",
             "x-sb-user-context-id": "stc--1670310174",
-            "cookie": "OPTIMIZELY_USER_ID=19e9a0c5-a0c5-4000-89a0c5de10.-.845; fabricBeta=FABRICBETA; aws-waf-token=db101459-20a5-466e-a428-f7783d9bd8a2:HQoAvxVYPmMCAAAA:3gaE8a3szI/kz0HZVeE28gWL0pMdUbgxlGNnHgCSWhof7SL0mRW9ekrn3nWq3kSNZ7VpHICvd777oQISB6fz2azhgSMYQgqQpeArFXtDb0hUIR12IOIMGxc+eSEqSQy4TqsJITvUyRcqnOvJdqx2ZKPH2m0ZDmQpsrqx/rUUZvSlnGxKGbRs/Ks+Tw6R9Rk=; cfidsgib-w-betssones=y98pr9Xre6i0i8gHlNna1sfT7qDyXfruWDTuuGQaBXmApoko9gFx0suSZHmDZpwD6GlToFQT3nBltVVpK1FvyWsGO7vs0sK3pwarYNBAGtY2bkej04/TqkhtZzpOeRt408/zvt8co65ETLvhe3M5tqGtWSDWzH1WLzzyYg=="
+            "cookie": cookies_str
         }
         cuotas = {}
         from datetime import timezone
