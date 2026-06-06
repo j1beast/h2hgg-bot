@@ -337,10 +337,11 @@ async def get_cuotas_coolbet():
             page.on("websocket", lambda ws: ws.on("framereceived", lambda payload: ws_mensajes.append(payload)))
             
             async def capturar_respuesta(response):
-                if response.status == 200 and "betsson.es" in response.url:
+                if response.status == 200 and ("route-data" in response.url or "liveEvents" in response.url or "events?cee" in response.url):
                     try:
                         data = await response.json()
                         print(f"URL: {response.url[:120]}")
+                        print(f"CONTENIDO: {str(data)[:500]}")
                         respuestas.append({"url": response.url, "data": data})
                     except:
                         pass
