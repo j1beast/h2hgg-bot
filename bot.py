@@ -1171,7 +1171,7 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
         # Llamar live y upcoming
         cuotas = {}
-       for phase in ["Live", "Upcoming"]:
+        for phase in ["Live", "Upcoming"]:
             url = f"https://www.betsson.es/api/sb/v1/widgets/events-table/v2?categoryIds=4&competitionIds=25847&eventPhase={phase}&eventSortBy=StartDate&includeSkeleton=true&maxMarketCount=1&pageNumber=1&regionIds=243&priceFormats=1"
             r = requests.get(url, headers=headers, timeout=15)
             data = r.json()
