@@ -1242,7 +1242,7 @@ async def get_cuotas_betsson():
         manana = ahora + timedelta(hours=24)
         starts_after = ahora.strftime("%Y-%m-%dT%H:%M:%SZ")
         starts_before = manana.strftime("%Y-%m-%dT%H:%M:%SZ")
-        url = f"https://www.betsson.es/api/sb/v1/widgets/events-table/v2?categoryIds=4&competitionIds=25847&eventPhase=Prematch&eventSortBy=StartDate&includeSkeleton=true&maxMarketCount=1&pageNumber=1&startsBefore={starts_before}&startsOnOrAfter={starts_after}&priceFormats=1"
+        url = f"https://www.betsson.es/api/sb/v1/widgets/events-table/v2?categoryIds=4&competitionIds=25847&eventPhase=Prematch&eventSortBy=StartDate&includeSkeleton=true&maxMarketCount=2&pageNumber=1&startsBefore={starts_before}&startsOnOrAfter={starts_after}&priceFormats=1"
         r = requests.get(url, headers=headers, timeout=15)
         if r.status_code != 200:
             print(f"Betsson status {r.status_code}, renovando cookies...")
