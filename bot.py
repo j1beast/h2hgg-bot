@@ -333,7 +333,7 @@ async def get_cuotas_coolbet():
             print("Cargando página Betsson...")
             respuestas = []
             async def capturar_respuesta(response):
-                if "sb/fe-api" in response.url or "sb/v1" in response.url:
+                if "betsson.es/sb" in response.url or "betsson.es/api/sb" in response.url:
                     if response.status == 200:
                         try:
                             data = await response.json()
