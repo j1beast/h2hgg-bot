@@ -1207,7 +1207,13 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     if market.get("eventId") == event_id and market.get("marketTemplateId") in ["ESNMOWINNER2W", "MW2W", "EMW2W", "MWINNER2W"]:
                         selections = data_raw.get("marketSelections", [])
                         market_id = market.get("id", "")
+                        print(f"market_id: {market_id}")
+                        print(f"Total selections: {len(selections)}")
+                        if selections:
+                            print(f"Primera selection keys: {list(selections[0].keys())}")
+                            print(f"Primera selection: {str(selections[0])[:200]}")
                         market_selections = [s for s in selections if s.get("marketId") == market_id]
+                        print(f"Selections para este market: {len(market_selections)}")
                         if len(market_selections) >= 2:
                             cuota_home = market_selections[0].get("price")
                             cuota_away = market_selections[1].get("price")
