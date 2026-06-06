@@ -330,8 +330,8 @@ async def tarea_predicciones_automaticas(app_ref):
                         if not hay_valor_ganador and not hay_valor_ou:
                             continue
                         msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis)
-                        valor_a = "✅ VALOR" if bot_a > cb_a else ""
-                        valor_b = "✅ VALOR" if bot_b > cb_b else ""
+                        valor_a = "✅ VALOR" if cb_a > bot_a else ""
+                        valor_b = "✅ VALOR" if cb_b > bot_b else ""
                         msg += f"\n📊 *Betsson:*\n"
                         msg += f"{jugador_a}: `{cb_a}` {valor_a}\n"
                         msg += f"{jugador_b}: `{cb_b}` {valor_b}\n"
