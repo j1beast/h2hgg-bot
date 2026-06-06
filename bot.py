@@ -1171,17 +1171,21 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
         # Llamar upcoming
         cuotas = {}
-        for phase in ["Upcoming"]:
-            url = f"https://www.betsson.es/api/sb/v1/widgets/events-table/v2?categoryIds=4&competitionIds=25847&eventPhase=Upcoming&eventSortBy=StartDate&includeSkeleton=true&maxMarketCount=1&pageNumber=1&regionIds=243&priceFormats=1&includeMarkets=true"
-            r = requests.get(url, headers=headers, timeout=15)
-            data = r.json()
-            print(f"Phase {phase} - Keys data: {list(data.keys())}")
-            data_raw = data.get("data", {})
-            events_list = data_raw.get("events", [])
-            print(f"Eventos encontrados: {len(events_list)}")
-            if events_list:
-                print(f"Primer evento completo: {str(events_list[0])[:800]}")
-            for event in events_list:
+        from datetime import timezone
+        ahora = datetime.now(timezone.utc)
+        manana = ahora + timedelta(hours=24)
+        starts_after = ahora.strftime("%Y-%m-%dT%H:%M:%SZ")
+        starts_before = manana.strftime("%Y-%m-%dT%H:%M:%SZ")
+        url = f"https://www.betsson.es/api/sb/v1/widgets/events-table/v2?categoryIds=4&competitionIds=25847&eventPhase=Prematch&eventSortBy=StartDate&includeSkeleton=true&maxMarketCount=1&pageNumber=1&startsBefore={starts_before}&startsOnOrAfter={starts_after}&priceFormats=1"
+        r = requests.get(url, headers=headers, timeout=15)
+        data = r.json()
+        print(f"Status: {r.status_code}")
+        data_raw = data.get("data", {})
+        events_list = data_raw.get("events", [])
+        print(f"Eventos encontrados: {len(events_list)}")
+        if events_list:
+            print(f"Primer evento completo: {str(events_list[0])[:800]}")
+        for event in events_list:
                 if not isinstance(event, dict):
                     continue
                 participants = event.get("participants", [])
