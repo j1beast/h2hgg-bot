@@ -1205,18 +1205,11 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 print(f"Templates para {event_id}: {templates_disponibles}")
                 for market in all_markets:
                     if market.get("eventId") == event_id and market.get("marketTemplateId") in ["ESNMOWINNER2W", "MW2W", "EMW2W", "MWINNER2W"]:
-                        selections = data_raw.get("marketSelections", [])
-                        market_id = market.get("id", "")
-                        print(f"market_id: {market_id}")
-                        print(f"Total selections: {len(selections)}")
-                        if selections:
-                            print(f"Primera selection keys: {list(selections[0].keys())}")
-                            print(f"Primera selection: {str(selections[0])[:200]}")
-                        market_selections = [s for s in selections if s.get("marketId") == market_id]
-                        print(f"Selections para este market: {len(market_selections)}")
-                        if len(market_selections) >= 2:
-                            cuota_home = market_selections[0].get("price")
-                            cuota_away = market_selections[1].get("price")
+                        print(f"Market completo: {str(market)[:400]}")
+                        outcomes = market.get("outcomes") or market.get("selections") or market.get("prices") or []
+                        if len(outcomes) >= 2:
+                            cuota_home = outcomes[0].get("price") or outcomes[0].get("decimalPrice")
+                            cuota_away = outcomes[1].get("price") or outcomes[1].get("decimalPrice")
                         break
                 print(f"Evento: {home} vs {away} — cuotas: {cuota_home}/{cuota_away}")
                 if home and away:
