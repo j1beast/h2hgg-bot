@@ -323,8 +323,12 @@ async def get_cuotas_coolbet():
             )
             await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             page = await context.new_page()
-            from playwright_stealth import stealth
-            stealth(page)
+            await page.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3]});
+                Object.defineProperty(navigator, 'languages', {get: () => ['es-ES', 'es']});
+                window.chrome = {runtime: {}};
+            """)
 
             # Interceptar las respuestas de la API
             respuestas = []
