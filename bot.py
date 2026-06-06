@@ -258,6 +258,7 @@ async def tarea_predicciones_automaticas(app_ref):
     while True:
         try:
             proximos = get_upcoming()
+            cuotas_betsson = await get_cuotas_betsson()
             for ev in proximos:
                 home = ev.get("home", {}).get("name", "")
                 away = ev.get("away", {}).get("name", "")
@@ -273,6 +274,19 @@ async def tarea_predicciones_automaticas(app_ref):
                     guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis)
                     if analisis.get("confianza") == "🟢 Alta":
                         msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis)
+                        key_ab = f"{jugador_a}_vs_{jugador_b}"
+                        key_ba = f"{jugador_b}_vs_{jugador_a}"
+                        betsson = cuotas_betsson.get(key_ab) or cuotas_betsson.get(key_ba)
+                        if betsson:
+                            bot_a = analisis.get("cuota_a", 0)
+                            bot_b = analisis.get("cuota_b", 0)
+                            cb_a = betsson["cuota_a"] if key_ab in cuotas_betsson else betsson["cuota_b"]
+                            cb_b = betsson["cuota_b"] if key_ab in cuotas_betsson else betsson["cuota_a"]
+                            valor_a = "✅ VALOR" if bot_a > cb_a else ""
+                            valor_b = "✅ VALOR" if bot_b > cb_b else ""
+                            msg += f"\n📊 *Betsson:*\n"
+                            msg += f"{jugador_a}: `{cb_a}` {valor_a}\n"
+                            msg += f"{jugador_b}: `{cb_b}` {valor_b}\n"
                         try:
                             await app_ref.bot.send_message(chat_id=CANAL_ID, text=msg, parse_mode="Markdown")
                         except Exception as e:
