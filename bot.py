@@ -332,6 +332,10 @@ async def get_cuotas_coolbet():
 
             print("Cargando página Betsson...")
             respuestas = []
+            ws_mensajes = []
+            
+            page.on("websocket", lambda ws: ws.on("framereceived", lambda payload: ws_mensajes.append(payload)))
+            
             async def capturar_respuesta(response):
                 if response.status == 200 and "betsson.es" in response.url:
                     try:
@@ -342,9 +346,12 @@ async def get_cuotas_coolbet():
                         pass
             page.on("response", capturar_respuesta)
             await page.goto("https://www.betsson.es/apuestas-deportivas/baloncesto/ebasketball/liga-h2h-gg-de-baloncesto-electronico-4-x-5-minu?tab=liveAndUpcoming", wait_until="domcontentloaded", timeout=20000)
-            print("Página cargada, esperando respuestas API...")
+            print("Página cargada, esperando datos...")
             await page.wait_for_timeout(15000)
-            print(f"URLs capturadas: {[r['url'][:80] for r in respuestas]}")
+            print(f"Respuestas HTTP: {len(respuestas)}")
+            print(f"Mensajes WebSocket: {len(ws_mensajes)}")
+            if ws_mensajes:
+                print(f"WS ejemplo: {str(ws_mensajes[0])[:300]}")
             await browser.close()
             
         print(f"Respuestas capturadas: {len(respuestas)}")
