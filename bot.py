@@ -1062,7 +1062,7 @@ async def pronostico(update: Update, context: ContextTypes.DEFAULT_TYPE):
         franq_b = partidos_b[0]["franquicia"] if partidos_b else "Equipo B"
 
     analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
-   msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis)
+    msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis)
     
     # Añadir cuotas Betsson si disponibles
     try:
