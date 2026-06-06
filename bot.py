@@ -69,7 +69,8 @@ def init_db():
         ("prob_forma", "REAL"), ("prob_h2h_rec", "REAL"),
         ("cuota_betsson_a", "REAL"), ("cuota_betsson_b", "REAL"),
         ("linea_betsson_ou", "REAL"), ("cuota_betsson_over", "REAL"),
-        ("cuota_betsson_under", "REAL")
+        ("cuota_betsson_under", "REAL"),
+        ("es_valor", "INTEGER")
     ]:
         try:
             c.execute(f"ALTER TABLE predicciones ADD COLUMN {col} {tipo}")
@@ -228,19 +229,20 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
         linea_bs = betsson.get("linea_ou")
         over_bs = betsson.get("cuota_over")
         under_bs = betsson.get("cuota_under")
-
+    es_valor = 1 if betsson and betsson.get("es_valor") else 0
+    
     c.execute('''INSERT INTO predicciones
        (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador,
         linea_total, cuota_over, cuota_under, prediccion_ou, fecha_prediccion, procesado,
         prob_h2h, prob_equipo, prob_h2h_eq, prob_forma, prob_h2h_rec,
         cuota_betsson_a, cuota_betsson_b, linea_betsson_ou, cuota_betsson_over, cuota_betsson_under)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?,?,?,?,?,?)''',
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?,?,?,?,?,?,?)''',
         (jugador_a, jugador_b, franq_a, franq_b, ganador, cuota_ganador,
          analisis.get("linea_total"), analisis.get("over_total"), analisis.get("under_total"),
          prediccion_ou, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
          analisis.get("prob_h2h"), analisis.get("prob_equipo"), analisis.get("prob_h2h_eq"),
          analisis.get("prob_forma"), analisis.get("prob_h2h_rec"),
-         cb_a, cb_b, linea_bs, over_bs, under_bs))
+         cb_a, cb_b, linea_bs, over_bs, under_bs, es_valor))
     conn.commit()
     conn.close()
 
@@ -306,6 +308,14 @@ async def tarea_predicciones_automaticas(app_ref):
                                        "cuota_over": betsson_pred.get("cuota_over"), "cuota_under": betsson_pred.get("cuota_under"),
                                        "linea_ou": betsson_pred.get("linea_ou")}
                     guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson=betsson_pred)
+                    # Si hay valor, actualizar es_valor
+                    if betsson_pred and (hay_valor_ganador or hay_valor_ou):
+                        conn_v = get_db()
+                        conn_v.execute('''UPDATE predicciones SET es_valor=1 
+                                         WHERE jugador_a=? AND jugador_b=? AND fecha_prediccion LIKE ?''',
+                                      (jugador_a, jugador_b, datetime.utcnow().strftime("%Y-%m-%d%")))
+                        conn_v.commit()
+                        conn_v.close()
                 if analisis.get("confianza") in ["🟢 Alta", "🟡 Media"]:
                         key_ab = f"{jugador_a}_vs_{jugador_b}"
                         key_ba = f"{jugador_b}_vs_{jugador_a}"
@@ -1213,6 +1223,20 @@ async def rendimiento(update: Update, context: ContextTypes.DEFAULT_TYPE):
             gan = gan or 0
             ou = ou or 0
             msg += f"{dia}: {gan}/{total} ganador ({round(gan/total*100,1)}%) | {ou}/{total} O/U ({round(ou/total*100,1)}%)\n"
+    # Stats de valor
+    conn3 = get_db()
+    c3 = conn3.cursor()
+    c3.execute("SELECT COUNT(*), SUM(acierto_ganador), SUM(acierto_ou) FROM predicciones WHERE procesado=1 AND es_valor=1")
+    rv = c3.fetchone()
+    conn3.close()
+    total_v = rv[0] or 0
+    if total_v > 0:
+        ag_v = rv[1] or 0
+        aou_v = rv[2] or 0
+        msg += f"\n🎯 *Predicciones con VALOR:*\n"
+        msg += f"Total: {total_v}\n"
+        msg += f"✅ Ganador: {ag_v}/{total_v} → {round(ag_v/total_v*100,1)}%\n"
+        msg += f"✅ O/U: {aou_v}/{total_v} → {round(aou_v/total_v*100,1)}%\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1285,7 +1309,36 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg += f"🔢 *OVER/UNDER*\n"
     msg += f"Predicciones: {len(racha_ou)} | Aciertos: {aciertos_ou}\n"
     msg += f"Últimas 10: {ultimas_ou}\n"
-    msg += f"{emoji_ou} Resultado: `{'+' if unidades_ou >= 0 else ''}{unidades_ou}u`\n"
+   msg += f"{emoji_ou} Resultado: `{'+' if unidades_ou >= 0 else ''}{unidades_ou}u`\n"
+    # Unidades solo de valor
+    conn_v = get_db()
+    c_v = conn_v.cursor()
+    c_v.execute('''SELECT ganador_predicho, resultado_real, acierto_ganador,
+                 prediccion_ou, acierto_ou,
+                 cuota_betsson_a, cuota_betsson_b,
+                 cuota_betsson_over, cuota_betsson_under,
+                 jugador_a, jugador_b
+                 FROM predicciones
+                 WHERE procesado=1 AND es_valor=1 AND cuota_betsson_a IS NOT NULL
+                 ORDER BY id ASC''')
+    rows_v = c_v.fetchall()
+    conn_v.close()
+    if rows_v:
+        u_g = 0.0
+        u_ou = 0.0
+        for row in rows_v:
+            gan_pred, res_real, ac_g, pred_ou, ac_ou, cb_a, cb_b, cb_over, cb_under, jug_a, jug_b = row
+            cuota_g = cb_a if gan_pred == jug_a else cb_b
+            if cuota_g and cuota_g > 1:
+                u_g += round(cuota_g - 1, 4) if ac_g == 1 else -1
+            cuota_ou = cb_over if pred_ou == "Over" else cb_under
+            if cuota_ou and cuota_ou > 1:
+                u_ou += round(cuota_ou - 1, 4) if ac_ou == 1 else -1
+        u_g = round(u_g, 2)
+        u_ou = round(u_ou, 2)
+        msg += f"\n🎯 *Solo predicciones VALOR:*\n"
+        msg += f"🏆 Ganador: `{'+' if u_g >= 0 else ''}{u_g}u` ({len(rows_v)} apuestas)\n"
+        msg += f"🔢 O/U: `{'+' if u_ou >= 0 else ''}{u_ou}u` ({len(rows_v)} apuestas)\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
     
 async def test_coolbet(update: Update, context: ContextTypes.DEFAULT_TYPE):
