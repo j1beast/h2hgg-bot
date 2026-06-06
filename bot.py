@@ -1220,8 +1220,8 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         print(f"Primera selection: {str(mselections[0])[:300]}")
                         print(f"Segunda selection: {str(mselections[1])[:300]}")
                     if len(mselections) >= 2:
-                        cuota_home = mselections[0].get("price")
-                        cuota_away = mselections[1].get("price")
+                        cuota_home = mselections[0].get("odds")
+                        cuota_away = mselections[1].get("odds")
                 print(f"Evento: {home} vs {away} — cuotas: {cuota_home}/{cuota_away}")
                 if home and away:
                     home_j = extraer_nombre_jugador(home).upper()
