@@ -1309,7 +1309,7 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg += f"🔢 *OVER/UNDER*\n"
     msg += f"Predicciones: {len(racha_ou)} | Aciertos: {aciertos_ou}\n"
     msg += f"Últimas 10: {ultimas_ou}\n"
-   msg += f"{emoji_ou} Resultado: `{'+' if unidades_ou >= 0 else ''}{unidades_ou}u`\n"
+    msg += f"{emoji_ou} Resultado: `{'+' if unidades_ou >= 0 else ''}{unidades_ou}u`\n"
     # Unidades solo de valor
     conn_v = get_db()
     c_v = conn_v.cursor()
