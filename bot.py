@@ -1466,14 +1466,14 @@ async def get_cuotas_betsson():
         starts_after = ahora.strftime("%Y-%m-%dT%H:%M:%SZ")
         starts_before = manana.strftime("%Y-%m-%dT%H:%M:%SZ")
         url = f"https://www.betsson.es/api/sb/v1/widgets/events-table/v2?categoryIds=4&competitionIds=25847&eventPhase=Prematch&eventSortBy=StartDate&includeSkeleton=true&maxMarketCount=3&pageNumber=1&startsBefore={starts_before}&startsOnOrAfter={starts_after}&priceFormats=1"
-        r = requests.get(url, headers=headers, timeout=15)
+        r = requests.get(url, headers=headers, timeout=25)
         if r.status_code != 200:
             print(f"Betsson status {r.status_code}, renovando cookies...")
             cookies_str = await renovar_cookies_betsson()
             if not cookies_str:
                 return {}
             headers["cookie"] = cookies_str
-            r = requests.get(url, headers=headers, timeout=15)
+            r = requests.get(url, headers=headers, timeout=25)
             if r.status_code != 200:
                 return {}
         data = r.json()
@@ -1504,7 +1504,7 @@ async def get_cuotas_betsson():
             if market_obj:
                 market_id = market_obj.get("id", f"m-f-{event_id}-ESNMOWINNER2W")
                 url_market = f"https://www.betsson.es/api/sb/v1/widgets/event-market/v1?includescoreboards=true&marketids={market_id}"
-                r_market = requests.get(url_market, headers=headers, timeout=10)
+                r_market = requests.get(url_market, headers=headers, timeout=20)
                 if r_market.status_code == 200:
                     mdata = r_market.json()
                     mselections = mdata.get("data", {}).get("marketSelections", [])
@@ -1518,7 +1518,7 @@ async def get_cuotas_betsson():
                 linea_ou = ou_obj.get("lineValue")
                 market_id_ou = ou_obj.get("id", f"m-f-{event_id}-MWOU-{linea_ou}")
                 url_ou = f"https://www.betsson.es/api/sb/v1/widgets/event-market/v1?includescoreboards=true&marketids={market_id_ou}"
-                r_ou = requests.get(url_ou, headers=headers, timeout=10)
+               r_ou = requests.get(url_ou, headers=headers, timeout=20)
                 if r_ou.status_code == 200:
                     oudata = r_ou.json()
                     ouselections = oudata.get("data", {}).get("marketSelections", [])
