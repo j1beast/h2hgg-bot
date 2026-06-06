@@ -1176,17 +1176,16 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
             r = requests.get(url, headers=headers, timeout=15)
             data = r.json()
             print(f"Phase {phase} - Keys data: {list(data.keys())}")
-            topics_map = data.get("topicsMap", {})
-            print(f"TopicsMap keys ejemplo: {list(topics_map.keys())[:3]}")
-            if topics_map:
-                primer_key = list(topics_map.keys())[0]
-                print(f"Primer elemento: {str(topics_map[primer_key])[:400]}")
-            for event_id, event in topics_map.items():
+            data_events = data.get("data", {})
+            print(f"Data keys ejemplo: {list(data_events.keys())[:3]}")
+            if data_events:
+                primer_key = list(data_events.keys())[0]
+                print(f"Primer evento: {str(data_events[primer_key])[:400]}")
+            for event_id, event in data_events.items():
                 if not isinstance(event, dict):
                     continue
-                home = event.get("homeName") or event.get("home", {}).get("name", "")
-                away = event.get("awayName") or event.get("away", {}).get("name", "")
-                markets = event.get("markets") or event.get("marketGroups") or []
+                home = event.get("homeName") or event.get("home", {}).get("name", "") or event.get("participants", [{}])[0].get("name", "")
+                away = event.get("awayName") or event.get("away", {}).get("name", "") or event.get("participants", [{}])[-1].get("name", "")
                 print(f"Evento: {home} vs {away} — keys: {list(event.keys())[:10]}")
                 if home and away:
                     cuotas[f"{home}_vs_{away}"] = {"home": home, "away": away}
