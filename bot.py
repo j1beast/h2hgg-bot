@@ -70,7 +70,8 @@ def init_db():
         ("cuota_betsson_a", "REAL"), ("cuota_betsson_b", "REAL"),
         ("linea_betsson_ou", "REAL"), ("cuota_betsson_over", "REAL"),
         ("cuota_betsson_under", "REAL"),
-        ("es_valor", "INTEGER")
+        ("es_valor", "INTEGER"),
+        ("enviado_canal", "INTEGER")
     ]:
         try:
             c.execute(f"ALTER TABLE predicciones ADD COLUMN {col} {tipo}")
@@ -338,6 +339,14 @@ async def tarea_predicciones_automaticas(app_ref):
                                           (jugador_a, jugador_b, datetime.utcnow().strftime("%Y-%m-%d%")))
                             conn_v.commit()
                             conn_v.close()
+                            # No enviar si ya se envió antes
+                        conn_c = get_db()
+                        ya_enviado = conn_c.execute('''SELECT enviado_canal FROM predicciones
+                                                      WHERE jugador_a=? AND jugador_b=? AND fecha_prediccion LIKE ?''',
+                                                   (jugador_a, jugador_b, datetime.utcnow().strftime("%Y-%m-%d%"))).fetchone()
+                        conn_c.close()
+                        if ya_enviado and ya_enviado[0] == 1:
+                            continue
                         msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis)
                         valor_a = "✅ VALOR" if cb_a > bot_a else ""
                         valor_b = "✅ VALOR" if cb_b > bot_b else ""
@@ -361,6 +370,12 @@ async def tarea_predicciones_automaticas(app_ref):
                             msg += f"📈 Línea bot: {linea_bot} pts\n"
                         try:
                             await app_ref.bot.send_message(chat_id=CANAL_ID, text=msg, parse_mode="Markdown")
+                            conn_e = get_db()
+                            conn_e.execute('''UPDATE predicciones SET enviado_canal=1
+                                             WHERE jugador_a=? AND jugador_b=? AND fecha_prediccion LIKE ?''',
+                                          (jugador_a, jugador_b, datetime.utcnow().strftime("%Y-%m-%d%")))
+                            conn_e.commit()
+                            conn_e.close()
                         except Exception as e:
                             print(f"Error enviando al canal: {e}")
             verificar_predicciones()
