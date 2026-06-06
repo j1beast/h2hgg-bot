@@ -229,11 +229,11 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
         under_bs = betsson.get("cuota_under")
     es_valor = 1 if betsson and betsson.get("es_valor") else 0
     
-    c.execute('''INSERT INTO predicciones
+   c.execute('''INSERT INTO predicciones
        (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador,
         linea_total, cuota_over, cuota_under, prediccion_ou, fecha_prediccion, procesado,
         prob_h2h, prob_equipo, prob_h2h_eq, prob_forma, prob_h2h_rec,
-        cuota_betsson_a, cuota_betsson_b, linea_betsson_ou, cuota_betsson_over, cuota_betsson_under)
+        cuota_betsson_a, cuota_betsson_b, linea_betsson_ou, cuota_betsson_over, cuota_betsson_under, es_valor)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?,?,?,?,?,?,?)''',
         (jugador_a, jugador_b, franq_a, franq_b, ganador, cuota_ganador,
          analisis.get("linea_total"), analisis.get("over_total"), analisis.get("under_total"),
