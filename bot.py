@@ -1292,7 +1292,7 @@ async def get_cuotas_betsson():
             # Market over/under
             templates_evento = [m.get("marketTemplateId") for m in all_markets if m.get("eventId") == event_id]
             print(f"Templates disponibles para {event_id}: {templates_evento}")
-            ou_obj = next((m for m in all_markets if m.get("eventId") == event_id and m.get("marketTemplateId") == "MWOU"), None)
+            ou_obj = next((m for m in all_markets if m.get("eventId") == event_id and m.get("marketTemplateId") == "ESNMOTOTAL"), None)
             print(f"OU obj encontrado: {ou_obj is not None}")
             if ou_obj:
                 linea_ou = ou_obj.get("lineValue")
