@@ -1518,7 +1518,7 @@ async def get_cuotas_betsson():
                 linea_ou = ou_obj.get("lineValue")
                 market_id_ou = ou_obj.get("id", f"m-f-{event_id}-MWOU-{linea_ou}")
                 url_ou = f"https://www.betsson.es/api/sb/v1/widgets/event-market/v1?includescoreboards=true&marketids={market_id_ou}"
-               r_ou = requests.get(url_ou, headers=headers, timeout=20)
+                r_ou = requests.get(url_ou, headers=headers, timeout=20)
                 if r_ou.status_code == 200:
                     oudata = r_ou.json()
                     ouselections = oudata.get("data", {}).get("marketSelections", [])
