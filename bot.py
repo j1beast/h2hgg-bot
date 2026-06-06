@@ -1204,7 +1204,10 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 templates_disponibles = [m.get("marketTemplateId") for m in all_markets if m.get("eventId") == event_id]
                 print(f"Templates para {event_id}: {templates_disponibles}")
                 for market in all_markets:
-                    market_id = f"m-f-{event_id}-ESNMOWINNER2W"
+                    all_markets = data_raw.get("markets", [])
+                market_obj = next((m for m in all_markets if m.get("eventId") == event_id and m.get("marketTemplateId") == "ESNMOWINNER2W"), None)
+                market_id = market_obj.get("id", "") if market_obj else f"m-f-{event_id}-ESNMOWINNER2W"
+                print(f"market_id real: {market_id}")
                 url_market = f"https://www.betsson.es/api/sb/v1/widgets/event-market/v1?includescoreboards=true&marketids={market_id}"
                 r_market = requests.get(url_market, headers=headers, timeout=10)
                 print(f"Market URL status: {r_market.status_code}")
