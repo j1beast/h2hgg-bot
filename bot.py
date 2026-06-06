@@ -1308,6 +1308,16 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         msg = "❌ No se pudieron obtener cuotas"
     await update.message.reply_text(msg[:4000])
+
+async def renovar_cookies_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    await update.message.reply_text("🔄 Renovando cookies de Betsson...")
+    cookies_str = await renovar_cookies_betsson()
+    if cookies_str:
+        await update.message.reply_text("✅ Cookies renovadas correctamente")
+    else:
+        await update.message.reply_text("❌ Error renovando cookies")
         
 async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
@@ -1364,6 +1374,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("actualizar", actualizar))
     app.add_handler(CommandHandler("testbetsson", test_betsson))
     app.add_handler(CommandHandler("testcoolbet", test_coolbet))
+    app.add_handler(CommandHandler("renovarcookies", renovar_cookies_cmd))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
