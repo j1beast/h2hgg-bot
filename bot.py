@@ -277,33 +277,50 @@ async def tarea_predicciones_automaticas(app_ref):
                 if partidos_a and partidos_b:
                     analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
                     guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis)
-                    if analisis.get("confianza") == "🟢 Alta":
-                        msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis)
+                   if analisis.get("confianza") in ["🟢 Alta", "🟡 Media"]:
                         key_ab = f"{jugador_a}_vs_{jugador_b}"
                         key_ba = f"{jugador_b}_vs_{jugador_a}"
                         betsson = cuotas_betsson.get(key_ab) or cuotas_betsson.get(key_ba)
-                        if betsson:
-                            invertido = key_ba in cuotas_betsson and key_ab not in cuotas_betsson
-                            bot_a = analisis.get("cuota_a", 0)
-                            bot_b = analisis.get("cuota_b", 0)
-                            cb_a = betsson["cuota_b"] if invertido else betsson["cuota_a"]
-                            cb_b = betsson["cuota_a"] if invertido else betsson["cuota_b"]
-                            valor_a = "✅ VALOR" if bot_a > cb_a else ""
-                            valor_b = "✅ VALOR" if bot_b > cb_b else ""
-                            msg += f"\n📊 *Betsson:*\n"
-                            msg += f"{jugador_a}: `{cb_a}` {valor_a}\n"
-                            msg += f"{jugador_b}: `{cb_b}` {valor_b}\n"
-                            if betsson.get("cuota_over") and betsson.get("linea_ou"):
-                                bot_ou = analisis.get("linea_total")
-                                bs_linea = betsson["linea_ou"]
-                                bs_over = betsson["cuota_over"]
-                                bs_under = betsson["cuota_under"]
-                                prediccion_ou = "Over" if (analisis.get("over_total") or 99) < (analisis.get("under_total") or 99) else "Under"
-                                if prediccion_ou == "Over":
-                                    valor_ou = "✅ VALOR" if (analisis.get("over_total") or 0) > bs_over else ""
-                                else:
-                                    valor_ou = "✅ VALOR" if (analisis.get("under_total") or 0) > bs_under else ""
-                                msg += f"O/U línea {bs_linea}: Over `{bs_over}` / Under `{bs_under}` {valor_ou}\n"
+                        if not betsson:
+                            continue
+                        # Detectar valor
+                        invertido = key_ba in cuotas_betsson and key_ab not in cuotas_betsson
+                        bot_a = analisis.get("cuota_a", 0)
+                        bot_b = analisis.get("cuota_b", 0)
+                        cb_a = betsson["cuota_b"] if invertido else betsson["cuota_a"]
+                        cb_b = betsson["cuota_a"] if invertido else betsson["cuota_b"]
+                        linea_bot = analisis.get("linea_total")
+                        bs_linea = betsson.get("linea_ou")
+                        hay_valor_ganador = bot_a > cb_a or bot_b > cb_b
+                        hay_valor_ou = False
+                        if linea_bot and bs_linea:
+                            try:
+                                hay_valor_ou = abs(float(linea_bot) - float(bs_linea)) >= 3
+                            except:
+                                pass
+                        if not hay_valor_ganador and not hay_valor_ou:
+                            continue
+                        msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis)
+                        valor_a = "✅ VALOR" if bot_a > cb_a else ""
+                        valor_b = "✅ VALOR" if bot_b > cb_b else ""
+                        msg += f"\n📊 *Betsson:*\n"
+                        msg += f"{jugador_a}: `{cb_a}` {valor_a}\n"
+                        msg += f"{jugador_b}: `{cb_b}` {valor_b}\n"
+                        if betsson.get("cuota_over") and bs_linea:
+                            bs_over = betsson["cuota_over"]
+                            bs_under = betsson["cuota_under"]
+                            if linea_bot and bs_linea:
+                                try:
+                                    if float(linea_bot) > float(bs_linea):
+                                        valor_ou = "✅ VALOR OVER"
+                                    elif float(linea_bot) < float(bs_linea):
+                                        valor_ou = "✅ VALOR UNDER"
+                                    else:
+                                        valor_ou = ""
+                                except:
+                                    valor_ou = ""
+                            msg += f"O/U línea {bs_linea}: Over `{bs_over}` / Under `{bs_under}` {valor_ou}\n"
+                            msg += f"📈 Línea bot: {linea_bot} pts\n"
                         try:
                             await app_ref.bot.send_message(chat_id=CANAL_ID, text=msg, parse_mode="Markdown")
                         except Exception as e:
