@@ -1205,7 +1205,7 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 print(f"Templates para {event_id}: {templates_disponibles}")
                 for market in all_markets:
                     if market.get("eventId") == event_id and market.get("marketTemplateId") in ["ESNMOWINNER2W", "MW2W", "EMW2W", "MWINNER2W"]:
-                        print(f"Market completo: {str(market)[:400]}")
+                        print(f"Market keys: {list(market.keys())}")
                         outcomes = market.get("outcomes") or market.get("selections") or market.get("prices") or []
                         if len(outcomes) >= 2:
                             cuota_home = outcomes[0].get("price") or outcomes[0].get("decimalPrice")
