@@ -1176,12 +1176,12 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
             r = requests.get(url, headers=headers, timeout=15)
             data = r.json()
             print(f"Phase {phase} - Keys data: {list(data.keys())}")
-            data_events = data.get("data", {})
-            print(f"Data keys ejemplo: {list(data_events.keys())[:3]}")
-            if data_events:
-                primer_key = list(data_events.keys())[0]
-                print(f"Primer evento: {str(data_events[primer_key])[:400]}")
-            for event_id, event in data_events.items():
+data_raw = data.get("data", {})
+            events_list = data_raw.get("events", [])
+            print(f"Eventos encontrados: {len(events_list)}")
+            if events_list:
+                print(f"Primer evento: {str(events_list[0])[:400]}")
+            for event in events_list:
                 if not isinstance(event, dict):
                     continue
                 home = event.get("homeName") or event.get("home", {}).get("name", "") or event.get("participants", [{}])[0].get("name", "")
