@@ -68,6 +68,11 @@ def init_db():
             c.execute(f"ALTER TABLE predicciones ADD COLUMN {col} {tipo}")
         except:
             pass
+    c.execute('''CREATE TABLE IF NOT EXISTS betsson_cookies (
+        id INTEGER PRIMARY KEY,
+        cookies TEXT,
+        timestamp INTEGER
+    )''')
     conn.commit()
     conn.close()
 
