@@ -330,6 +330,7 @@ async def tarea_predicciones_automaticas(app_ref):
                         hay_valor_ou = False
                         if linea_bot and bs_linea:
                             try:
+                                print(f"DEBUG O/U: linea_bot={linea_bot}, bs_linea={bs_linea}, diff={abs(float(linea_bot) - float(bs_linea))}")
                                 hay_valor_ou = abs(float(linea_bot) - float(bs_linea)) >= 5
                             except:
                                 pass
