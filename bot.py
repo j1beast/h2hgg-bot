@@ -1134,10 +1134,7 @@ async def test_odds_api(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ Error: {e}")
 
-async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
-        return
-    await update.message.reply_text("🔍 Extrayendo partidos y cuotas...")
+async def get_cuotas_betsson():
     try:
         headers = {
             "accept": "application/json, text/plain, */*",
@@ -1169,7 +1166,6 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "x-sb-user-context-id": "stc--1670310174",
             "cookie": "OPTIMIZELY_USER_ID=19e9a0c5-a0c5-4000-89a0c5de10.-.845; fabricBeta=FABRICBETA; aws-waf-token=db101459-20a5-466e-a428-f7783d9bd8a2:HQoAvxVYPmMCAAAA:3gaE8a3szI/kz0HZVeE28gWL0pMdUbgxlGNnHgCSWhof7SL0mRW9ekrn3nWq3kSNZ7VpHICvd777oQISB6fz2azhgSMYQgqQpeArFXtDb0hUIR12IOIMGxc+eSEqSQy4TqsJITvUyRcqnOvJdqx2ZKPH2m0ZDmQpsrqx/rUUZvSlnGxKGbRs/Ks+Tw6R9Rk=; cfidsgib-w-betssones=y98pr9Xre6i0i8gHlNna1sfT7qDyXfruWDTuuGQaBXmApoko9gFx0suSZHmDZpwD6GlToFQT3nBltVVpK1FvyWsGO7vs0sK3pwarYNBAGtY2bkej04/TqkhtZzpOeRt408/zvt8co65ETLvhe3M5tqGtWSDWzH1WLzzyYg=="
         }
-        # Llamar upcoming
         cuotas = {}
         from datetime import timezone
         ahora = datetime.now(timezone.utc)
@@ -1178,52 +1174,34 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
         starts_before = manana.strftime("%Y-%m-%dT%H:%M:%SZ")
         url = f"https://www.betsson.es/api/sb/v1/widgets/events-table/v2?categoryIds=4&competitionIds=25847&eventPhase=Prematch&eventSortBy=StartDate&includeSkeleton=true&maxMarketCount=1&pageNumber=1&startsBefore={starts_before}&startsOnOrAfter={starts_after}&priceFormats=1"
         r = requests.get(url, headers=headers, timeout=15)
+        if r.status_code != 200:
+            return {}
         data = r.json()
-        print(f"Status: {r.status_code}")
         data_raw = data.get("data", {})
         events_list = data_raw.get("events", [])
-        print(f"Eventos encontrados: {len(events_list)}")
-        if events_list:
-            print(f"Primer evento completo: {str(events_list[0])[:800]}")
+        all_markets = data_raw.get("markets", [])
         for event in events_list:
-                if not isinstance(event, dict):
-                    continue
-                participants = event.get("participants", [])
-                if len(participants) < 2:
-                    continue
-                home = participants[0].get("label", "")
-                away = participants[1].get("label", "")
-                event_id = event.get("globalId", "").split(".")[-1]
-                print(f"event_id buscado: {event_id}")
-                all_markets = data_raw.get("markets", [])
-                market_ids_disponibles = [m.get("eventId") for m in all_markets[:5]]
-                print(f"market eventIds disponibles: {market_ids_disponibles}")
-                cuota_home = None
-                cuota_away = None
-                all_markets = data_raw.get("markets", [])
-                templates_disponibles = [m.get("marketTemplateId") for m in all_markets if m.get("eventId") == event_id]
-                print(f"Templates para {event_id}: {templates_disponibles}")
-                for market in all_markets:
-                    all_markets = data_raw.get("markets", [])
-                market_obj = next((m for m in all_markets if m.get("eventId") == event_id and m.get("marketTemplateId") == "ESNMOWINNER2W"), None)
-                market_id = market_obj.get("id", "") if market_obj else f"m-f-{event_id}-ESNMOWINNER2W"
-                print(f"market_id real: {market_id}")
-                url_market = f"https://www.betsson.es/api/sb/v1/widgets/event-market/v1?includescoreboards=true&marketids={market_id}"
-                r_market = requests.get(url_market, headers=headers, timeout=10)
-                print(f"Market URL status: {r_market.status_code}")
-                if r_market.status_code == 200:
-                    mdata = r_market.json()
-                    mdata_raw = mdata.get("data", {})
-                    print(f"Data keys: {list(mdata_raw.keys()) if isinstance(mdata_raw, dict) else 'lista'}")
-                    mselections = mdata_raw.get("marketSelections", [])
-                    if mselections:
-                        print(f"Primera selection: {str(mselections[0])[:300]}")
-                        print(f"Segunda selection: {str(mselections[1])[:300]}")
-                    if len(mselections) >= 2:
-                        cuota_home = mselections[0].get("odds")
-                        cuota_away = mselections[1].get("odds")
-                print(f"Evento: {home} vs {away} — cuotas: {cuota_home}/{cuota_away}")
-                if home and away:
+            if not isinstance(event, dict):
+                continue
+            participants = event.get("participants", [])
+            if len(participants) < 2:
+                continue
+            home = participants[0].get("label", "")
+            away = participants[1].get("label", "")
+            if not home or not away:
+                continue
+            event_id = event.get("globalId", "").split(".")[-1]
+            market_obj = next((m for m in all_markets if m.get("eventId") == event_id and m.get("marketTemplateId") == "ESNMOWINNER2W"), None)
+            market_id = market_obj.get("id", "") if market_obj else f"m-f-{event_id}-ESNMOWINNER2W"
+            url_market = f"https://www.betsson.es/api/sb/v1/widgets/event-market/v1?includescoreboards=true&marketids={market_id}"
+            r_market = requests.get(url_market, headers=headers, timeout=10)
+            if r_market.status_code == 200:
+                mdata = r_market.json()
+                mdata_raw = mdata.get("data", {})
+                mselections = mdata_raw.get("marketSelections", [])
+                if len(mselections) >= 2:
+                    cuota_home = mselections[0].get("odds")
+                    cuota_away = mselections[1].get("odds")
                     home_j = extraer_nombre_jugador(home).upper()
                     away_j = extraer_nombre_jugador(away).upper()
                     cuotas[f"{home_j}_vs_{away_j}"] = {
@@ -1232,14 +1210,27 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         "home": home_j,
                         "away": away_j
                     }
-        msg = f"Partidos encontrados: {len(cuotas)}\n"
-        for k, v in list(cuotas.items())[:5]:
-            msg += f"• {v['home']} vs {v['away']}\n"
-        await update.message.reply_text(msg[:4000])
+        print(f"Cuotas Betsson obtenidas: {len(cuotas)} partidos")
+        return cuotas
     except Exception as e:
         import traceback
+        print(f"Error get_cuotas_betsson: {e}")
         print(traceback.format_exc())
-        await update.message.reply_text(f"❌ Error: {e}")
+        return {}
+
+
+async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    await update.message.reply_text("🔍 Obteniendo cuotas Betsson...")
+    cuotas = await get_cuotas_betsson()
+    if cuotas:
+        msg = f"✅ Cuotas obtenidas: {len(cuotas)} partidos\n"
+        for k, v in list(cuotas.items())[:5]:
+            msg += f"• {v['home']} vs {v['away']}: {v['cuota_a']} / {v['cuota_b']}\n"
+    else:
+        msg = "❌ No se pudieron obtener cuotas"
+    await update.message.reply_text(msg[:4000])
         
 async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
