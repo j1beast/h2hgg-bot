@@ -1133,7 +1133,44 @@ async def test_odds_api(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ No encontrado en ningún sport")
     except Exception as e:
         await update.message.reply_text(f"❌ Error: {e}")
-    
+
+async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    await update.message.reply_text("🔍 Probando API Betsson directa...")
+    try:
+        headers = {
+            "accept": "*/*",
+            "accept-language": "es-ES,es;q=0.9",
+            "referer": "https://www.betsson.es/apuestas-deportivas/baloncesto/ebasketball/liga-h2h-gg-de-baloncesto-electronico-4-x-5-minu?tab=liveAndUpcoming",
+            "sec-ch-ua": '"Chromium";v="140", "Not=A?Brand";v="24", "Google Chrome";v="140"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"macOS"',
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-origin",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+            "x-sb-brand-id": "ff28e5bd-a193-4f34-9abe-af70ffbd1dbf",
+            "x-sb-language-code": "es",
+            "x-sb-static-context-id": "stc--1670310174",
+            "x-sb-user-context-id": "stc--1670310174",
+            "cookie": "OPTIMIZELY_USER_ID=19e9a0c5-a0c5-4000-89a0c5de10.-.845; fabricBeta=FABRICBETA; token=https%3A%2F%2Fwww.google.com%2F; affcode=hgjeap65; PartnerId=hgjeap65; aws-waf-token=db101459-20a5-466e-a428-f7783d9bd8a2:HQoAvxVYPmMCAAAA:3gaE8a3szI/kz0HZVeE28gWL0pMdUbgxlGNnHgCSWhof7SL0mRW9ekrn3nWq3kSNZ7VpHICvd777oQISB6fz2azhgSMYQgqQpeArFXtDb0hUIR12IOIMGxc+eSEqSQy4TqsJITvUyRcqnOvJdqx2ZKPH2m0ZDmQpsrqx/rUUZvSlnGxKGbRs/Ks+Tw6R9Rk=; cfidsgib-w-betssones=9jyEFq/gh3coXxafbswu3Uq3mTD/6/7tHAw5yYcisXf/mHqaDCIYcJvdvAB1Gx2vtEqHj/SlHSAU6YkcHq8c1gT/EnrpQ7AU3w5pV4t9LBdrw9y14v13Y2X8bKIsAtyDkv1dtz8Eog7tay41fMz5uIN+nSkq9pkYm6SQ1Q=="
+        }
+        r = requests.get(
+            "https://www.betsson.es/sb/fe-api/v1/route-data/baloncesto/ebasketball/liga-h2h-gg-de-baloncesto-electronico-4-x-5-minu?tab=liveAndUpcoming",
+            headers=headers,
+            timeout=15
+        )
+        print(f"Status: {r.status_code}")
+        print(f"Response: {r.text[:500]}")
+        data = r.json()
+        msg = f"✅ Status: {r.status_code}\nKeys: {list(data.keys())[:10]}\nData: {str(data)[:300]}"
+        await update.message.reply_text(msg[:4000])
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        await update.message.reply_text(f"❌ Error: {e}")
+        
 async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         await update.message.reply_text("No tienes acceso a este bot.")
@@ -1187,6 +1224,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("ranking", ranking))
     app.add_handler(CommandHandler("rendimiento", rendimiento))
     app.add_handler(CommandHandler("actualizar", actualizar))
+    app.add_handler(CommandHandler("testbetsson", test_betsson))
     app.add_handler(CommandHandler("testcoolbet", test_coolbet))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
