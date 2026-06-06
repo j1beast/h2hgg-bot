@@ -1268,25 +1268,51 @@ async def get_cuotas_betsson():
             if not home or not away:
                 continue
             event_id = event.get("globalId", "").split(".")[-1]
+            home_j = extraer_nombre_jugador(home).upper()
+            away_j = extraer_nombre_jugador(away).upper()
+            cuota_home = None
+            cuota_away = None
+            cuota_over = None
+            cuota_under = None
+            linea_ou = None
+
+            # Market ganador
             market_obj = next((m for m in all_markets if m.get("eventId") == event_id and m.get("marketTemplateId") == "ESNMOWINNER2W"), None)
-            market_id = market_obj.get("id", "") if market_obj else f"m-f-{event_id}-ESNMOWINNER2W"
-            url_market = f"https://www.betsson.es/api/sb/v1/widgets/event-market/v1?includescoreboards=true&marketids={market_id}"
-            r_market = requests.get(url_market, headers=headers, timeout=10)
-            if r_market.status_code == 200:
-                mdata = r_market.json()
-                mdata_raw = mdata.get("data", {})
-                mselections = mdata_raw.get("marketSelections", [])
-                if len(mselections) >= 2:
-                    cuota_home = mselections[0].get("odds")
-                    cuota_away = mselections[1].get("odds")
-                    home_j = extraer_nombre_jugador(home).upper()
-                    away_j = extraer_nombre_jugador(away).upper()
-                    cuotas[f"{home_j}_vs_{away_j}"] = {
-                        "cuota_a": cuota_home,
-                        "cuota_b": cuota_away,
-                        "home": home_j,
-                        "away": away_j
-                    }
+            if market_obj:
+                market_id = market_obj.get("id", f"m-f-{event_id}-ESNMOWINNER2W")
+                url_market = f"https://www.betsson.es/api/sb/v1/widgets/event-market/v1?includescoreboards=true&marketids={market_id}"
+                r_market = requests.get(url_market, headers=headers, timeout=10)
+                if r_market.status_code == 200:
+                    mdata = r_market.json()
+                    mselections = mdata.get("data", {}).get("marketSelections", [])
+                    if len(mselections) >= 2:
+                        cuota_home = mselections[0].get("odds")
+                        cuota_away = mselections[1].get("odds")
+
+            # Market over/under
+            ou_obj = next((m for m in all_markets if m.get("eventId") == event_id and m.get("marketTemplateId") == "MWOU"), None)
+            if ou_obj:
+                linea_ou = ou_obj.get("lineValue")
+                market_id_ou = ou_obj.get("id", f"m-f-{event_id}-MWOU-{linea_ou}")
+                url_ou = f"https://www.betsson.es/api/sb/v1/widgets/event-market/v1?includescoreboards=true&marketids={market_id_ou}"
+                r_ou = requests.get(url_ou, headers=headers, timeout=10)
+                if r_ou.status_code == 200:
+                    oudata = r_ou.json()
+                    ouselections = oudata.get("data", {}).get("marketSelections", [])
+                    if len(ouselections) >= 2:
+                        cuota_over = ouselections[0].get("odds")
+                        cuota_under = ouselections[1].get("odds")
+
+            if cuota_home and cuota_away:
+                cuotas[f"{home_j}_vs_{away_j}"] = {
+                    "cuota_a": cuota_home,
+                    "cuota_b": cuota_away,
+                    "cuota_over": cuota_over,
+                    "cuota_under": cuota_under,
+                    "linea_ou": linea_ou,
+                    "home": home_j,
+                    "away": away_j
+                }
         print(f"Cuotas Betsson obtenidas: {len(cuotas)} partidos")
         return cuotas
     except Exception as e:
