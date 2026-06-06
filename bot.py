@@ -323,6 +323,8 @@ async def get_cuotas_coolbet():
             )
             await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             page = await context.new_page()
+            from playwright_stealth import stealth_async
+            await stealth_async(page)
 
             # Interceptar las respuestas de la API
             respuestas = []
@@ -334,7 +336,7 @@ async def get_cuotas_coolbet():
                     except:
                         pass
             print("Cargando página Coolbet...")
-            await page.goto("https://www.coolbet.com/en/sports/basketball/eBasketball/eBasketball-H2H-GG-League-Mixed", wait_until="domcontentloaded", timeout=20000)
+            await page.goto("https://www.betsson.es/apuestas-deportivas/baloncesto/ebasketball/liga-h2h-gg-de-baloncesto-electronico-4-x-5-minu?tab=liveAndUpcoming", wait_until="domcontentloaded", timeout=20000)
             print("Página cargada, haciendo fetch interno...")
             await page.wait_for_timeout(3000)
             data = await page.evaluate('''async () => {
