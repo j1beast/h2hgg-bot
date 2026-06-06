@@ -337,6 +337,14 @@ async def tarea_predicciones_automaticas(app_ref):
                                 pass
                         if not hay_valor_ganador and not hay_valor_ou:
                             continue
+                            # Si hay valor, actualizar es_valor
+                        if hay_valor_ganador or hay_valor_ou:
+                        conn_v = get_db()
+                        conn_v.execute('''UPDATE predicciones SET es_valor=1 
+                                         HERE jugador_a=? AND jugador_b=? AND fecha_prediccion LIKE ?''',
+                                      (jugador_a, jugador_b, datetime.utcnow().strftime("%Y-%m-%d%")))
+                        conn_v.commit()
+                        conn_v.close()
                         msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis)
                         valor_a = "✅ VALOR" if cb_a > bot_a else ""
                         valor_b = "✅ VALOR" if cb_b > bot_b else ""
