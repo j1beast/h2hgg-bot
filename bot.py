@@ -1180,7 +1180,7 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
             events_list = data_raw.get("events", [])
             print(f"Eventos encontrados: {len(events_list)}")
             if events_list:
-                print(f"Primer evento: {str(events_list[0])[:400]}")
+                print(f"Primer evento completo: {str(events_list[0])[:800]}")
             for event in events_list:
                 if not isinstance(event, dict):
                     continue
