@@ -306,14 +306,6 @@ async def tarea_predicciones_automaticas(app_ref):
                                        "cuota_over": betsson_pred.get("cuota_over"), "cuota_under": betsson_pred.get("cuota_under"),
                                        "linea_ou": betsson_pred.get("linea_ou")}
                     guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson=betsson_pred)
-                    # Si hay valor, actualizar es_valor
-                    if betsson_pred and (hay_valor_ganador or hay_valor_ou):
-                        conn_v = get_db()
-                        conn_v.execute('''UPDATE predicciones SET es_valor=1 
-                                         WHERE jugador_a=? AND jugador_b=? AND fecha_prediccion LIKE ?''',
-                                      (jugador_a, jugador_b, datetime.utcnow().strftime("%Y-%m-%d%")))
-                        conn_v.commit()
-                        conn_v.close()
                 if analisis.get("confianza") in ["🟢 Alta", "🟡 Media"]:
                         key_ab = f"{jugador_a}_vs_{jugador_b}"
                         key_ba = f"{jugador_b}_vs_{jugador_a}"
