@@ -1330,7 +1330,8 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if cuotas:
         msg = f"✅ Cuotas obtenidas: {len(cuotas)} partidos\n"
         for k, v in list(cuotas.items())[:5]:
-            msg += f"• {v['home']} vs {v['away']}: {v['cuota_a']} / {v['cuota_b']}\n"
+            ou_str = f" | O/U {v.get('linea_ou')}: {v.get('cuota_over')}/{v.get('cuota_under')}" if v.get('cuota_over') else ""
+            msg += f"• {v['home']} vs {v['away']}: {v['cuota_a']} / {v['cuota_b']}{ou_str}\n"
     else:
         msg = "❌ No se pudieron obtener cuotas"
     await update.message.reply_text(msg[:4000])
