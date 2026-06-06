@@ -802,13 +802,13 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
 # FORMATO DE MENSAJES
 # ─────────────────────────────────────────────
 
-def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis):
+def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson=None):
     msg = f"🏀 *{jugador_a} ({franq_a}) vs {jugador_b} ({franq_b})*\n\n"
     msg += f"📊 *Datos analizados:*\n"
 
     total_h2h = analisis.get('h2h_total', 0)
     if total_h2h > 0:
-        wins_a = analisis.get('h2h_wins_a', 0)
+        wins_a = round(analisis.get('h2h_wins_a', 0))
         wins_b = total_h2h - wins_a
         msg += f"• *H2H: {total_h2h} partidos* — {jugador_a} {wins_a}W/{wins_b}L vs {jugador_b} {wins_b}W/{wins_a}L\n"
     else:
@@ -821,7 +821,7 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis):
         msg += f"• *H2H con estos equipos: {h2h_equipos} partidos* — {jugador_a} {wins_eq_a}W/{wins_eq_b}L vs {jugador_b} {wins_eq_b}W/{wins_eq_a}L\n"
     else:
         msg += f"• *H2H con estos equipos: 0 partidos*\n"
-        
+
     if analisis.get('matchup_total') is not None:
         matchup_pct = round(analisis['matchup_total'] * 100, 1)
         msg += f"• *Matchup {franq_a} vs {franq_b}*: {franq_a} gana {matchup_pct}% histórico\n"
@@ -832,21 +832,39 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis):
         msg += f"• *Forma reciente {jugador_a}*: {racha_a}\n"
         msg += f"• *Forma reciente {jugador_b}*: {racha_b}\n"
     elif analisis.get('forma_a') is not None:
-       msg += f"• *Forma reciente {jugador_a}*: {analisis['forma_a']}% victorias\n"
-       msg += f"• *Forma reciente {jugador_b}*: {analisis['forma_b']}% victorias\n"
+        msg += f"• *Forma reciente {jugador_a}*: {analisis['forma_a']}% victorias\n"
+        msg += f"• *Forma reciente {jugador_b}*: {analisis['forma_b']}% victorias\n"
 
     if analisis.get('winrate_a_franq') is not None:
         msg += f"• *{jugador_a} con {franq_a}*: {analisis['winrate_a_franq']}% victorias ({analisis['partidos_a_franq']} partidos)\n"
         msg += f"• *{jugador_b} con {franq_b}*: {analisis['winrate_b_franq']}% victorias ({analisis['partidos_b_franq']} partidos)\n"
 
-    msg += f"\n🔮 *Confianza predicción: {analisis.get('confianza', 'N/A')}*\n"
     msg += f"\n🎯 *GANADOR*\n"
-    msg += f"{jugador_a}: `{analisis['cuota_a']}` — {jugador_b}: `{analisis['cuota_b']}`\n"
+    msg += f"BOT: {jugador_a} `{analisis['cuota_a']}` — {jugador_b} `{analisis['cuota_b']}`\n"
+    if betsson:
+        cb_a = betsson.get('cuota_a')
+        cb_b = betsson.get('cuota_b')
+        if cb_a and cb_b:
+            valor_a = " ✅" if cb_a > 0 and analisis['cuota_a'] > 0 and cb_a / analisis['cuota_a'] >= 1.15 else ""
+            valor_b = " ✅" if cb_b > 0 and analisis['cuota_b'] > 0 and cb_b / analisis['cuota_b'] >= 1.15 else ""
+            msg += f"BETSSON: {jugador_a} `{cb_a}`{valor_a} — {jugador_b} `{cb_b}`{valor_b}\n"
 
     if analisis.get('linea_total'):
         msg += f"\n🔢 *TOTAL DEL PARTIDO*\n"
-        msg += f"Línea: {analisis['linea_total']} pts\n"
-        msg += f"Over `{analisis['over_total']}` / Under `{analisis['under_total']}`\n"
+        msg += f"Línea BOT: {analisis['linea_total']} pts\n"
+        if betsson and betsson.get('linea_ou') and betsson.get('cuota_over'):
+            bs_linea = betsson['linea_ou']
+            bs_over = betsson['cuota_over']
+            bs_under = betsson['cuota_under']
+            linea_bot = analisis.get('linea_total')
+            valor_ou = ""
+            if linea_bot and bs_linea:
+                try:
+                    if abs(float(linea_bot) - float(bs_linea)) >= 5:
+                        valor_ou = " ✅ OVER" if float(linea_bot) > float(bs_linea) else " ✅ UNDER"
+                except:
+                    pass
+            msg += f"BETSSON: Línea {bs_linea}: Over `{bs_over}` / Under `{bs_under}`{valor_ou}\n"
 
     return msg
 
@@ -1062,48 +1080,19 @@ async def pronostico(update: Update, context: ContextTypes.DEFAULT_TYPE):
         franq_b = partidos_b[0]["franquicia"] if partidos_b else "Equipo B"
 
     analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
-    msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis)
-    
-    # Añadir cuotas Betsson si disponibles
     try:
         cuotas_betsson = await get_cuotas_betsson()
         key_ab = f"{jugador_a}_vs_{jugador_b}"
         key_ba = f"{jugador_b}_vs_{jugador_a}"
-        betsson = cuotas_betsson.get(key_ab) or cuotas_betsson.get(key_ba)
-        if betsson:
-            invertido = key_ba in cuotas_betsson and key_ab not in cuotas_betsson
-            bot_a = analisis.get("cuota_a", 0)
-            bot_b = analisis.get("cuota_b", 0)
-            cb_a = betsson["cuota_b"] if invertido else betsson["cuota_a"]
-            cb_b = betsson["cuota_a"] if invertido else betsson["cuota_b"]
-            valor_a = "✅ VALOR" if cb_a > 0 and bot_a > 0 and cb_a / bot_a >= 1.15 else ""
-            valor_b = "✅ VALOR" if cb_b > 0 and bot_b > 0 and cb_b / bot_b >= 1.15 else ""
-            msg += f"\n📊 *Betsson:*\n"
-            msg += f"{jugador_a}: `{cb_a}` {valor_a}\n"
-            msg += f"{jugador_b}: `{cb_b}` {valor_b}\n"
-            if betsson.get("cuota_over") and betsson.get("linea_ou"):
-                bs_linea = betsson["linea_ou"]
-                bs_over = betsson["cuota_over"]
-                bs_under = betsson["cuota_under"]
-                linea_bot = analisis.get("linea_total")
-                if linea_bot and bs_linea:
-                    try:
-                        if abs(float(linea_bot) - float(bs_linea)) >= 5:
-                            if float(linea_bot) > float(bs_linea):
-                                valor_ou = "✅ VALOR OVER"
-                            else:
-                                valor_ou = "✅ VALOR UNDER"
-                        else:
-                            valor_ou = ""
-                    except:
-                        valor_ou = ""
-                else:
-                    valor_ou = ""
-                msg += f"O/U línea {bs_linea}: Over `{bs_over}` / Under `{bs_under}` {valor_ou}\n"
-                msg += f"📈 Línea bot: {linea_bot} pts\n"
-    except Exception as e:
-        print(f"Error obteniendo cuotas Betsson en pronostico: {e}")
+        betsson_data = cuotas_betsson.get(key_ab) or cuotas_betsson.get(key_ba)
+        if betsson_data and (key_ba in cuotas_betsson and key_ab not in cuotas_betsson):
+            betsson_data = {"cuota_a": betsson_data["cuota_b"], "cuota_b": betsson_data["cuota_a"],
+                           "cuota_over": betsson_data.get("cuota_over"), "cuota_under": betsson_data.get("cuota_under"),
+                           "linea_ou": betsson_data.get("linea_ou")}
+    except:
+        betsson_data = None
 
+    msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson=betsson_data)
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def ranking(update: Update, context: ContextTypes.DEFAULT_TYPE):
