@@ -1176,7 +1176,7 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
             r = requests.get(url, headers=headers, timeout=15)
             data = r.json()
             print(f"Phase {phase} - Keys data: {list(data.keys())}")
-data_raw = data.get("data", {})
+            data_raw = data.get("data", {})
             events_list = data_raw.get("events", [])
             print(f"Eventos encontrados: {len(events_list)}")
             if events_list:
