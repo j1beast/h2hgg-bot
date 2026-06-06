@@ -1245,7 +1245,14 @@ async def get_cuotas_betsson():
         url = f"https://www.betsson.es/api/sb/v1/widgets/events-table/v2?categoryIds=4&competitionIds=25847&eventPhase=Prematch&eventSortBy=StartDate&includeSkeleton=true&maxMarketCount=1&pageNumber=1&startsBefore={starts_before}&startsOnOrAfter={starts_after}&priceFormats=1"
         r = requests.get(url, headers=headers, timeout=15)
         if r.status_code != 200:
-            return {}
+            print(f"Betsson status {r.status_code}, renovando cookies...")
+            cookies_str = await renovar_cookies_betsson()
+            if not cookies_str:
+                return {}
+            headers["cookie"] = cookies_str
+            r = requests.get(url, headers=headers, timeout=15)
+            if r.status_code != 200:
+                return {}
         data = r.json()
         data_raw = data.get("data", {})
         events_list = data_raw.get("events", [])
