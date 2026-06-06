@@ -1140,17 +1140,36 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🔍 Probando API eventos Betsson...")
     try:
         headers = {
-            "accept": "*/*",
+            "accept": "application/json, text/plain, */*",
             "accept-language": "es-ES,es;q=0.9",
+            "brandid": "ff28e5bd-a193-4f34-9abe-af70ffbd1dbf",
+            "content-type": "application/json",
+            "correlationid": "9cac8414-b673-47e6-804b-2045ebaad389",
+            "marketcode": "es",
             "referer": "https://www.betsson.es/apuestas-deportivas/baloncesto/ebasketball/liga-h2h-gg-de-baloncesto-electronico-4-x-5-minu?tab=liveAndUpcoming",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-origin",
+            "sessiontoken": "ew0KICAiYWxnIjogIkhTMjU2IiwNCiAgInR5cCI6ICJKV1QiDQp9.ew0KICAianVyaXNkaWN0aW9uIjogIlVua25vd24iLA0KICAidXNlcklkIjogIjExMTExMTExLTExMTEtMTExMS0xMTExLTExMTExMTExMTExMSIsDQogICJsb2dpblNlc3Npb25JZCI6ICIxMTExMTExMS0xMTExLTExMTEtMTExMS0xMTExMTExMTExMTEiDQp9.yuBO_qNKJHtbCWK3z04cEqU59EKU8pZb2kXHhZ7IeuI",
             "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
-            "x-sb-brand-id": "ff28e5bd-a193-4f34-9abe-af70ffbd1dbf",
+            "x-obg-channel": "Web",
+            "x-obg-device": "Desktop",
+            "x-sb-app-version": "7.37.24.3502-r6766298",
+            "x-sb-channel": "Web",
+            "x-sb-content-id": "ff28e5bd-a193-4f34-9abe-af70ffbd1dbf",
+            "x-sb-country-code": "ES",
+            "x-sb-currency-code": "EUR",
+            "x-sb-device-type": "Desktop",
+            "x-sb-identifier": "EVENT_TABLE_REQUEST",
+            "x-sb-jurisdiction": "Dgoj",
             "x-sb-language-code": "es",
+            "x-sb-segment-id": "e136f587-21a6-47f4-a5e3-ebfc888bf590",
             "x-sb-static-context-id": "stc--1670310174",
+            "x-sb-type": "b2b",
             "x-sb-user-context-id": "stc--1670310174",
-            "cookie": "OPTIMIZELY_USER_ID=19e9a0c5-a0c5-4000-89a0c5de10.-.845; fabricBeta=FABRICBETA; aws-waf-token=db101459-20a5-466e-a428-f7783d9bd8a2:HQoAvxVYPmMCAAAA:3gaE8a3szI/kz0HZVeE28gWL0pMdUbgxlGNnHgCSWhof7SL0mRW9ekrn3nWq3kSNZ7VpHICvd777oQISB6fz2azhgSMYQgqQpeArFXtDb0hUIR12IOIMGxc+eSEqSQy4TqsJITvUyRcqnOvJdqx2ZKPH2m0ZDmQpsrqx/rUUZvSlnGxKGbRs/Ks+Tw6R9Rk=; cfidsgib-w-betssones=9jyEFq/gh3coXxafbswu3Uq3mTD/6/7tHAw5yYcisXf/mHqaDCIYcJvdvAB1Gx2vtEqHj/SlHSAU6YkcHq8c1gT/EnrpQ7AU3w5pV4t9LBdrw9y14v13Y2X8bKIsAtyDkv1dtz8Eog7tay41fMz5uIN+nSkq9pkYm6SQ1Q=="
+            "cookie": "OPTIMIZELY_USER_ID=19e9a0c5-a0c5-4000-89a0c5de10.-.845; fabricBeta=FABRICBETA; aws-waf-token=db101459-20a5-466e-a428-f7783d9bd8a2:HQoAvxVYPmMCAAAA:3gaE8a3szI/kz0HZVeE28gWL0pMdUbgxlGNnHgCSWhof7SL0mRW9ekrn3nWq3kSNZ7VpHICvd777oQISB6fz2azhgSMYQgqQpeArFXtDb0hUIR12IOIMGxc+eSEqSQy4TqsJITvUyRcqnOvJdqx2ZKPH2m0ZDmQpsrqx/rUUZvSlnGxKGbRs/Ks+Tw6R9Rk=; cfidsgib-w-betssones=y98pr9Xre6i0i8gHlNna1sfT7qDyXfruWDTuuGQaBXmApoko9gFx0suSZHmDZpwD6GlToFQT3nBltVVpK1FvyWsGO7vs0sK3pwarYNBAGtY2bkej04/TqkhtZzpOeRt408/zvt8co65ETLvhe3M5tqGtWSDWzH1WLzzyYg=="
         }
-        url = "https://www.betsson.es/api/sb/v1/widgets/events/v2?categoryIds=4&competitionIds=25847&eventPhase=Live&eventSortBy=StartDate&includeSkeletons=true&maxMarketCount=1&pageNumber=1&regionIds=2438&priceFormats=1"
+        url = "https://www.betsson.es/api/sb/v1/widgets/events-table/v2?categoryIds=4&competitionIds=25847&eventPhase=Live&eventSortBy=StartDate&includeSkeleton=true&maxMarketCount=1&pageNumber=1&regionIds=243&priceFormats=1"
         r = requests.get(url, headers=headers, timeout=15)
         print(f"Status: {r.status_code}")
         print(f"Response: {r.text[:500]}")
