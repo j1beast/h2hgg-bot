@@ -1193,14 +1193,18 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     continue
                 home = participants[0].get("label", "")
                 away = participants[1].get("label", "")
-                markets = event.get("markets", [])
+                event_id = event.get("globalId", "").split(".")[-1]
                 cuota_home = None
                 cuota_away = None
-                for market in markets:
-                    outcomes = market.get("outcomes", [])
-                    if len(outcomes) >= 2:
-                        cuota_home = outcomes[0].get("price")
-                        cuota_away = outcomes[1].get("price")
+                all_markets = data_raw.get("markets", [])
+                for market in all_markets:
+                    if market.get("eventId") == event_id and market.get("marketTemplateId") in ["ESNMOWINNER2W", "MW2W", "EMW2W"]:
+                        selections = data_raw.get("marketSelections", [])
+                        market_id = market.get("id", "")
+                        market_selections = [s for s in selections if s.get("marketId") == market_id]
+                        if len(market_selections) >= 2:
+                            cuota_home = market_selections[0].get("price")
+                            cuota_away = market_selections[1].get("price")
                         break
                 print(f"Evento: {home} vs {away} — cuotas: {cuota_home}/{cuota_away}")
                 if home and away:
