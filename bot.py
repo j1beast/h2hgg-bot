@@ -1062,7 +1062,48 @@ async def pronostico(update: Update, context: ContextTypes.DEFAULT_TYPE):
         franq_b = partidos_b[0]["franquicia"] if partidos_b else "Equipo B"
 
     analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
-    msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis)
+   msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis)
+    
+    # Añadir cuotas Betsson si disponibles
+    try:
+        cuotas_betsson = await get_cuotas_betsson()
+        key_ab = f"{jugador_a}_vs_{jugador_b}"
+        key_ba = f"{jugador_b}_vs_{jugador_a}"
+        betsson = cuotas_betsson.get(key_ab) or cuotas_betsson.get(key_ba)
+        if betsson:
+            invertido = key_ba in cuotas_betsson and key_ab not in cuotas_betsson
+            bot_a = analisis.get("cuota_a", 0)
+            bot_b = analisis.get("cuota_b", 0)
+            cb_a = betsson["cuota_b"] if invertido else betsson["cuota_a"]
+            cb_b = betsson["cuota_a"] if invertido else betsson["cuota_b"]
+            valor_a = "✅ VALOR" if cb_a > 0 and bot_a > 0 and cb_a / bot_a >= 1.15 else ""
+            valor_b = "✅ VALOR" if cb_b > 0 and bot_b > 0 and cb_b / bot_b >= 1.15 else ""
+            msg += f"\n📊 *Betsson:*\n"
+            msg += f"{jugador_a}: `{cb_a}` {valor_a}\n"
+            msg += f"{jugador_b}: `{cb_b}` {valor_b}\n"
+            if betsson.get("cuota_over") and betsson.get("linea_ou"):
+                bs_linea = betsson["linea_ou"]
+                bs_over = betsson["cuota_over"]
+                bs_under = betsson["cuota_under"]
+                linea_bot = analisis.get("linea_total")
+                if linea_bot and bs_linea:
+                    try:
+                        if abs(float(linea_bot) - float(bs_linea)) >= 5:
+                            if float(linea_bot) > float(bs_linea):
+                                valor_ou = "✅ VALOR OVER"
+                            else:
+                                valor_ou = "✅ VALOR UNDER"
+                        else:
+                            valor_ou = ""
+                    except:
+                        valor_ou = ""
+                else:
+                    valor_ou = ""
+                msg += f"O/U línea {bs_linea}: Over `{bs_over}` / Under `{bs_under}` {valor_ou}\n"
+                msg += f"📈 Línea bot: {linea_bot} pts\n"
+    except Exception as e:
+        print(f"Error obteniendo cuotas Betsson en pronostico: {e}")
+
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def ranking(update: Update, context: ContextTypes.DEFAULT_TYPE):
