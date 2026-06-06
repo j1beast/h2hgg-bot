@@ -1216,10 +1216,9 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     mdata_raw = mdata.get("data", {})
                     print(f"Data keys: {list(mdata_raw.keys()) if isinstance(mdata_raw, dict) else 'lista'}")
                     mselections = mdata_raw.get("marketSelections", [])
-                    mmarkets = mdata_raw.get("markets", [])
-                    print(f"Selections: {len(mselections)}, Markets: {len(mmarkets)}")
-                    if mmarkets:
-                        print(f"Primer market: {str(mmarkets[0])[:300]}")
+                    if mselections:
+                        print(f"Primera selection: {str(mselections[0])[:300]}")
+                        print(f"Segunda selection: {str(mselections[1])[:300]}")
                     if len(mselections) >= 2:
                         cuota_home = mselections[0].get("price")
                         cuota_away = mselections[1].get("price")
