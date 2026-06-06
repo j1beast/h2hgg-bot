@@ -1620,11 +1620,7 @@ if __name__ == "__main__":
     conn.commit()
     conn.close()
     print(f"Partidos 0-0 eliminados: {borrados}")
-    conn2 = get_db()
-    conn2.execute("DELETE FROM predicciones")
-    conn2.commit()
-    conn2.close()
-    print("Predicciones anteriores eliminadas (sin líneas Betsson)")
+    
     if total_partidos_db() == 0:
         print("Base de datos vacía, cargando datos iniciales...")
         cargar_datos_iniciales(meses=11)
