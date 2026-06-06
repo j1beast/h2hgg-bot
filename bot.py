@@ -63,7 +63,14 @@ def init_db():
         acierto_ou INTEGER,
         procesado INTEGER DEFAULT 0
     )''')
-    for col, tipo in [("prediccion_ou", "TEXT"), ("prob_h2h", "REAL"), ("prob_equipo", "REAL"), ("prob_h2h_eq", "REAL"), ("prob_forma", "REAL"), ("prob_h2h_rec", "REAL")]:
+    for col, tipo in [
+        ("prediccion_ou", "TEXT"),
+        ("prob_h2h", "REAL"), ("prob_equipo", "REAL"), ("prob_h2h_eq", "REAL"),
+        ("prob_forma", "REAL"), ("prob_h2h_rec", "REAL"),
+        ("cuota_betsson_a", "REAL"), ("cuota_betsson_b", "REAL"),
+        ("linea_betsson_ou", "REAL"), ("cuota_betsson_over", "REAL"),
+        ("cuota_betsson_under", "REAL")
+    ]:
         try:
             c.execute(f"ALTER TABLE predicciones ADD COLUMN {col} {tipo}")
         except:
@@ -198,7 +205,7 @@ async def tarea_actualizacion_diaria():
         await asyncio.sleep(segundos)
         actualizar_datos_hoy()
 
-def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis):
+def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson=None):
     conn = get_db()
     c = conn.cursor()
     hoy = datetime.utcnow().strftime("%Y-%m-%d")
@@ -213,49 +220,64 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis):
     prob_b = analisis.get("prob_b") or 0.5
     ganador = jugador_a if prob_a > prob_b else jugador_b
     cuota_ganador = analisis.get("cuota_a", 1.01) if prob_a > prob_b else analisis.get("cuota_b", 1.01)
+
+    cb_a = cb_b = linea_bs = over_bs = under_bs = None
+    if betsson:
+        cb_a = betsson.get("cuota_a")
+        cb_b = betsson.get("cuota_b")
+        linea_bs = betsson.get("linea_ou")
+        over_bs = betsson.get("cuota_over")
+        under_bs = betsson.get("cuota_under")
+
     c.execute('''INSERT INTO predicciones
-       (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador, linea_total, cuota_over, cuota_under, prediccion_ou, fecha_prediccion, procesado, prob_h2h, prob_equipo, prob_h2h_eq, prob_forma, prob_h2h_rec)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?)''',
+       (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador,
+        linea_total, cuota_over, cuota_under, prediccion_ou, fecha_prediccion, procesado,
+        prob_h2h, prob_equipo, prob_h2h_eq, prob_forma, prob_h2h_rec,
+        cuota_betsson_a, cuota_betsson_b, linea_betsson_ou, cuota_betsson_over, cuota_betsson_under)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,?,?,?,?,?,?)''',
         (jugador_a, jugador_b, franq_a, franq_b, ganador, cuota_ganador,
          analisis.get("linea_total"), analisis.get("over_total"), analisis.get("under_total"),
          prediccion_ou, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-         analisis.get("prob_h2h"), analisis.get("prob_equipo"), analisis.get("prob_h2h_eq"), analisis.get("prob_forma"), analisis.get("prob_h2h_rec")))
+         analisis.get("prob_h2h"), analisis.get("prob_equipo"), analisis.get("prob_h2h_eq"),
+         analisis.get("prob_forma"), analisis.get("prob_h2h_rec"),
+         cb_a, cb_b, linea_bs, over_bs, under_bs))
     conn.commit()
     conn.close()
 
 def verificar_predicciones():
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT id, jugador_a, jugador_b, ganador_predicho, linea_total FROM predicciones WHERE procesado = 0")
+    # Solo procesar predicciones que tienen línea Betsson guardada
+    c.execute('''SELECT id, jugador_a, jugador_b, ganador_predicho, 
+                 linea_betsson_ou, prediccion_ou, ganador_predicho,
+                 cuota_betsson_a, cuota_betsson_b
+                 FROM predicciones WHERE procesado = 0 AND linea_betsson_ou IS NOT NULL''')
     pendientes = c.fetchall()
-    for pred_id, jugador_a, jugador_b, ganador_predicho, linea_total in pendientes:
+    for row in pendientes:
+        pred_id, jugador_a, jugador_b, ganador_predicho, linea_betsson_ou, prediccion_ou, _, cb_a, cb_b = row
         partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
         if not partidos_h2h:
             continue
-        ultimo = partidos_h2h[0]
-        fecha_pred = None
         c.execute("SELECT fecha_prediccion FROM predicciones WHERE id=?", (pred_id,))
-        row = c.fetchone()
-        if row:
-            fecha_pred = row[0]
-        if not fecha_pred:
+        r = c.fetchone()
+        if not r:
             continue
-        fecha_pred_dt = datetime.strptime(fecha_pred, "%Y-%m-%d %H:%M:%S")
-        if ultimo.get("fecha") and isinstance(ultimo["fecha"], str) and ultimo["fecha"] >= fecha_pred_dt.strftime("%Y-%m-%d"):
-            ganador_real = jugador_a if ultimo["gano_a"] else jugador_b
-            acierto_ganador = 1 if ganador_real == ganador_predicho else 0
-            total_real = ultimo["pts_a"] + ultimo["pts_b"]
-            c.execute("SELECT prediccion_ou FROM predicciones WHERE id=?", (pred_id,))
-            row_ou = c.fetchone()
-            prediccion_ou = row_ou[0] if row_ou else "Over"
-            if linea_total is None:
-                acierto_ou = 0
-            elif prediccion_ou == "Over":
-                acierto_ou = 1 if total_real > linea_total else 0
-            else:
-                acierto_ou = 1 if total_real < linea_total else 0
-            c.execute('''UPDATE predicciones SET resultado_real=?, acierto_ganador=?, acierto_ou=?, procesado=1
-                         WHERE id=?''', (ganador_real, acierto_ganador, acierto_ou, pred_id))
+        fecha_pred_dt = datetime.strptime(r[0], "%Y-%m-%d %H:%M:%S")
+        ultimo = partidos_h2h[0]
+        if not (ultimo.get("fecha") and ultimo["fecha"] >= fecha_pred_dt.strftime("%Y-%m-%d")):
+            continue
+        ganador_real = jugador_a if ultimo["gano_a"] else jugador_b
+        acierto_ganador = 1 if ganador_real == ganador_predicho else 0
+        total_real = ultimo["pts_a"] + ultimo["pts_b"]
+        # Usar línea Betsson como referencia para O/U
+        if linea_betsson_ou is None:
+            acierto_ou = 0
+        elif prediccion_ou == "Over":
+            acierto_ou = 1 if total_real > linea_betsson_ou else 0
+        else:
+            acierto_ou = 1 if total_real < linea_betsson_ou else 0
+        c.execute('''UPDATE predicciones SET resultado_real=?, acierto_ganador=?, acierto_ou=?, procesado=1
+                     WHERE id=?''', (ganador_real, acierto_ganador, acierto_ou, pred_id))
     conn.commit()
     conn.close()
 
@@ -276,7 +298,14 @@ async def tarea_predicciones_automaticas(app_ref):
                 partidos_b = buscar_partidos_jugador_db(jugador_b)
                 if partidos_a and partidos_b:
                     analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
-                    guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis)
+                    key_ab = f"{jugador_a}_vs_{jugador_b}"
+                    key_ba = f"{jugador_b}_vs_{jugador_a}"
+                    betsson_pred = cuotas_betsson.get(key_ab) or cuotas_betsson.get(key_ba)
+                    if betsson_pred and (key_ba in cuotas_betsson and key_ab not in cuotas_betsson):
+                        betsson_pred = {"cuota_a": betsson_pred["cuota_b"], "cuota_b": betsson_pred["cuota_a"],
+                                       "cuota_over": betsson_pred.get("cuota_over"), "cuota_under": betsson_pred.get("cuota_under"),
+                                       "linea_ou": betsson_pred.get("linea_ou")}
+                    guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson=betsson_pred)
                 if analisis.get("confianza") in ["🟢 Alta", "🟡 Media"]:
                         key_ab = f"{jugador_a}_vs_{jugador_b}"
                         key_ba = f"{jugador_b}_vs_{jugador_a}"
@@ -1186,6 +1215,79 @@ async def rendimiento(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg += f"{dia}: {gan}/{total} ganador ({round(gan/total*100,1)}%) | {ou}/{total} O/U ({round(ou/total*100,1)}%)\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
+async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        await update.message.reply_text("No tienes acceso a este bot.")
+        return
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT ganador_predicho, resultado_real, acierto_ganador,
+                 prediccion_ou, acierto_ou,
+                 cuota_betsson_a, cuota_betsson_b,
+                 cuota_betsson_over, cuota_betsson_under,
+                 jugador_a, jugador_b, fecha_prediccion
+                 FROM predicciones
+                 WHERE procesado = 1
+                   AND cuota_betsson_a IS NOT NULL
+                 ORDER BY id ASC''')
+    rows = c.fetchall()
+    conn.close()
+    if not rows:
+        await update.message.reply_text("Aún no hay predicciones con líneas Betsson procesadas.")
+        return
+    unidades_ganador = 0.0
+    unidades_ou = 0.0
+    aciertos_g = 0
+    aciertos_ou = 0
+    total = len(rows)
+    racha_g = []
+    racha_ou = []
+    for row in rows:
+        gan_pred, res_real, ac_g, pred_ou, ac_ou, cb_a, cb_b, cb_over, cb_under, jug_a, jug_b, fecha = row
+        # Ganador: cuota del jugador predicho
+        if gan_pred == jug_a:
+            cuota_g = cb_a or 0
+        else:
+            cuota_g = cb_b or 0
+        if cuota_g and cuota_g > 1:
+            if ac_g == 1:
+                unidades_ganador += round(cuota_g - 1, 4)
+                aciertos_g += 1
+                racha_g.append("✅")
+            else:
+                unidades_ganador -= 1
+                racha_g.append("❌")
+        # Over/Under
+        if pred_ou == "Over":
+            cuota_ou = cb_over or 0
+        else:
+            cuota_ou = cb_under or 0
+        if cuota_ou and cuota_ou > 1:
+            if ac_ou == 1:
+                unidades_ou += round(cuota_ou - 1, 4)
+                aciertos_ou += 1
+                racha_ou.append("✅")
+            else:
+                unidades_ou -= 1
+                racha_ou.append("❌")
+    unidades_ganador = round(unidades_ganador, 2)
+    unidades_ou = round(unidades_ou, 2)
+    emoji_g = "📈" if unidades_ganador >= 0 else "📉"
+    emoji_ou = "📈" if unidades_ou >= 0 else "📉"
+    ultimas_g = "".join(racha_g[-10:])
+    ultimas_ou = "".join(racha_ou[-10:])
+    msg = f"💰 *Simulación de unidades (1u por apuesta)*\n"
+    msg += f"_(Solo predicciones con cuotas Betsson)_\n\n"
+    msg += f"🏆 *GANADOR*\n"
+    msg += f"Predicciones: {len(racha_g)} | Aciertos: {aciertos_g}\n"
+    msg += f"Últimas 10: {ultimas_g}\n"
+    msg += f"{emoji_g} Resultado: `{'+' if unidades_ganador >= 0 else ''}{unidades_ganador}u`\n\n"
+    msg += f"🔢 *OVER/UNDER*\n"
+    msg += f"Predicciones: {len(racha_ou)} | Aciertos: {aciertos_ou}\n"
+    msg += f"Últimas 10: {ultimas_ou}\n"
+    msg += f"{emoji_ou} Resultado: `{'+' if unidades_ou >= 0 else ''}{unidades_ou}u`\n"
+    await update.message.reply_text(msg, parse_mode="Markdown")
+    
 async def test_coolbet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         return
@@ -1451,6 +1553,11 @@ if __name__ == "__main__":
     conn.commit()
     conn.close()
     print(f"Partidos 0-0 eliminados: {borrados}")
+    conn2 = get_db()
+    conn2.execute("DELETE FROM predicciones")
+    conn2.commit()
+    conn2.close()
+    print("Predicciones anteriores eliminadas (sin líneas Betsson)")
     if total_partidos_db() == 0:
         print("Base de datos vacía, cargando datos iniciales...")
         cargar_datos_iniciales(meses=11)
@@ -1470,6 +1577,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("actualizar", actualizar))
     app.add_handler(CommandHandler("testbetsson", test_betsson))
     app.add_handler(CommandHandler("testcoolbet", test_coolbet))
+    app.add_handler(CommandHandler("unidades", unidades))
     app.add_handler(CommandHandler("renovarcookies", renovar_cookies_cmd))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
