@@ -201,9 +201,9 @@ def actualizar_datos_hoy():
 
 async def tarea_actualizacion_diaria():
     while True:
-        await asyncio.sleep(3600)  # cada hora
         actualizar_datos_hoy()
         print(f"Actualización horaria completada: {datetime.utcnow().strftime('%H:%M')}")
+        await asyncio.sleep(3600)  # cada hora
 
 def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson=None):
     conn = get_db()
