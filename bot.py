@@ -323,8 +323,8 @@ async def get_cuotas_coolbet():
             )
             await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             page = await context.new_page()
-            from playwright_stealth import stealth_async
-            await stealth_async(page)
+            from playwright_stealth import stealth
+            stealth(page)
 
             # Interceptar las respuestas de la API
             respuestas = []
