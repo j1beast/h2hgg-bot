@@ -1153,6 +1153,50 @@ async def test_odds_api(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ Error: {e}")
 
+def guardar_cookies_betsson(cookies_str):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("DELETE FROM betsson_cookies")
+    c.execute("INSERT INTO betsson_cookies (cookies, timestamp) VALUES (?, ?)", 
+              (cookies_str, int(datetime.utcnow().timestamp())))
+    conn.commit()
+    conn.close()
+
+def cargar_cookies_betsson():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT cookies, timestamp FROM betsson_cookies ORDER BY id DESC LIMIT 1")
+    row = c.fetchone()
+    conn.close()
+    if row:
+        cookies_str, ts = row
+        if (datetime.utcnow().timestamp() - ts) < 14400:
+            return cookies_str
+    return None
+
+async def renovar_cookies_betsson():
+    try:
+        print("Renovando cookies Betsson con Playwright...")
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context(
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+                locale="es-ES"
+            )
+            await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            page = await context.new_page()
+            await page.goto("https://www.betsson.es/apuestas-deportivas/baloncesto/ebasketball/liga-h2h-gg-de-baloncesto-electronico-4-x-5-minu?tab=liveAndUpcoming", wait_until="domcontentloaded", timeout=20000)
+            await page.wait_for_timeout(3000)
+            cookies = await context.cookies()
+            await browser.close()
+            cookies_str = "; ".join([f"{c['name']}={c['value']}" for c in cookies])
+            guardar_cookies_betsson(cookies_str)
+            print(f"Cookies renovadas: {len(cookies)} cookies")
+            return cookies_str
+    except Exception as e:
+        print(f"Error renovando cookies: {e}")
+        return None
 async def get_cuotas_betsson():
     try:
         headers = {
