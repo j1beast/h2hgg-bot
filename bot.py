@@ -330,23 +330,15 @@ async def get_cuotas_coolbet():
                 window.chrome = {runtime: {}};
             """)
 
-            # Interceptar las respuestas de la API
-            respuestas = []
-            async def capturar_respuesta(response):
-                if "sbgate" in response.url and "eBasketball-H2H" in response.url:
-                    try:
-                        data = await response.json()
-                        respuestas.append(data)
-                    except:
-                        pass
             print("Cargando página Betsson...")
             respuestas = []
             async def capturar_respuesta(response):
-                if "sbgate" in response.url or "api" in response.url or "odds" in response.url or "events" in response.url:
+                if "sb/fe-api" in response.url or "sb/v1" in response.url:
                     if response.status == 200:
                         try:
                             data = await response.json()
-                            print(f"Respuesta capturada: {response.url[:100]}")
+                            print(f"URL: {response.url[:100]}")
+                            print(f"Data: {str(data)[:300]}")
                             respuestas.append({"url": response.url, "data": data})
                         except:
                             pass
@@ -356,7 +348,7 @@ async def get_cuotas_coolbet():
             await page.wait_for_timeout(8000)
             print(f"URLs capturadas: {[r['url'][:80] for r in respuestas]}")
             await browser.close()
-
+            
         print(f"Respuestas capturadas: {len(respuestas)}")
         for data in respuestas:
             fixtures = data.get("fixtures") or data.get("events") or data.get("data") or []
