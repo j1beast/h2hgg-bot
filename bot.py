@@ -487,7 +487,7 @@ def calcular_peso_fecha(fecha_str):
 def prob_to_odds(prob):
     if prob <= 0 or prob >= 1:
         return 1.01
-    margen = 1.06
+    margen = 1.111
     return round(1 / (prob * margen), 2)
 
 def calcular_std(valores):
