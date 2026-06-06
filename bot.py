@@ -339,20 +339,22 @@ async def get_cuotas_coolbet():
                         respuestas.append(data)
                     except:
                         pass
-            print("Cargando página Coolbet...")
+            print("Cargando página Betsson...")
+            respuestas = []
+            async def capturar_respuesta(response):
+                if "sbgate" in response.url or "api" in response.url or "odds" in response.url or "events" in response.url:
+                    if response.status == 200:
+                        try:
+                            data = await response.json()
+                            print(f"Respuesta capturada: {response.url[:100]}")
+                            respuestas.append({"url": response.url, "data": data})
+                        except:
+                            pass
+            page.on("response", capturar_respuesta)
             await page.goto("https://www.betsson.es/apuestas-deportivas/baloncesto/ebasketball/liga-h2h-gg-de-baloncesto-electronico-4-x-5-minu?tab=liveAndUpcoming", wait_until="domcontentloaded", timeout=20000)
-            print("Página cargada, haciendo fetch interno...")
-            await page.wait_for_timeout(3000)
-            data = await page.evaluate('''async () => {
-                try {
-                    const r = await fetch("/s/sbgate/category/by-slug/en/basketball/eBasketball/eBasketball-H2H-GG-League-Mixed");
-                    return await r.json();
-                } catch(e) {
-                    return {"error": e.toString()};
-                }
-            }''')
-            print(f"Data obtenida: {str(data)[:200]}")
-            respuestas = [data] if data and "error" not in data else []
+            print("Página cargada, esperando respuestas API...")
+            await page.wait_for_timeout(8000)
+            print(f"URLs capturadas: {[r['url'][:80] for r in respuestas]}")
             await browser.close()
 
         print(f"Respuestas capturadas: {len(respuestas)}")
