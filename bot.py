@@ -333,19 +333,17 @@ async def get_cuotas_coolbet():
             print("Cargando página Betsson...")
             respuestas = []
             async def capturar_respuesta(response):
-                if "betsson.es/sb" in response.url or "betsson.es/api/sb" in response.url:
-                    if response.status == 200:
-                        try:
-                            data = await response.json()
-                            print(f"URL: {response.url[:100]}")
-                            print(f"Data: {str(data)[:300]}")
-                            respuestas.append({"url": response.url, "data": data})
-                        except:
-                            pass
+                if response.status == 200 and "betsson.es" in response.url:
+                    try:
+                        data = await response.json()
+                        print(f"URL: {response.url[:120]}")
+                        respuestas.append({"url": response.url, "data": data})
+                    except:
+                        pass
             page.on("response", capturar_respuesta)
             await page.goto("https://www.betsson.es/apuestas-deportivas/baloncesto/ebasketball/liga-h2h-gg-de-baloncesto-electronico-4-x-5-minu?tab=liveAndUpcoming", wait_until="domcontentloaded", timeout=20000)
             print("Página cargada, esperando respuestas API...")
-            await page.wait_for_timeout(8000)
+            await page.wait_for_timeout(15000)
             print(f"URLs capturadas: {[r['url'][:80] for r in respuestas]}")
             await browser.close()
             
