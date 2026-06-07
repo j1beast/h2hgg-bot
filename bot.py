@@ -226,10 +226,23 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
     conn = get_db()
     c = conn.cursor()
     hoy = datetime.utcnow().strftime("%Y-%m-%d")
-    c.execute('''SELECT id FROM predicciones 
+    c.execute('''SELECT id, cuota_betsson_a FROM predicciones 
                  WHERE jugador_a=? AND jugador_b=? AND fecha_prediccion LIKE ?''',
               (jugador_a, jugador_b, f"{hoy}%"))
-    if c.fetchone():
+    existing = c.fetchone()
+    if existing:
+        # Si ya existe pero sin cuota Betsson, actualizar cuotas
+        if existing[1] is None and betsson:
+            cb_a = betsson.get("cuota_a")
+            cb_b = betsson.get("cuota_b")
+            linea_bs = betsson.get("linea_ou")
+            over_bs = betsson.get("cuota_over")
+            under_bs = betsson.get("cuota_under")
+            c.execute('''UPDATE predicciones SET cuota_betsson_a=?, cuota_betsson_b=?,
+                         linea_betsson_ou=?, cuota_betsson_over=?, cuota_betsson_under=?
+                         WHERE id=?''',
+                      (cb_a, cb_b, linea_bs, over_bs, under_bs, existing[0]))
+            conn.commit()
         conn.close()
         return
     prediccion_ou = "Over" if (analisis.get("over_total") or 99) < (analisis.get("under_total") or 99) else "Under"
