@@ -88,7 +88,9 @@ def init_db():
     conn.close()
 
 def get_db():
-    return sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
+    return conn
 
 def guardar_partido(ev):
     home = ev.get("home", {}).get("name", "")
