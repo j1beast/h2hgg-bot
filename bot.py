@@ -1702,6 +1702,11 @@ if __name__ == "__main__":
     borrados = c.rowcount
     conn.commit()
     conn.close()
+    conn2 = get_db()
+    conn2.execute("DELETE FROM predicciones WHERE procesado=0 AND cuota_betsson_a IS NULL")
+    conn2.commit()
+    conn2.close()
+    print("Predicciones sin cuota Betsson eliminadas")
     
     if total_partidos_db() == 0:
         print("Base de datos vacía, cargando datos iniciales...")
