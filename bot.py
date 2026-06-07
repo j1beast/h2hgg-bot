@@ -267,6 +267,7 @@ def verificar_predicciones():
                  cuota_betsson_a, cuota_betsson_b
                  FROM predicciones WHERE procesado = 0 AND linea_betsson_ou IS NOT NULL''')
     pendientes = c.fetchall()
+    print(f"DEBUG verificar: {len(pendientes)} predicciones pendientes")
     for row in pendientes:
         pred_id, jugador_a, jugador_b, ganador_predicho, linea_betsson_ou, prediccion_ou, _, cb_a, cb_b = row
         partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
