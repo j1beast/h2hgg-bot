@@ -366,7 +366,7 @@ async def tarea_predicciones_automaticas(app_ref):
                         hay_valor_ou = False
                         if linea_bot and bs_linea:
                             try:
-                                hay_valor_ou = abs(float(linea_bot) - float(bs_linea)) >= 7
+                                hay_valor_ou = abs(float(linea_bot) - float(bs_linea)) >= 5
                             except:
                                 pass
                         if not hay_valor_ganador and not hay_valor_ou:
@@ -978,7 +978,7 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
             valor_ou = ""
             if linea_bot and bs_linea:
                 try:
-                    if abs(float(linea_bot) - float(bs_linea)) >= 7:
+                    if abs(float(linea_bot) - float(bs_linea)) >= 5:
                         valor_ou = " ✅ VALOR OVER" if float(linea_bot) > float(bs_linea) else " ✅ VALOR UNDER"
                 except:
                     pass
