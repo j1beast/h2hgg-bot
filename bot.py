@@ -390,28 +390,6 @@ async def tarea_predicciones_automaticas(app_ref):
                                 msg += f"Línea bot: {linea_bot} pts ({diff_str})\n"
                             except:
                                 pass
-                        msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis)
-                        valor_a = "✅ VALOR" if cb_a > bot_a else ""
-                        valor_b = "✅ VALOR" if cb_b > bot_b else ""
-                        msg += f"\n📊 *Betsson:*\n"
-                        msg += f"{jugador_a}: `{cb_a}` {valor_a}\n"
-                        msg += f"{jugador_b}: `{cb_b}` {valor_b}\n"
-                        if betsson.get("cuota_over") and bs_linea:
-                            bs_over = betsson["cuota_over"]
-                            bs_under = betsson["cuota_under"]
-                            if linea_bot and bs_linea:
-                                try:
-                                    if abs(float(linea_bot) - float(bs_linea)) >= 7:
-                                        if float(linea_bot) > float(bs_linea):
-                                            valor_ou = "✅ VALOR OVER"
-                                        elif float(linea_bot) < float(bs_linea):
-                                            valor_ou = "✅ VALOR UNDER"
-                                    else:
-                                        valor_ou = ""
-                                except:
-                                    valor_ou = ""
-                            msg += f"O/U línea {bs_linea}: Over `{bs_over}` / Under `{bs_under}` {valor_ou}\n"
-                            msg += f"📈 Línea bot: {linea_bot} pts\n"
                         try:
                             await app_ref.bot.send_message(chat_id=CANAL_ID, text=msg, parse_mode="Markdown")
                             conn_e = get_db()
