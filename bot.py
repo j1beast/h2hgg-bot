@@ -268,6 +268,11 @@ def verificar_predicciones():
                  FROM predicciones WHERE procesado = 0 AND linea_betsson_ou IS NOT NULL''')
     pendientes = c.fetchall()
     print(f"DEBUG verificar: {len(pendientes)} predicciones pendientes")
+    c.execute("SELECT COUNT(*) FROM predicciones WHERE procesado = 0")
+    total_sin_procesar = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM predicciones WHERE procesado = 0 AND linea_betsson_ou IS NULL")
+    sin_linea = c.fetchone()[0]
+    print(f"DEBUG: {total_sin_procesar} sin procesar, {sin_linea} sin línea Betsson O/U")
     for row in pendientes:
         pred_id, jugador_a, jugador_b, ganador_predicho, linea_betsson_ou, prediccion_ou, _, cb_a, cb_b = row
         partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
