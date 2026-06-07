@@ -398,7 +398,7 @@ async def tarea_predicciones_automaticas(app_ref):
                             bs_under = betsson["cuota_under"]
                             if linea_bot and bs_linea:
                                 try:
-                                    if abs(float(linea_bot) - float(bs_linea)) >= 5:
+                                    if abs(float(linea_bot) - float(bs_linea)) >= 7:
                                         if float(linea_bot) > float(bs_linea):
                                             valor_ou = "✅ VALOR OVER"
                                         elif float(linea_bot) < float(bs_linea):
@@ -963,7 +963,7 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
             valor_ou = ""
             if linea_bot and bs_linea:
                 try:
-                    if abs(float(linea_bot) - float(bs_linea)) >= 5:
+                    if abs(float(linea_bot) - float(bs_linea)) >= 7:
                         valor_ou = " ✅ VALOR OVER" if float(linea_bot) > float(bs_linea) else " ✅ VALOR UNDER"
                 except:
                     pass
