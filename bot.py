@@ -293,6 +293,7 @@ async def tarea_predicciones_automaticas(app_ref):
             proximos = get_upcoming()
             cuotas_betsson = await get_cuotas_betsson()
             for ev in proximos:
+                hora_utc = datetime.utcfromtimestamp(int(ev.get("time", 0))).strftime("%H:%M UTC") if ev.get("time") else "?? UTC"
                 home = ev.get("home", {}).get("name", "")
                 away = ev.get("away", {}).get("name", "")
                 jugador_a = extraer_nombre_jugador(home).upper()
@@ -352,6 +353,40 @@ async def tarea_predicciones_automaticas(app_ref):
                         conn_c.close()
                         if ya_enviado and ya_enviado[0] == 1:
                             continue
+                        # Construir mensaje de valor
+                        msg = ""
+                        # Valor ganador
+                        if hay_valor_ganador:
+                            if cb_a > bot_a:
+                                pct = round((cb_a / bot_a - 1) * 100, 1)
+                                msg += f"🎯 *VALUE BET - GANADOR*\n"
+                                msg += f"{franq_a} ({jugador_a}) vs {franq_b} ({jugador_b}) — {hora_utc}\n"
+                                msg += f"Betsson: {jugador_a} gana → `{cb_a}`\n"
+                                msg += f"Bot: `{bot_a}` (+{pct}% diferencia)\n"
+                            else:
+                                pct = round((cb_b / bot_b - 1) * 100, 1)
+                                msg += f"🎯 *VALUE BET - GANADOR*\n"
+                                msg += f"{franq_a} ({jugador_a}) vs {franq_b} ({jugador_b}) — {hora_utc}\n"
+                                msg += f"Betsson: {jugador_b} gana → `{cb_b}`\n"
+                                msg += f"Bot: `{bot_b}` (+{pct}% diferencia)\n"
+                        # Valor O/U
+                        if hay_valor_ou and bs_linea and linea_bot:
+                            try:
+                                diff_pts = round(float(linea_bot) - float(bs_linea), 1)
+                                if float(linea_bot) > float(bs_linea):
+                                    tipo_ou = "OVER"
+                                    diff_str = f"+{diff_pts} pts"
+                                else:
+                                    tipo_ou = "UNDER"
+                                    diff_str = f"{diff_pts} pts"
+                                if msg:
+                                    msg += f"\n"
+                                msg += f"📊 *VALUE BET - OVER/UNDER*\n"
+                                msg += f"{franq_a} ({jugador_a}) vs {franq_b} ({jugador_b}) — {hora_utc}\n"
+                                msg += f"Betsson: {tipo_ou} `{bs_linea}` → `{bs_over if tipo_ou == 'OVER' else bs_under}`\n"
+                                msg += f"Línea bot: {linea_bot} pts ({diff_str})\n"
+                            except:
+                                pass
                         msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis)
                         valor_a = "✅ VALOR" if cb_a > bot_a else ""
                         valor_b = "✅ VALOR" if cb_b > bot_b else ""
