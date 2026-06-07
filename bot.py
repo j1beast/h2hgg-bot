@@ -217,10 +217,10 @@ async def tarea_actualizacion_diaria():
     while True:
         try:
             actualizar_datos_hoy()
-            print(f"Actualización horaria completada: {datetime.utcnow().strftime('%H:%M')}")
+            print(f"Actualización completada: {datetime.utcnow().strftime('%H:%M')}")
         except Exception as e:
-            print(f"Error en actualización horaria: {e}")
-        await asyncio.sleep(3600)
+            print(f"Error en actualización: {e}")
+        await asyncio.sleep(900)  # 15 minutos
 
 def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson=None):
     conn = get_db()
