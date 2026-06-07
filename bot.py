@@ -273,6 +273,7 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
          analisis.get("prob_forma"), analisis.get("prob_h2h_rec"),
          cb_a, cb_b, linea_bs, over_bs, under_bs, es_valor))
     conn.commit()
+    print(f"Predicción guardada: {jugador_a} vs {jugador_b}")
     conn.close()
 
 def verificar_predicciones():
