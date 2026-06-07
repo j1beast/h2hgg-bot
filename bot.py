@@ -1639,6 +1639,33 @@ async def renovar_cookies_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("✅ Cookies renovadas correctamente")
     else:
         await update.message.reply_text("❌ Error renovando cookies")
+
+async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM predicciones WHERE procesado=1")
+    procesadas = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM predicciones WHERE procesado=0 AND cuota_betsson_a IS NOT NULL")
+    pendientes_con_cuota = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM predicciones WHERE procesado=0 AND cuota_betsson_a IS NULL")
+    pendientes_sin_cuota = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM predicciones WHERE procesado=1 AND es_valor=1")
+    valor_procesadas = c.fetchone()[0]
+    c.execute("SELECT jugador_a, jugador_b, fecha_prediccion FROM predicciones WHERE procesado=0 AND cuota_betsson_a IS NOT NULL ORDER BY id DESC LIMIT 5")
+    pendientes = c.fetchall()
+    conn.close()
+    msg = f"🔧 *Debug predicciones*\n\n"
+    msg += f"✅ Procesadas: {procesadas}\n"
+    msg += f"⏳ Pendientes con cuota Betsson: {pendientes_con_cuota}\n"
+    msg += f"❌ Pendientes sin cuota Betsson: {pendientes_sin_cuota}\n"
+    msg += f"🎯 Valor procesadas: {valor_procesadas}\n"
+    if pendientes:
+        msg += f"\n*Últimas pendientes con cuota:*\n"
+        for ja, jb, fecha in pendientes:
+            msg += f"• {ja} vs {jb} ({fecha[:10]})\n"
+    await update.message.reply_text(msg, parse_mode="Markdown")
         
 async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
@@ -1697,6 +1724,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("testcoolbet", test_coolbet))
     app.add_handler(CommandHandler("unidades", unidades))
     app.add_handler(CommandHandler("renovarcookies", renovar_cookies_cmd))
+    app.add_handler(CommandHandler("debug", debug))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
