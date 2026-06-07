@@ -1673,6 +1673,8 @@ if __name__ == "__main__":
     c = conn.cursor()
     c.execute("DELETE FROM partidos WHERE score_home = 0 AND score_away = 0")
     borrados = c.rowcount
+    conn.commit()
+    conn.close()
     
     if total_partidos_db() == 0:
         print("Base de datos vacía, cargando datos iniciales...")
