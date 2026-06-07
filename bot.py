@@ -278,19 +278,9 @@ def verificar_predicciones():
             continue
         fecha_pred_dt = datetime.strptime(r[0], "%Y-%m-%d %H:%M:%S")
         ultimo = partidos_h2h[0]
-        # Buscar el partido más cercano posterior a la predicción
-        partido_resultado = None
-        for p in partidos_h2h:
-            if not p.get("fecha"):
-                continue
-            if p["fecha"] > fecha_pred_dt.strftime("%Y-%m-%d"):
-                partido_resultado = p
-            elif p["fecha"] == fecha_pred_dt.strftime("%Y-%m-%d"):
-                partido_resultado = p
-                break
-        if not partido_resultado:
+        ultimo = partidos_h2h[0]
+        if not (ultimo.get("fecha") and ultimo["fecha"] >= fecha_pred_dt.strftime("%Y-%m-%d")):
             continue
-        ultimo = partido_resultado
         ganador_real = jugador_a if ultimo["gano_a"] else jugador_b
         acierto_ganador = 1 if ganador_real == ganador_predicho else 0
         total_real = ultimo["pts_a"] + ultimo["pts_b"]
