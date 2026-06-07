@@ -265,7 +265,7 @@ def verificar_predicciones():
     c.execute('''SELECT id, jugador_a, jugador_b, ganador_predicho, 
                  linea_betsson_ou, prediccion_ou, ganador_predicho,
                  cuota_betsson_a, cuota_betsson_b
-                 FROM predicciones WHERE procesado = 0 AND linea_betsson_ou IS NOT NULL''')
+                 FROM predicciones WHERE procesado = 0 AND cuota_betsson_a IS NOT NULL''')
     pendientes = c.fetchall()
     print(f"DEBUG verificar: {len(pendientes)} predicciones pendientes")
     c.execute("SELECT COUNT(*) FROM predicciones WHERE procesado = 0")
@@ -292,7 +292,7 @@ def verificar_predicciones():
         total_real = ultimo["pts_a"] + ultimo["pts_b"]
         # Usar línea Betsson como referencia para O/U
         if linea_betsson_ou is None:
-            acierto_ou = 0
+            acierto_ou = None
         elif prediccion_ou == "Over":
             acierto_ou = 1 if total_real > linea_betsson_ou else 0
         else:
