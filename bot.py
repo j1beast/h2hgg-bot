@@ -313,6 +313,24 @@ async def tarea_predicciones_automaticas(app_ref):
         try:
             proximos = get_upcoming()
             cuotas_betsson = await get_cuotas_betsson()
+            # Actualizar cuotas Betsson en predicciones que no las tienen
+            for key, val in cuotas_betsson.items():
+                partes = key.split("_vs_")
+                if len(partes) != 2:
+                    continue
+                ja, jb = partes[0], partes[1]
+                conn_u = get_db()
+                conn_u.execute('''UPDATE predicciones SET 
+                                 cuota_betsson_a=?, cuota_betsson_b=?,
+                                 linea_betsson_ou=?, cuota_betsson_over=?, cuota_betsson_under=?
+                                 WHERE cuota_betsson_a IS NULL
+                                 AND ((jugador_a=? AND jugador_b=?) OR (jugador_a=? AND jugador_b=?))
+                                 AND procesado=0''',
+                              (val.get("cuota_a"), val.get("cuota_b"),
+                               val.get("linea_ou"), val.get("cuota_over"), val.get("cuota_under"),
+                               ja, jb, jb, ja))
+                conn_u.commit()
+                conn_u.close()
             for ev in proximos:
                 hora_utc = datetime.utcfromtimestamp(int(ev.get("time", 0))).strftime("%H:%M UTC") if ev.get("time") else "?? UTC"
                 home = ev.get("home", {}).get("name", "")
