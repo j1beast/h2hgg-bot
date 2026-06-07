@@ -331,6 +331,11 @@ async def tarea_predicciones_automaticas(app_ref):
                                ja, jb, jb, ja))
                 conn_u.commit()
                 conn_u.close()
+                conn_debug = get_db()
+                rows_debug = conn_debug.execute("SELECT jugador_a, jugador_b FROM predicciones WHERE cuota_betsson_a IS NULL AND procesado=0 LIMIT 3").fetchall()
+                conn_debug.close()
+                print(f"DEBUG pred sin cuota: {rows_debug}")
+                print(f"DEBUG betsson keys: {list(cuotas_betsson.keys())[:3]}")
             for ev in proximos:
                 hora_utc = datetime.utcfromtimestamp(int(ev.get("time", 0))).strftime("%H:%M UTC") if ev.get("time") else "?? UTC"
                 home = ev.get("home", {}).get("name", "")
