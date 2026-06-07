@@ -146,15 +146,23 @@ def set_meta(clave, valor):
 # ─────────────────────────────────────────────
 
 def get_upcoming():
-    r = requests.get(f"{BASE_URL}/v1/events/upcoming?sport_id={SPORT_ID}&league_id={LEAGUE_ID}&token={BETSAPI_TOKEN}", timeout=10)
-    return r.json().get("results", [])
+    try:
+        r = requests.get(f"{BASE_URL}/v1/events/upcoming?sport_id={SPORT_ID}&league_id={LEAGUE_ID}&token={BETSAPI_TOKEN}", timeout=20)
+        return r.json().get("results", [])
+    except Exception as e:
+        print(f"Error get_upcoming: {e}")
+        return []
 
 def get_ended(page=1, day=None):
-    url = f"{BASE_URL}/v3/events/ended?sport_id={SPORT_ID}&league_id={LEAGUE_ID}&token={BETSAPI_TOKEN}&page={page}"
-    if day:
-        url += f"&day={day}"
-    r = requests.get(url, timeout=10)
-    return r.json().get("results", [])
+    try:
+        url = f"{BASE_URL}/v3/events/ended?sport_id={SPORT_ID}&league_id={LEAGUE_ID}&token={BETSAPI_TOKEN}&page={page}"
+        if day:
+            url += f"&day={day}"
+        r = requests.get(url, timeout=20)
+        return r.json().get("results", [])
+    except Exception as e:
+        print(f"Error get_ended: {e}")
+        return []
 
 # ─────────────────────────────────────────────
 # CARGA INICIAL Y ACTUALIZACION DIARIA
