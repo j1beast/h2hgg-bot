@@ -327,11 +327,11 @@ async def tarea_predicciones_automaticas(app_ref):
                         cb_b = betsson["cuota_a"] if invertido else betsson["cuota_b"]
                         linea_bot = analisis.get("linea_total")
                         bs_linea = betsson.get("linea_ou")
-                        hay_valor_ganador = (cb_a > 0 and bot_a > 0 and cb_a / bot_a >= 1.15) or (cb_b > 0 and bot_b > 0 and cb_b / bot_b >= 1.15)
+                        hay_valor_ganador = (cb_a > 0 and bot_a > 0 and cb_a / bot_a >= 1.20) or (cb_b > 0 and bot_b > 0 and cb_b / bot_b >= 1.20)
                         hay_valor_ou = False
                         if linea_bot and bs_linea:
                             try:
-                                hay_valor_ou = abs(float(linea_bot) - float(bs_linea)) >= 5
+                                hay_valor_ou = abs(float(linea_bot) - float(bs_linea)) >= 7
                             except:
                                 pass
                         if not hay_valor_ganador and not hay_valor_ou:
