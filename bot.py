@@ -373,6 +373,8 @@ async def tarea_predicciones_automaticas(app_ref):
                                 msg += f"Betsson: {jugador_b} gana → `{cb_b}`\n"
                                 msg += f"Bot: `{bot_b}` (+{pct}% diferencia)\n"
                         # Valor O/U
+                        bs_over = betsson.get("cuota_over")
+                        bs_under = betsson.get("cuota_under")
                         if hay_valor_ou and bs_linea and linea_bot:
                             try:
                                 diff_pts = round(float(linea_bot) - float(bs_linea), 1)
