@@ -1678,6 +1678,20 @@ async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for ja, jb, fecha in pendientes:
             msg += f"• {ja} vs {jb} ({fecha[:10]})\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def debugvalor(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM predicciones WHERE procesado=1 AND es_valor=0")
+    sin_valor = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM predicciones WHERE procesado=1 AND es_valor=1")
+    con_valor = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM predicciones WHERE procesado=1 AND es_valor IS NULL")
+    valor_null = c.fetchone()[0]
+    conn.close()
+    await update.message.reply_text(f"Procesadas sin valor: {sin_valor}\nProcesadas con valor: {con_valor}\nProcesadas valor NULL: {valor_null}")
         
 async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
@@ -1742,6 +1756,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("unidades", unidades))
     app.add_handler(CommandHandler("renovarcookies", renovar_cookies_cmd))
     app.add_handler(CommandHandler("debug", debug))
+    app.add_handler(CommandHandler("debugvalor", debugvalor))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
