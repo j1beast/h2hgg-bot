@@ -267,15 +267,6 @@ def verificar_predicciones():
                  cuota_betsson_a, cuota_betsson_b
                  FROM predicciones WHERE procesado = 0 AND cuota_betsson_a IS NOT NULL''')
     pendientes = c.fetchall()
-    print(f"DEBUG verificar: {len(pendientes)} predicciones pendientes")
-    c.execute("SELECT COUNT(*) FROM predicciones WHERE procesado = 0")
-    total_sin_procesar = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM predicciones WHERE procesado = 0 AND linea_betsson_ou IS NULL")
-    sin_linea = c.fetchone()[0]
-    print(f"DEBUG: {total_sin_procesar} sin procesar, {sin_linea} sin línea Betsson O/U")
-    c.execute("SELECT COUNT(*) FROM predicciones WHERE procesado = 0 AND cuota_betsson_a IS NOT NULL")
-    con_cuota = c.fetchone()[0]
-    print(f"DEBUG: {con_cuota} sin procesar CON cuota betsson_a")
     for row in pendientes:
         pred_id, jugador_a, jugador_b, ganador_predicho, linea_betsson_ou, prediccion_ou, _, cb_a, cb_b = row
         partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
@@ -331,11 +322,6 @@ async def tarea_predicciones_automaticas(app_ref):
                                ja, jb, jb, ja))
                 conn_u.commit()
                 conn_u.close()
-                conn_debug = get_db()
-                rows_debug = conn_debug.execute("SELECT jugador_a, jugador_b FROM predicciones WHERE cuota_betsson_a IS NULL AND procesado=0 LIMIT 3").fetchall()
-                conn_debug.close()
-                print(f"DEBUG pred sin cuota: {rows_debug}")
-                print(f"DEBUG betsson keys: {list(cuotas_betsson.keys())[:3]}")
             for ev in proximos:
                 hora_utc = datetime.utcfromtimestamp(int(ev.get("time", 0))).strftime("%H:%M UTC") if ev.get("time") else "?? UTC"
                 home = ev.get("home", {}).get("name", "")
@@ -1683,9 +1669,6 @@ if __name__ == "__main__":
     c = conn.cursor()
     c.execute("DELETE FROM partidos WHERE score_home = 0 AND score_away = 0")
     borrados = c.rowcount
-    conn.commit()
-    conn.close()
-    print(f"Partidos 0-0 eliminados: {borrados}")
     
     if total_partidos_db() == 0:
         print("Base de datos vacía, cargando datos iniciales...")
