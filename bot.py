@@ -341,26 +341,26 @@ async def tarea_predicciones_automaticas(app_ref):
                                ja, jb, jb, ja))
                 conn_u.commit()
                 conn_u.close()
-            for ev in proximos:
-                hora_utc = datetime.utcfromtimestamp(int(ev.get("time", 0))).strftime("%H:%M UTC") if ev.get("time") else "?? UTC"
-                home = ev.get("home", {}).get("name", "")
-                away = ev.get("away", {}).get("name", "")
-                jugador_a = extraer_nombre_jugador(home).upper()
-                jugador_b = extraer_nombre_jugador(away).upper()
-                franq_a = extraer_franquicia(home)
-                franq_b = extraer_franquicia(away)
-                partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
+            for key_bs, betsson_pred in cuotas_betsson.items():
+                partes = key_bs.split("_vs_")
+                if len(partes) != 2:
+                    continue
+                jugador_a, jugador_b = partes[0], partes[1]
+                hora_utc = "?? UTC"
+                # Buscar hora en proximos de BetsAPI
+                for ev in proximos:
+                    home_ev = extraer_nombre_jugador(ev.get("home", {}).get("name", "")).upper()
+                    away_ev = extraer_nombre_jugador(ev.get("away", {}).get("name", "")).upper()
+                    if (home_ev == jugador_a and away_ev == jugador_b) or (home_ev == jugador_b and away_ev == jugador_a):
+                        hora_utc = datetime.utcfromtimestamp(int(ev.get("time", 0))).strftime("%H:%M UTC") if ev.get("time") else "?? UTC"
+                        break
                 partidos_a = buscar_partidos_jugador_db(jugador_a)
                 partidos_b = buscar_partidos_jugador_db(jugador_b)
+                franq_a = partidos_a[0]["franquicia"] if partidos_a else jugador_a
+                franq_b = partidos_b[0]["franquicia"] if partidos_b else jugador_b
+                partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
                 if partidos_a and partidos_b:
                     analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
-                    key_ab = f"{jugador_a}_vs_{jugador_b}"
-                    key_ba = f"{jugador_b}_vs_{jugador_a}"
-                    betsson_pred = cuotas_betsson.get(key_ab) or cuotas_betsson.get(key_ba)
-                    if betsson_pred and (key_ba in cuotas_betsson and key_ab not in cuotas_betsson):
-                        betsson_pred = {"cuota_a": betsson_pred["cuota_b"], "cuota_b": betsson_pred["cuota_a"],
-                                       "cuota_over": betsson_pred.get("cuota_over"), "cuota_under": betsson_pred.get("cuota_under"),
-                                       "linea_ou": betsson_pred.get("linea_ou")}
                     guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson=betsson_pred)
                     if analisis.get("confianza") in ["🟢 Alta", "🟡 Media"]:
                         key_ab = f"{jugador_a}_vs_{jugador_b}"
