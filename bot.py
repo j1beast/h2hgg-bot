@@ -1740,7 +1740,7 @@ if __name__ == "__main__":
     )''')
     conn2.commit()
     conn2.close()
-    print("Predicciones sin cuota y duplicados eliminados"))
+    print("Predicciones sin cuota y duplicados eliminados")
     
     if total_partidos_db() == 0:
         print("Base de datos vacía, cargando datos iniciales...")
