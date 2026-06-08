@@ -210,7 +210,11 @@ def actualizar_datos_hoy():
                 guardar_partido(ev)
                 total += 1
     set_meta("ultima_actualizacion", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
-    print(f"Actualización diaria: {total} partidos nuevos")
+    conn_check = get_db()
+    hoy_check = datetime.utcnow().strftime("%Y-%m-%d")
+    count_hoy = conn_check.execute("SELECT COUNT(*) FROM partidos WHERE fecha=?", (hoy_check,)).fetchone()[0]
+    conn_check.close()
+    print(f"Actualización diaria: {total} partidos nuevos, partidos de hoy en DB: {count_hoy}")
     return total
 
 async def tarea_actualizacion_diaria():
