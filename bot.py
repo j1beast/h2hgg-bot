@@ -397,8 +397,10 @@ async def tarea_predicciones_automaticas(app_ref):
                             # No enviar si ya se envió antes
                         conn_c = get_db()
                         ya_enviado = conn_c.execute('''SELECT enviado_canal FROM predicciones
-                                                      WHERE jugador_a=? AND jugador_b=? AND fecha_prediccion LIKE ?''',
-                                                   (jugador_a, jugador_b, datetime.utcnow().strftime("%Y-%m-%d%"))).fetchone()
+                                                      WHERE ((jugador_a=? AND jugador_b=?) OR (jugador_a=? AND jugador_b=?))
+                                                      AND fecha_prediccion LIKE ?
+                                                      AND enviado_canal=1''',
+                                                   (jugador_a, jugador_b, jugador_b, jugador_a, datetime.utcnow().strftime("%Y-%m-%d%"))).fetchone()
                         conn_c.close()
                         if ya_enviado and ya_enviado[0] == 1:
                             continue
