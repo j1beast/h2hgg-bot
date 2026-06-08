@@ -448,6 +448,20 @@ async def tarea_predicciones_automaticas(app_ref):
                             conn_e.close()
                         except Exception as e:
                             print(f"Error enviando al canal: {e}")
+            # Guardar predicciones para partidos de Betsson no encontrados en BetsAPI
+            for key, val in cuotas_betsson.items():
+                partes = key.split("_vs_")
+                if len(partes) != 2:
+                    continue
+                ja, jb = partes[0], partes[1]
+                partidos_a = buscar_partidos_jugador_db(ja)
+                partidos_b = buscar_partidos_jugador_db(jb)
+                if partidos_a and partidos_b:
+                    partidos_h2h = buscar_historial_db(ja, jb)
+                    franq_a = partidos_a[0]["franquicia"]
+                    franq_b = partidos_b[0]["franquicia"]
+                    analisis = analizar_partido(ja, franq_a, jb, franq_b, partidos_h2h, partidos_a, partidos_b)
+                    guardar_prediccion(ja, franq_a, jb, franq_b, analisis, betsson=val)
             verificar_predicciones()
         except Exception as e:
             import traceback
