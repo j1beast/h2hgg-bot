@@ -346,8 +346,8 @@ async def tarea_predicciones_automaticas(app_ref):
                 if len(partes) != 2:
                     continue
                 jugador_a, jugador_b = partes[0], partes[1]
-                hora_utc = "?? UTC"
-                # Buscar hora en proximos de BetsAPI
+                hora_utc = betsson_pred.get("hora_utc", "?? UTC")
+                # Buscar hora en proximos de BetsAPI (sobreescribe si está disponible)
                 for ev in proximos:
                     home_ev = extraer_nombre_jugador(ev.get("home", {}).get("name", "")).upper()
                     away_ev = extraer_nombre_jugador(ev.get("away", {}).get("name", "")).upper()
@@ -547,13 +547,21 @@ async def get_cuotas_coolbet():
                                     cuota_home = outcomes[0].get("odds") or outcomes[0].get("price")
                                     cuota_away = outcomes[1].get("odds") or outcomes[1].get("price")
                                     if cuota_home and cuota_away:
-                                        cuotas[f"{home_j}_vs_{away_j}"] = {
-                                            "cuota_a": float(cuota_home),
-                                            "cuota_b": float(cuota_away),
-                                            "home": home_j,
-                                            "away": away_j
-                                        }
-                                        break
+                start_time = event.get("startEventDate", "")
+                try:
+                    hora_utc_bs = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%SZ").strftime("%H:%M UTC")
+                except:
+                    hora_utc_bs = "?? UTC"
+                cuotas[f"{home_j}_vs_{away_j}"] = {
+                    "cuota_a": cuota_home,
+                    "cuota_b": cuota_away,
+                    "cuota_over": cuota_over,
+                    "cuota_under": cuota_under,
+                    "linea_ou": linea_ou,
+                    "home": home_j,
+                    "away": away_j,
+                    "hora_utc": hora_utc_bs
+                }
                         except:
                             continue
         return cuotas
