@@ -321,6 +321,7 @@ async def tarea_predicciones_automaticas(app_ref):
     while True:
         try:
             proximos = get_upcoming()
+            print(f"Próximos BetsAPI: {len(proximos)}")
             cuotas_betsson = await get_cuotas_betsson()
             # Actualizar cuotas Betsson en predicciones que no las tienen
             for key, val in cuotas_betsson.items():
