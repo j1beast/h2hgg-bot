@@ -402,7 +402,7 @@ async def tarea_predicciones_automaticas(app_ref):
                                                       AND enviado_canal=1''',
                                                    (jugador_a, jugador_b, jugador_b, jugador_a, datetime.utcnow().strftime("%Y-%m-%d%"))).fetchone()
                         conn_c.close()
-                        if ya_enviado and ya_enviado[0] == 1:
+                        if ya_enviado:
                             continue
                         # Construir mensaje de valor
                         msg = ""
