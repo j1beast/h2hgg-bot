@@ -1732,9 +1732,15 @@ if __name__ == "__main__":
     conn.close()
     conn2 = get_db()
     conn2.execute("DELETE FROM predicciones WHERE procesado=0 AND cuota_betsson_a IS NULL")
+    # Limpiar duplicados — quedarse solo con el de menor id
+    conn2.execute('''DELETE FROM predicciones WHERE procesado=0 AND id NOT IN (
+        SELECT MIN(id) FROM predicciones 
+        WHERE procesado=0
+        GROUP BY jugador_a, jugador_b, DATE(fecha_prediccion)
+    )''')
     conn2.commit()
     conn2.close()
-    print("Predicciones sin cuota Betsson eliminadas")
+    print("Predicciones sin cuota y duplicados eliminados"))
     
     if total_partidos_db() == 0:
         print("Base de datos vacía, cargando datos iniciales...")
