@@ -274,7 +274,6 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
          analisis.get("prob_forma"), analisis.get("prob_h2h_rec"),
          cb_a, cb_b, linea_bs, over_bs, under_bs, es_valor))
     conn.commit()
-    print(f"Predicción guardada: {jugador_a} vs {jugador_b}")
     conn.close()
 
 def verificar_predicciones():
@@ -322,7 +321,6 @@ async def tarea_predicciones_automaticas(app_ref):
     while True:
         try:
             proximos = get_upcoming()
-            print(f"Próximos BetsAPI: {len(proximos)}")
             cuotas_betsson = await get_cuotas_betsson()
             # Actualizar cuotas Betsson en predicciones que no las tienen
             for key, val in cuotas_betsson.items():
