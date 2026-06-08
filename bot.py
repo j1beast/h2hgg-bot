@@ -1741,6 +1741,14 @@ if __name__ == "__main__":
     conn2.commit()
     conn2.close()
     print("Predicciones sin cuota y duplicados eliminados")
+    # Eliminar predicciones pendientes de más de 24 horas
+    conn3 = get_db()
+    conn3.execute('''DELETE FROM predicciones 
+                     WHERE procesado=0 
+                     AND datetime(fecha_prediccion) < datetime('now', '-24 hours')''')
+    conn3.commit()
+    conn3.close()
+    print("Predicciones antiguas pendientes eliminadas")
     
     if total_partidos_db() == 0:
         print("Base de datos vacía, cargando datos iniciales...")
