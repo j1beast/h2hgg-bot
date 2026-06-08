@@ -210,11 +210,7 @@ def actualizar_datos_hoy():
                 guardar_partido(ev)
                 total += 1
     set_meta("ultima_actualizacion", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
-    conn_check = get_db()
-    hoy_check = datetime.utcnow().strftime("%Y-%m-%d")
-    count_hoy = conn_check.execute("SELECT COUNT(*) FROM partidos WHERE fecha=?", (hoy_check,)).fetchone()[0]
-    conn_check.close()
-    print(f"Actualización diaria: {total} partidos nuevos, partidos de hoy en DB: {count_hoy}")
+    print(f"Actualización completada: {total} partidos nuevos")
     return total
 
 async def tarea_actualizacion_diaria():
@@ -301,7 +297,6 @@ def verificar_predicciones():
         fecha_pred_dt = datetime.strptime(r[0], "%Y-%m-%d %H:%M:%S")
         hoy_str = fecha_pred_dt.strftime("%Y-%m-%d")
         partidos_hoy = [p for p in partidos_h2h if p.get("fecha") and p["fecha"] >= hoy_str]
-        print(f"DEBUG {jugador_a} vs {jugador_b}: pred={hoy_str}, h2h_hoy={len(partidos_hoy)}, total_h2h={len(partidos_h2h)}")
         if not partidos_hoy:
             continue
         ultimo = partidos_hoy[0]
@@ -453,20 +448,6 @@ async def tarea_predicciones_automaticas(app_ref):
                             conn_e.close()
                         except Exception as e:
                             print(f"Error enviando al canal: {e}")
-            # Guardar predicciones para partidos de Betsson no encontrados en BetsAPI
-            for key, val in cuotas_betsson.items():
-                partes = key.split("_vs_")
-                if len(partes) != 2:
-                    continue
-                ja, jb = partes[0], partes[1]
-                partidos_a = buscar_partidos_jugador_db(ja)
-                partidos_b = buscar_partidos_jugador_db(jb)
-                if partidos_a and partidos_b:
-                    partidos_h2h = buscar_historial_db(ja, jb)
-                    franq_a = partidos_a[0]["franquicia"]
-                    franq_b = partidos_b[0]["franquicia"]
-                    analisis = analizar_partido(ja, franq_a, jb, franq_b, partidos_h2h, partidos_a, partidos_b)
-                    guardar_prediccion(ja, franq_a, jb, franq_b, analisis, betsson=val)
             verificar_predicciones()
         except Exception as e:
             import traceback
