@@ -297,6 +297,7 @@ def verificar_predicciones():
         fecha_pred_dt = datetime.strptime(r[0], "%Y-%m-%d %H:%M:%S")
         hoy_str = fecha_pred_dt.strftime("%Y-%m-%d")
         partidos_hoy = [p for p in partidos_h2h if p.get("fecha") and p["fecha"] >= hoy_str]
+        print(f"VER {jugador_a} vs {jugador_b}: pred={hoy_str}, hoy={len(partidos_hoy)}")
         if not partidos_hoy:
             continue
         ultimo = partidos_hoy[0]
