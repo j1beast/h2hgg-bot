@@ -295,10 +295,11 @@ def verificar_predicciones():
         if not r:
             continue
         fecha_pred_dt = datetime.strptime(r[0], "%Y-%m-%d %H:%M:%S")
-        ultimo = partidos_h2h[0]
-        ultimo = partidos_h2h[0]
-        if not (ultimo.get("fecha") and ultimo["fecha"] >= fecha_pred_dt.strftime("%Y-%m-%d")):
+        hoy_str = fecha_pred_dt.strftime("%Y-%m-%d")
+        partidos_hoy = [p for p in partidos_h2h if p.get("fecha") and p["fecha"] >= hoy_str]
+        if not partidos_hoy:
             continue
+        ultimo = partidos_hoy[0]
         ganador_real = jugador_a if ultimo["gano_a"] else jugador_b
         acierto_ganador = 1 if ganador_real == ganador_predicho else 0
         total_real = ultimo["pts_a"] + ultimo["pts_b"]
