@@ -342,11 +342,16 @@ async def tarea_predicciones_automaticas(app_ref):
                                ja, jb, jb, ja))
                 conn_u.commit()
                 conn_u.close()
+            partidos_enviados = set()
             for key_bs, betsson_pred in cuotas_betsson.items():
                 partes = key_bs.split("_vs_")
                 if len(partes) != 2:
                     continue
                 jugador_a, jugador_b = partes[0], partes[1]
+                key_norm = "_vs_".join(sorted([jugador_a, jugador_b]))
+                if key_norm in partidos_enviados:
+                    continue
+                partidos_enviados.add(key_norm)
                 hora_utc = betsson_pred.get("hora_utc", "?? UTC")
                 # Buscar hora en proximos de BetsAPI (sobreescribe si está disponible)
                 for ev in proximos:
