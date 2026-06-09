@@ -548,7 +548,7 @@ async def get_cuotas_coolbet():
                                     cuota_home = outcomes[0].get("odds") or outcomes[0].get("price")
                                     cuota_away = outcomes[1].get("odds") or outcomes[1].get("price")
                                     if cuota_home and cuota_away:
-                                        start_time = event.get("startEventDate", "")
+                                        start_time = event.get("startDate", "")
                                         try:
                                             hora_utc_bs = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%SZ").strftime("%H:%M UTC")
                                         except:
