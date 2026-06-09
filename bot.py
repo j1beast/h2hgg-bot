@@ -357,8 +357,8 @@ async def tarea_predicciones_automaticas(app_ref):
                         break
                 partidos_a = buscar_partidos_jugador_db(jugador_a)
                 partidos_b = buscar_partidos_jugador_db(jugador_b)
-                franq_a = partidos_a[0]["franquicia"] if partidos_a else jugador_a
-                franq_b = partidos_b[0]["franquicia"] if partidos_b else jugador_b
+                franq_a = betsson_pred.get("franq_a") or (partidos_a[0]["franquicia"] if partidos_a else jugador_a)
+                franq_b = betsson_pred.get("franq_b") or (partidos_b[0]["franquicia"] if partidos_b else jugador_b)
                 partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
                 if partidos_a and partidos_b:
                     analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
@@ -1632,7 +1632,10 @@ async def get_cuotas_betsson():
                     "cuota_under": cuota_under,
                     "linea_ou": linea_ou,
                     "home": home_j,
-                    "away": away_j
+                    "away": away_j,
+                    "hora_utc": hora_utc_bs,
+                    "franq_a": extraer_franquicia(home),
+                    "franq_b": extraer_franquicia(away)
                 }
         print(f"Cuotas Betsson obtenidas: {len(cuotas)} partidos")
         return cuotas
