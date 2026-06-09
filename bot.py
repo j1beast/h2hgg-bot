@@ -1624,6 +1624,11 @@ async def get_cuotas_betsson():
                         cuota_over = ouselections[0].get("odds")
                         cuota_under = ouselections[1].get("odds")
 
+            start_time = event.get("startDate", "")
+            try:
+                hora_utc_bs = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%SZ").strftime("%H:%M UTC")
+            except:
+                hora_utc_bs = "?? UTC"
             if cuota_home and cuota_away:
                 cuotas[f"{home_j}_vs_{away_j}"] = {
                     "cuota_a": cuota_home,
