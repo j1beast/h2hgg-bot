@@ -397,7 +397,7 @@ async def tarea_predicciones_automaticas(app_ref):
                             conn_v = get_db()
                             conn_v.execute('''UPDATE predicciones SET es_valor=1 
                                              WHERE jugador_a=? AND jugador_b=? AND fecha_prediccion LIKE ?''',
-                                          (jugador_a, jugador_b, datetime.utcnow().strftime("%Y-%m-%d%")))
+                                          (jugador_a, jugador_b, f"{datetime.utcnow().strftime('%Y-%m-%d')}%"))
                             conn_v.commit()
                             conn_v.close()
                             # No enviar si ya se envió antes
@@ -406,7 +406,7 @@ async def tarea_predicciones_automaticas(app_ref):
                                                       WHERE ((jugador_a=? AND jugador_b=?) OR (jugador_a=? AND jugador_b=?))
                                                       AND fecha_prediccion LIKE ?
                                                       AND enviado_canal=1''',
-                                                   (jugador_a, jugador_b, jugador_b, jugador_a, datetime.utcnow().strftime("%Y-%m-%d%"))).fetchone()
+                                                   (jugador_a, jugador_b, jugador_b, jugador_a, f"{datetime.utcnow().strftime('%Y-%m-%d')}%")).fetchone()
                         conn_c.close()
                         if ya_enviado:
                             continue
@@ -451,7 +451,7 @@ async def tarea_predicciones_automaticas(app_ref):
                             conn_e = get_db()
                             conn_e.execute('''UPDATE predicciones SET enviado_canal=1
                                              WHERE jugador_a=? AND jugador_b=? AND fecha_prediccion LIKE ?''',
-                                          (jugador_a, jugador_b, datetime.utcnow().strftime("%Y-%m-%d%")))
+                                          (jugador_a, jugador_b, f"{datetime.utcnow().strftime('%Y-%m-%d')}%"))
                             conn_e.commit()
                             conn_e.close()
                         except Exception as e:
@@ -1198,49 +1198,63 @@ async def pronostico(update: Update, context: ContextTypes.DEFAULT_TYPE):
     jugador_b = partes[1].strip()
     await update.message.reply_text(f"🔍 Analizando {jugador_a} vs {jugador_b}...")
 
-    # Buscar equipos en próximos partidos
+    betsson_data = None
     franq_a = None
     franq_b = None
+
+    # 1. Buscar franquicia en Betsson primero (tiene datos antes que BetsAPI)
     try:
-        proximos_list = get_upcoming()
-        for ev in proximos_list:
-            home = ev.get("home", {}).get("name", "")
-            away = ev.get("away", {}).get("name", "")
-            nombre_home = extraer_nombre_jugador(home).upper()
-            nombre_away = extraer_nombre_jugador(away).upper()
-            if nombre_home == jugador_a and nombre_away == jugador_b:
-                franq_a = extraer_franquicia(home)
-                franq_b = extraer_franquicia(away)
-                break
-            elif nombre_home == jugador_b and nombre_away == jugador_a:
-                franq_a = extraer_franquicia(away)
-                franq_b = extraer_franquicia(home)
-                break
+        cuotas_betsson = await get_cuotas_betsson()
+        key_ab = f"{jugador_a}_vs_{jugador_b}"
+        key_ba = f"{jugador_b}_vs_{jugador_a}"
+        raw = cuotas_betsson.get(key_ab) or cuotas_betsson.get(key_ba)
+        if raw:
+            invertido = key_ba in cuotas_betsson and key_ab not in cuotas_betsson
+            if invertido:
+                betsson_data = {
+                    "cuota_a": raw["cuota_b"], "cuota_b": raw["cuota_a"],
+                    "cuota_over": raw.get("cuota_over"), "cuota_under": raw.get("cuota_under"),
+                    "linea_ou": raw.get("linea_ou"),
+                    "franq_a": raw.get("franq_b"), "franq_b": raw.get("franq_a")
+                }
+            else:
+                betsson_data = raw
+            franq_a = betsson_data.get("franq_a")
+            franq_b = betsson_data.get("franq_b")
     except:
         pass
+
+    # 2. Si no está en Betsson, intentar BetsAPI
+    if not franq_a:
+        try:
+            proximos_list = get_upcoming()
+            for ev in proximos_list:
+                home = ev.get("home", {}).get("name", "")
+                away = ev.get("away", {}).get("name", "")
+                nombre_home = extraer_nombre_jugador(home).upper()
+                nombre_away = extraer_nombre_jugador(away).upper()
+                if nombre_home == jugador_a and nombre_away == jugador_b:
+                    franq_a = extraer_franquicia(home)
+                    franq_b = extraer_franquicia(away)
+                    break
+                elif nombre_home == jugador_b and nombre_away == jugador_a:
+                    franq_a = extraer_franquicia(away)
+                    franq_b = extraer_franquicia(home)
+                    break
+        except:
+            pass
 
     partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
     partidos_a = buscar_partidos_jugador_db(jugador_a)
     partidos_b = buscar_partidos_jugador_db(jugador_b)
 
+    # 3. Último recurso: último equipo conocido en DB
     if not franq_a:
         franq_a = partidos_a[0]["franquicia"] if partidos_a else "Equipo A"
     if not franq_b:
         franq_b = partidos_b[0]["franquicia"] if partidos_b else "Equipo B"
 
     analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
-    try:
-        cuotas_betsson = await get_cuotas_betsson()
-        key_ab = f"{jugador_a}_vs_{jugador_b}"
-        key_ba = f"{jugador_b}_vs_{jugador_a}"
-        betsson_data = cuotas_betsson.get(key_ab) or cuotas_betsson.get(key_ba)
-        if betsson_data and (key_ba in cuotas_betsson and key_ab not in cuotas_betsson):
-            betsson_data = {"cuota_a": betsson_data["cuota_b"], "cuota_b": betsson_data["cuota_a"],
-                           "cuota_over": betsson_data.get("cuota_over"), "cuota_under": betsson_data.get("cuota_under"),
-                           "linea_ou": betsson_data.get("linea_ou")}
-    except:
-        betsson_data = None
-
     msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson=betsson_data)
     await update.message.reply_text(msg, parse_mode="Markdown")
 
@@ -1753,12 +1767,10 @@ if __name__ == "__main__":
     conn = get_db()
     c = conn.cursor()
     c.execute("DELETE FROM partidos WHERE score_home = 0 AND score_away = 0")
-    borrados = c.rowcount
     conn.commit()
     conn.close()
     conn2 = get_db()
     conn2.execute("DELETE FROM predicciones WHERE procesado=0 AND cuota_betsson_a IS NULL")
-    # Limpiar duplicados — quedarse solo con el de menor id
     conn2.execute('''DELETE FROM predicciones WHERE procesado=0 AND id NOT IN (
         SELECT MIN(id) FROM predicciones 
         WHERE procesado=0
@@ -1766,23 +1778,25 @@ if __name__ == "__main__":
     )''')
     conn2.commit()
     conn2.close()
-    print("Predicciones sin cuota y duplicados eliminados")
-    # Eliminar predicciones pendientes de más de 24 horas
     conn3 = get_db()
     conn3.execute('''DELETE FROM predicciones 
                      WHERE procesado=0 
                      AND datetime(fecha_prediccion) < datetime('now', '-24 hours')''')
     conn3.commit()
     conn3.close()
-    print("Predicciones antiguas pendientes eliminadas")
-    
+    print("Limpieza de predicciones completada")
+
     if total_partidos_db() == 0:
         print("Base de datos vacía, cargando datos iniciales...")
         cargar_datos_iniciales(meses=11)
     else:
         print(f"Base de datos lista con {total_partidos_db()} partidos.")
 
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    async def post_init(application):
+        asyncio.create_task(tarea_actualizacion_diaria())
+        asyncio.create_task(tarea_predicciones_automaticas(application))
+
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("proximos", proximos))
     app.add_handler(CommandHandler("resultados", resultados))
@@ -1801,10 +1815,6 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("debugvalor", debugvalor))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
-
-    loop = asyncio.get_event_loop()
-    loop.create_task(tarea_actualizacion_diaria())
-    loop.create_task(tarea_predicciones_automaticas(app))
 
     print("Bot iniciado...")
     app.run_polling()
