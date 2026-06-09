@@ -401,7 +401,7 @@ async def tarea_predicciones_automaticas(app_ref):
                             conn_v.commit()
                             conn_v.close()
                             # No enviar si ya se envió antes
-                            conn_c = get_db()
+                        conn_c = get_db()
                         ya_enviado = conn_c.execute('''SELECT enviado_canal FROM predicciones
                                                       WHERE ((jugador_a=? AND jugador_b=?) OR (jugador_a=? AND jugador_b=?))
                                                       AND datetime(fecha_prediccion) >= datetime('now', '-36 hours')
