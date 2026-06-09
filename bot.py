@@ -401,12 +401,12 @@ async def tarea_predicciones_automaticas(app_ref):
                             conn_v.commit()
                             conn_v.close()
                             # No enviar si ya se envió antes
-                        conn_c = get_db()
+                                                conn_c = get_db()
                         ya_enviado = conn_c.execute('''SELECT enviado_canal FROM predicciones
                                                       WHERE ((jugador_a=? AND jugador_b=?) OR (jugador_a=? AND jugador_b=?))
-                                                      AND fecha_prediccion LIKE ?
+                                                      AND datetime(fecha_prediccion) >= datetime('now', '-36 hours')
                                                       AND enviado_canal=1''',
-                                                   (jugador_a, jugador_b, jugador_b, jugador_a, f"{datetime.utcnow().strftime('%Y-%m-%d')}%")).fetchone()
+                                                   (jugador_a, jugador_b, jugador_b, jugador_a)).fetchone()
                         conn_c.close()
                         if ya_enviado:
                             continue
@@ -450,8 +450,9 @@ async def tarea_predicciones_automaticas(app_ref):
                             await app_ref.bot.send_message(chat_id=CANAL_ID, text=msg, parse_mode="Markdown")
                             conn_e = get_db()
                             conn_e.execute('''UPDATE predicciones SET enviado_canal=1
-                                             WHERE jugador_a=? AND jugador_b=? AND fecha_prediccion LIKE ?''',
-                                          (jugador_a, jugador_b, f"{datetime.utcnow().strftime('%Y-%m-%d')}%"))
+                                             WHERE ((jugador_a=? AND jugador_b=?) OR (jugador_a=? AND jugador_b=?))
+                                             AND datetime(fecha_prediccion) >= datetime('now', '-36 hours')''',
+                                          (jugador_a, jugador_b, jugador_b, jugador_a))
                             conn_e.commit()
                             conn_e.close()
                         except Exception as e:
