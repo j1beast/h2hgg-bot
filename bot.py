@@ -75,7 +75,7 @@ def init_db():
         ("es_valor", "INTEGER"),
         ("enviado_canal", "INTEGER"),
         ("pts_real_a", "INTEGER"),
-        ("pts_real_b", "INTEGER")
+        ("pts_real_b", "INTEGER"),
         ("ratio_def_a", "REAL"), ("ratio_def_b", "REAL"),
         ("margen_avg_a", "REAL"), ("margen_avg_b", "REAL"),
         ("ou_h2h_total", "REAL"), ("ou_general", "REAL"),
