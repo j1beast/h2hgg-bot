@@ -1945,6 +1945,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("unidades", unidades))
     app.add_handler(CommandHandler("renovarcookies", renovar_cookies_cmd))
     app.add_handler(CommandHandler("debug", debug))
+    app.add_handler(CommandHandler("optimizar", optimizar))
     app.add_handler(CommandHandler("debugvalor", debugvalor))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
