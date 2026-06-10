@@ -284,21 +284,25 @@ def verificar_predicciones():
                  cuota_betsson_a, cuota_betsson_b
                  FROM predicciones WHERE procesado = 0 AND cuota_betsson_a IS NOT NULL''')
     pendientes = c.fetchall()
+    print(f"[VERIFY] {len(pendientes)} pendientes")
     for row in pendientes:
         try:
             pred_id, jugador_a, jugador_b, ganador_predicho, linea_betsson_ou, prediccion_ou, _, cb_a, cb_b = row
             partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
             if not partidos_h2h:
+                print(f"[SKIP] {jugador_a} vs {jugador_b}: sin H2H")
                 continue
             c.execute("SELECT fecha_prediccion FROM predicciones WHERE id=?", (pred_id,))
             r = c.fetchone()
             if not r:
+                print(f"[SKIP] pred_id={pred_id}: sin fecha_prediccion")
                 continue
             fecha_pred_dt = datetime.strptime(r[0], "%Y-%m-%d %H:%M:%S")
             desde_dt = fecha_pred_dt - timedelta(hours=6)
             desde_str = desde_dt.strftime("%Y-%m-%d")
             partidos_recientes = [p for p in partidos_h2h if p.get("fecha") and p["fecha"] >= desde_str]
             if not partidos_recientes:
+                print(f"[SKIP] {jugador_a} vs {jugador_b}: sin partidos desde {desde_str} (H2H total={len(partidos_h2h)}, ultimo={partidos_h2h[0].get('fecha')})")
                 continue
             ultimo = partidos_recientes[0]
             ganador_real = jugador_a if ultimo["gano_a"] else jugador_b
@@ -317,8 +321,9 @@ def verificar_predicciones():
             c.execute('''UPDATE predicciones SET resultado_real=?, acierto_ganador=?, acierto_ou=?, procesado=1,
                          pts_real_a=?, pts_real_b=?
                          WHERE id=?''', (ganador_real, acierto_ganador, acierto_ou, pts_a, pts_b, pred_id))
+            print(f"[OK] {jugador_a} vs {jugador_b}: procesado")
         except Exception as e:
-            print(f"Error verificando predicción {pred_id}: {e}")
+            print(f"[ERROR] verificando pred_id={pred_id}: {e}")
             continue
     conn.commit()
     conn.close()
