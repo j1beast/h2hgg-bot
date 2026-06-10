@@ -898,12 +898,29 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
     else:
         prob_h2h_rec = 0.5
 
-    # Probabilidad final ponderada
+       # Probabilidad final ponderada
+    pesos = cargar_pesos()
+    w_h2h = pesos.get('h2h', 0.25)
+    w_equipo = pesos.get('equipo', 0.22)
+    w_forma = pesos.get('forma', 0.20)
+    w_h2h_rec = pesos.get('h2h_rec', 0.13)
+    w_matchup = pesos.get('matchup', 0.20)
+
     pocos_partidos_franq = (resultado.get("partidos_a_franq") or 0) < 5 or (resultado.get("partidos_b_franq") or 0) < 5
     if pocos_partidos_franq:
-        prob_final_a = (prob_h2h * 0.30) + (prob_equipo * 0.08) + (prob_forma * 0.25) + (prob_h2h_rec * 0.17) + (prob_matchup * 0.20)
+        reduccion = w_equipo * 0.65
+        total_otros = w_h2h + w_forma + w_h2h_rec + w_matchup
+        if total_otros > 0:
+            w_h2h_f = w_h2h + reduccion * w_h2h / total_otros
+            w_forma_f = w_forma + reduccion * w_forma / total_otros
+            w_h2h_rec_f = w_h2h_rec + reduccion * w_h2h_rec / total_otros
+            w_matchup_f = w_matchup + reduccion * w_matchup / total_otros
+            w_equipo_f = w_equipo * 0.35
+        else:
+            w_h2h_f, w_forma_f, w_h2h_rec_f, w_matchup_f, w_equipo_f = w_h2h, w_forma, w_h2h_rec, w_matchup, w_equipo
+        prob_final_a = (prob_h2h * w_h2h_f) + (prob_equipo * w_equipo_f) + (prob_forma * w_forma_f) + (prob_h2h_rec * w_h2h_rec_f) + (prob_matchup * w_matchup_f)
     else:
-        prob_final_a = (prob_h2h * 0.25) + (prob_equipo * 0.22) + (prob_forma * 0.20) + (prob_h2h_rec * 0.13) + (prob_matchup * 0.20)
+        prob_final_a = (prob_h2h * w_h2h) + (prob_equipo * w_equipo) + (prob_forma * w_forma) + (prob_h2h_rec * w_h2h_rec) + (prob_matchup * w_matchup)
     prob_final_b = 1 - prob_final_a
     resultado["prob_a"] = round(prob_final_a, 4)
     resultado["prob_b"] = round(prob_final_b, 4)
