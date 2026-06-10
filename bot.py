@@ -1049,13 +1049,25 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
             avg_reciente_b * 0.20 +
             avg_h2h_eq_b * 0.10, 1)
 
+                if avg_contra_a_franq and avg_contra_b_franq:
+            linea_def = round(((adj_a + avg_contra_b_franq) / 2) + ((adj_b + avg_contra_a_franq) / 2), 1)
+        else:
+            linea_def = round(adj_a + adj_b, 1)
+
+        resultado["ou_h2h_total"] = avg_total_h2h if pts_totales_h2h else None
+        resultado["ou_general"] = round(resultado["avg_pts_a"] + resultado["avg_pts_b"], 1)
+        resultado["ou_franq"] = round(adj_a + adj_b, 1)
+        resultado["ou_reciente"] = round(avg_reciente_a + avg_reciente_b, 1)
+        resultado["ou_h2h_eq"] = round(avg_h2h_eq_a + avg_h2h_eq_b, 1) if pts_a_h2h_eq and pts_b_h2h_eq else None
+
         linea_total = round(
-            avg_total_h2h * 0.30 +
-            (resultado["avg_pts_a"] + resultado["avg_pts_b"]) * 0.18 +
-            (consistencia_a + consistencia_b) * 0.10 +
-            (adj_a + adj_b) * 0.15 +
-            (avg_reciente_a + avg_reciente_b) * 0.17 +
-            (avg_h2h_eq_a + avg_h2h_eq_b) * 0.10, 1)
+            avg_total_h2h * 0.22 +
+            (resultado["avg_pts_a"] + resultado["avg_pts_b"]) * 0.13 +
+            (consistencia_a + consistencia_b) * 0.08 +
+            (adj_a + adj_b) * 0.10 +
+            (avg_reciente_a + avg_reciente_b) * 0.15 +
+            (avg_h2h_eq_a + avg_h2h_eq_b) * 0.10 +
+            linea_def * 0.22, 1)
 
         confianza_over_a = 0.5 + (1 / (1 + std_a / 10)) * 0.20 if linea_a <= resultado["avg_pts_a"] else 0.5 - (1 / (1 + std_a / 10)) * 0.20
         confianza_a = max(0.40, min(0.75, confianza_over_a))
