@@ -614,6 +614,73 @@ def calcular_std(valores):
     if len(valores) < 2:
         return 0
     return round(statistics.stdev(valores), 1)
+
+_pesos_cache = {}
+_pesos_cache_ts = 0
+
+def cargar_pesos():
+    global _pesos_cache, _pesos_cache_ts
+    ahora = time.time()
+    if _pesos_cache and (ahora - _pesos_cache_ts) < 3600:
+        return _pesos_cache
+    pesos_json = get_meta("pesos_optimizados")
+    if pesos_json:
+        try:
+            _pesos_cache = json.loads(pesos_json)
+            _pesos_cache_ts = ahora
+            return _pesos_cache
+        except:
+            pass
+    _pesos_cache = {'h2h': 0.25, 'equipo': 0.22, 'forma': 0.20, 'h2h_rec': 0.13, 'matchup': 0.20}
+    _pesos_cache_ts = ahora
+    return _pesos_cache
+
+def calcular_pesos_optimos():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT jugador_a, resultado_real,
+                 prob_h2h, prob_equipo, prob_forma, prob_h2h_rec
+                 FROM predicciones 
+                 WHERE procesado=1 
+                 AND acierto_ganador IS NOT NULL
+                 AND resultado_real IS NOT NULL
+                 AND prob_h2h IS NOT NULL''')
+    rows = c.fetchall()
+    conn.close()
+    if len(rows) < 30:
+        return None, "Necesitas al menos 30 predicciones procesadas", {}
+    factores_data = {'h2h': [], 'equipo': [], 'forma': [], 'h2h_rec': []}
+    for jugador_a, resultado_real, prob_h2h, prob_equipo, prob_forma, prob_h2h_rec in rows:
+        if resultado_real is None:
+            continue
+        ganó_a = (resultado_real == jugador_a)
+        for nombre, prob in [('h2h', prob_h2h), ('equipo', prob_equipo), ('forma', prob_forma), ('h2h_rec', prob_h2h_rec)]:
+            if prob is None:
+                continue
+            if abs(prob - 0.5) < 0.03:
+                continue
+            factores_data[nombre].append(int((prob > 0.5) == ganó_a))
+    accuracies = {}
+    n_muestras = {}
+    for nombre, resultados in factores_data.items():
+        n = len(resultados)
+        n_muestras[nombre] = n
+        accuracies[nombre] = sum(resultados) / n if n >= 10 else 0.5
+    edges = {k: max(0.0, v - 0.5) for k, v in accuracies.items()}
+    total_edge = sum(edges.values())
+    w_matchup = 0.15
+    disponible = 1.0 - w_matchup
+    min_w = 0.05
+    if total_edge == 0:
+        w_base = disponible / 4
+        pesos = {k: w_base for k in ['h2h', 'equipo', 'forma', 'h2h_rec']}
+    else:
+        extra = disponible - (min_w * 4)
+        pesos = {k: min_w + (edges[k] / total_edge) * extra for k in ['h2h', 'equipo', 'forma', 'h2h_rec']}
+    pesos['matchup'] = w_matchup
+    total = sum(pesos.values())
+    pesos = {k: round(v / total, 4) for k, v in pesos.items()}
+    return pesos, accuracies, n_muestras
 # ─────────────────────────────────────────────
 # CONSULTAS A LA BASE DE DATOS
 # ─────────────────────────────────────────────
