@@ -1879,17 +1879,20 @@ async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'equipo': 'Equipo actual',
         'forma': 'Forma reciente',
         'h2h_rec': 'H2H reciente',
-        'matchup': 'Matchup franquicias'
+        'matchup': 'Matchup franquicias',
+        'defensa': 'Defensa'
     }
     msg = "✅ *Optimización completada*\n\n"
     msg += "📊 *Precisión por factor:*\n"
-    for k in ['h2h', 'equipo', 'forma', 'h2h_rec']:
+    for k in ['h2h', 'equipo', 'forma', 'h2h_rec', 'matchup', 'defensa']:
+        if n_muestras.get(k, 0) == 0:
+            continue
         acc = round(accuracies[k] * 100, 1)
         n = n_muestras[k]
         emoji = "🟢" if acc >= 55 else "🟡" if acc >= 50 else "🔴"
         msg += f"{emoji} {nombres[k]}: {acc}% ({n} muestras)\n"
     msg += "\n⚖️ *Pesos anteriores → Nuevos:*\n"
-    for k in ['h2h', 'equipo', 'forma', 'h2h_rec', 'matchup']:
+    for k in ['h2h', 'equipo', 'forma', 'h2h_rec', 'matchup', 'defensa']:
         ant = round(pesos_actuales.get(k, 0) * 100, 1)
         nuevo = round(nuevos_pesos[k] * 100, 1)
         cambio = "↑" if nuevos_pesos[k] > pesos_actuales.get(k, 0) else "↓" if nuevos_pesos[k] < pesos_actuales.get(k, 0) else "="
