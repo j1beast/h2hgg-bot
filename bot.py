@@ -1049,7 +1049,7 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
             avg_reciente_b * 0.20 +
             avg_h2h_eq_b * 0.10, 1)
 
-                if avg_contra_a_franq and avg_contra_b_franq:
+        if avg_contra_a_franq and avg_contra_b_franq:
             linea_def = round(((adj_a + avg_contra_b_franq) / 2) + ((adj_b + avg_contra_a_franq) / 2), 1)
         else:
             linea_def = round(adj_a + adj_b, 1)
