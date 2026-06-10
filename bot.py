@@ -637,7 +637,7 @@ def cargar_pesos():
             return _pesos_cache
         except:
             pass
-    _pesos_cache = {'h2h': 0.25, 'equipo': 0.22, 'forma': 0.20, 'h2h_rec': 0.13, 'matchup': 0.20}
+    _pesos_cache = {'h2h': 0.20, 'equipo': 0.18, 'forma': 0.17, 'h2h_rec': 0.12, 'matchup': 0.13, 'defensa': 0.20}
     _pesos_cache_ts = ahora
     return _pesos_cache
 
