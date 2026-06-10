@@ -681,6 +681,7 @@ def calcular_pesos_optimos():
     total = sum(pesos.values())
     pesos = {k: round(v / total, 4) for k, v in pesos.items()}
     return pesos, accuracies, n_muestras
+    
 # ─────────────────────────────────────────────
 # CONSULTAS A LA BASE DE DATOS
 # ─────────────────────────────────────────────
@@ -1788,6 +1789,44 @@ async def renovar_cookies_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
     else:
         await update.message.reply_text("❌ Error renovando cookies")
 
+async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global _pesos_cache, _pesos_cache_ts
+    if not es_permitido(update):
+        await update.message.reply_text("No tienes acceso a este bot.")
+        return
+    await update.message.reply_text("🔍 Analizando predicciones pasadas...")
+    pesos_actuales = cargar_pesos()
+    resultado = calcular_pesos_optimos()
+    if resultado[0] is None:
+        await update.message.reply_text(f"❌ {resultado[1]}")
+        return
+    nuevos_pesos, accuracies, n_muestras = resultado
+    set_meta("pesos_optimizados", json.dumps(nuevos_pesos))
+    _pesos_cache = nuevos_pesos
+    _pesos_cache_ts = time.time()
+    nombres = {
+        'h2h': 'H2H general',
+        'equipo': 'Equipo actual',
+        'forma': 'Forma reciente',
+        'h2h_rec': 'H2H reciente',
+        'matchup': 'Matchup franquicias'
+    }
+    msg = "✅ *Optimización completada*\n\n"
+    msg += "📊 *Precisión por factor:*\n"
+    for k in ['h2h', 'equipo', 'forma', 'h2h_rec']:
+        acc = round(accuracies[k] * 100, 1)
+        n = n_muestras[k]
+        emoji = "🟢" if acc >= 55 else "🟡" if acc >= 50 else "🔴"
+        msg += f"{emoji} {nombres[k]}: {acc}% ({n} muestras)\n"
+    msg += "\n⚖️ *Pesos anteriores → Nuevos:*\n"
+    for k in ['h2h', 'equipo', 'forma', 'h2h_rec', 'matchup']:
+        ant = round(pesos_actuales.get(k, 0) * 100, 1)
+        nuevo = round(nuevos_pesos[k] * 100, 1)
+        cambio = "↑" if nuevos_pesos[k] > pesos_actuales.get(k, 0) else "↓" if nuevos_pesos[k] < pesos_actuales.get(k, 0) else "="
+        msg += f"• {nombres[k]}: {ant}% {cambio} {nuevo}%\n"
+    msg += "\n✅ Pesos activos en próximas predicciones"
+    await update.message.reply_text(msg, parse_mode="Markdown")
+    
 async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         return
