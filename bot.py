@@ -76,6 +76,12 @@ def init_db():
         ("enviado_canal", "INTEGER"),
         ("pts_real_a", "INTEGER"),
         ("pts_real_b", "INTEGER")
+        ("ratio_def_a", "REAL"), ("ratio_def_b", "REAL"),
+        ("margen_avg_a", "REAL"), ("margen_avg_b", "REAL"),
+        ("ou_h2h_total", "REAL"), ("ou_general", "REAL"),
+        ("ou_franq", "REAL"), ("ou_reciente", "REAL"),
+        ("ou_h2h_eq", "REAL"),
+        ("ou_defensa_a", "REAL"), ("ou_defensa_b", "REAL"),
     ]:
         try:
             c.execute(f"ALTER TABLE predicciones ADD COLUMN {col} {tipo}")
