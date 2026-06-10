@@ -762,7 +762,7 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         pts_a_h2h = [p["pts_a"] for p in partidos_h2h]
         pts_b_h2h = [p["pts_b"] for p in partidos_h2h]
         resultado["h2h_total"] = total_h2h
-        resultado["h2h_wins_a"] = wins_a
+        resultado["h2h_wins_a_real"] = sum(1 for p in partidos_h2h if p["gano_a"])
         resultado["h2h_avg_a"] = round(sum(pts_a_h2h) / len(pts_a_h2h), 1)
         resultado["h2h_avg_b"] = round(sum(pts_b_h2h) / len(pts_b_h2h), 1)
     else:
@@ -960,9 +960,9 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
 
     total_h2h = analisis.get('h2h_total', 0)
     if total_h2h > 0:
-        wins_a = round(analisis.get('h2h_wins_a', 0))
-        wins_b = total_h2h - wins_a
-        msg += f"*H2H:* {total_h2h} partidos → {jugador_a} {wins_a}W / {wins_b}L\n"
+        wins_a_real = analisis.get('h2h_wins_a_real', round(analisis.get('h2h_wins_a', 0)))
+        wins_b_real = total_h2h - wins_a_real
+        msg += f"*H2H:* {total_h2h} partidos → {jugador_a} {wins_a_real}W / {wins_b_real}L\n"
     else:
         msg += f"*H2H:* 0 partidos\n"
 
