@@ -878,6 +878,52 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         resultado["winrate_a_franq"] = None
         resultado["winrate_b_franq"] = None
 
+        # Estadísticas defensivas
+    todos_contra_a = [p["pts_contra"] for p in partidos_a]
+    todos_contra_b = [p["pts_contra"] for p in partidos_b]
+    contra_franq_a = [p["pts_contra"] for p in partidos_a_franq] if partidos_a_franq else []
+    contra_franq_b = [p["pts_contra"] for p in partidos_b_franq] if partidos_b_franq else []
+    avg_pts_a_temp = round(sum(p["pts_favor"] for p in partidos_a) / len(partidos_a), 1) if partidos_a else 60
+    avg_pts_b_temp = round(sum(p["pts_favor"] for p in partidos_b) / len(partidos_b), 1) if partidos_b else 60
+    avg_contra_a = round(sum(todos_contra_a) / len(todos_contra_a), 1) if todos_contra_a else None
+    avg_contra_b = round(sum(todos_contra_b) / len(todos_contra_b), 1) if todos_contra_b else None
+    avg_contra_a_franq = round(sum(contra_franq_a) / len(contra_franq_a), 1) if contra_franq_a else avg_contra_a
+    avg_contra_b_franq = round(sum(contra_franq_b) / len(contra_franq_b), 1) if contra_franq_b else avg_contra_b
+    if partidos_a_franq:
+        margenes_a = [p["pts_favor"] - p["pts_contra"] for p in partidos_a_franq]
+    elif partidos_a:
+        margenes_a = [p["pts_favor"] - p["pts_contra"] for p in partidos_a]
+    else:
+        margenes_a = [0]
+    if partidos_b_franq:
+        margenes_b = [p["pts_favor"] - p["pts_contra"] for p in partidos_b_franq]
+    elif partidos_b:
+        margenes_b = [p["pts_favor"] - p["pts_contra"] for p in partidos_b]
+    else:
+        margenes_b = [0]
+    margen_avg_a = round(sum(margenes_a) / len(margenes_a), 1)
+    margen_avg_b = round(sum(margenes_b) / len(margenes_b), 1)
+    resultado["avg_contra_a"] = avg_contra_a
+    resultado["avg_contra_b"] = avg_contra_b
+    resultado["margen_avg_a"] = margen_avg_a
+    resultado["margen_avg_b"] = margen_avg_b
+    resultado["ou_defensa_a"] = avg_contra_a_franq
+    resultado["ou_defensa_b"] = avg_contra_b_franq
+    if avg_contra_a_franq and avg_contra_b_franq:
+        ratio_a = avg_contra_a_franq / max(avg_pts_a_temp, 1)
+        ratio_b = avg_contra_b_franq / max(avg_pts_b_temp, 1)
+        prob_ratio = ratio_b / (ratio_a + ratio_b) if (ratio_a + ratio_b) > 0 else 0.5
+        margen_diff = margen_avg_a - margen_avg_b
+        prob_margen = 0.5 + min(max(margen_diff / 30, -0.25), 0.25)
+        prob_defensa = round(prob_ratio * 0.6 + prob_margen * 0.4, 4)
+        prob_defensa = max(0.2, min(0.8, prob_defensa))
+        resultado["ratio_def_a"] = round(ratio_a, 3)
+        resultado["ratio_def_b"] = round(ratio_b, 3)
+    else:
+        prob_defensa = 0.5
+        resultado["ratio_def_a"] = None
+        resultado["ratio_def_b"] = None
+
     # Forma reciente (20%)
     recientes_a = partidos_a[:15]
     recientes_b = partidos_b[:15]
