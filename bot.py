@@ -82,6 +82,7 @@ def init_db():
         ("ou_franq", "REAL"), ("ou_reciente", "REAL"),
         ("ou_h2h_eq", "REAL"),
         ("ou_defensa_a", "REAL"), ("ou_defensa_b", "REAL"),
+        ("prob_defensa", "REAL"),
     ]:
         try:
             c.execute(f"ALTER TABLE predicciones ADD COLUMN {col} {tipo}")
@@ -271,8 +272,8 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
        (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador,
         linea_total, cuota_over, cuota_under, prediccion_ou, fecha_prediccion, procesado,
         prob_h2h, prob_equipo, prob_h2h_eq, prob_forma, prob_h2h_rec,
-        cuota_betsson_a, cuota_betsson_b, linea_betsson_ou, cuota_betsson_over, cuota_betsson_under, es_valor, ratio_def_a, ratio_def_b, margen_avg_a, margen_avg_b, ou_h2h_total, ou_general, ou_franq, ou_reciente, ou_h2h_eq, ou_defensa_a, ou_defensa_b)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+        cuota_betsson_a, cuota_betsson_b, linea_betsson_ou, cuota_betsson_over, cuota_betsson_under, es_valor, ratio_def_a, ratio_def_b, margen_avg_a, margen_avg_b, ou_h2h_total, ou_general, ou_franq, ou_reciente, ou_h2h_eq, ou_defensa_a, ou_defensa_b, prob_defensa)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
         (jugador_a, jugador_b, franq_a, franq_b, ganador, cuota_ganador,
          analisis.get("linea_total"), analisis.get("over_total"), analisis.get("under_total"),
          prediccion_ou, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
@@ -284,7 +285,8 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
         analisis.get("ou_h2h_total"), analisis.get("ou_general"),
         analisis.get("ou_franq"), analisis.get("ou_reciente"),
         analisis.get("ou_h2h_eq"), analisis.get("ou_defensa_a"),
-        analisis.get("ou_defensa_b")))
+        analisis.get("ou_defensa_b"),
+        analisis.get("prob_defensa")))
     conn.commit()
     conn.close()
 
@@ -651,7 +653,7 @@ def calcular_pesos_optimos():
     conn = get_db()
     c = conn.cursor()
     c.execute('''SELECT jugador_a, resultado_real,
-                 prob_h2h, prob_equipo, prob_forma, prob_h2h_rec
+                 prob_h2h, prob_equipo, prob_forma, prob_h2h_rec, prob_matchup, prob_defensa
                  FROM predicciones 
                  WHERE procesado=1 
                  AND acierto_ganador IS NOT NULL
@@ -661,12 +663,12 @@ def calcular_pesos_optimos():
     conn.close()
     if len(rows) < 30:
         return None, "Necesitas al menos 30 predicciones procesadas", {}
-    factores_data = {'h2h': [], 'equipo': [], 'forma': [], 'h2h_rec': []}
-    for jugador_a, resultado_real, prob_h2h, prob_equipo, prob_forma, prob_h2h_rec in rows:
+    factores_data = {'h2h': [], 'equipo': [], 'forma': [], 'h2h_rec': [], 'matchup': [], 'defensa': []}
+    for jugador_a, resultado_real, prob_h2h, prob_equipo, prob_forma, prob_h2h_rec, prob_matchup, prob_defensa in rows:
         if resultado_real is None:
             continue
         ganó_a = (resultado_real == jugador_a)
-        for nombre, prob in [('h2h', prob_h2h), ('equipo', prob_equipo), ('forma', prob_forma), ('h2h_rec', prob_h2h_rec)]:
+        for nombre, prob in [('h2h', prob_h2h), ('equipo', prob_equipo), ('forma', prob_forma), ('h2h_rec', prob_h2h_rec), ('matchup', prob_matchup), ('defensa', prob_defensa)]:
             if prob is None:
                 continue
             if abs(prob - 0.5) < 0.03:
@@ -680,16 +682,14 @@ def calcular_pesos_optimos():
         accuracies[nombre] = sum(resultados) / n if n >= 10 else 0.5
     edges = {k: max(0.0, v - 0.5) for k, v in accuracies.items()}
     total_edge = sum(edges.values())
-    w_matchup = 0.15
-    disponible = 1.0 - w_matchup
     min_w = 0.05
+    n_factores = len(edges)
     if total_edge == 0:
-        w_base = disponible / 4
-        pesos = {k: w_base for k in ['h2h', 'equipo', 'forma', 'h2h_rec']}
+        w_base = 1.0 / n_factores
+        pesos = {k: w_base for k in edges}
     else:
-        extra = disponible - (min_w * 4)
-        pesos = {k: min_w + (edges[k] / total_edge) * extra for k in ['h2h', 'equipo', 'forma', 'h2h_rec']}
-    pesos['matchup'] = w_matchup
+        extra = 1.0 - (min_w * n_factores)
+        pesos = {k: min_w + (edges[k] / total_edge) * extra for k in edges}
     total = sum(pesos.values())
     pesos = {k: round(v / total, 4) for k, v in pesos.items()}
     return pesos, accuracies, n_muestras
