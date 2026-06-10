@@ -279,43 +279,47 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
 def verificar_predicciones():
     conn = get_db()
     c = conn.cursor()
-    # Solo procesar predicciones que tienen línea Betsson guardada
     c.execute('''SELECT id, jugador_a, jugador_b, ganador_predicho, 
                  linea_betsson_ou, prediccion_ou, ganador_predicho,
                  cuota_betsson_a, cuota_betsson_b
                  FROM predicciones WHERE procesado = 0 AND cuota_betsson_a IS NOT NULL''')
     pendientes = c.fetchall()
     for row in pendientes:
-        pred_id, jugador_a, jugador_b, ganador_predicho, linea_betsson_ou, prediccion_ou, _, cb_a, cb_b = row
-        partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
-        if not partidos_h2h:
+        try:
+            pred_id, jugador_a, jugador_b, ganador_predicho, linea_betsson_ou, prediccion_ou, _, cb_a, cb_b = row
+            partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
+            if not partidos_h2h:
+                continue
+            c.execute("SELECT fecha_prediccion FROM predicciones WHERE id=?", (pred_id,))
+            r = c.fetchone()
+            if not r:
+                continue
+            fecha_pred_dt = datetime.strptime(r[0], "%Y-%m-%d %H:%M:%S")
+            desde_dt = fecha_pred_dt - timedelta(hours=6)
+            desde_str = desde_dt.strftime("%Y-%m-%d")
+            partidos_recientes = [p for p in partidos_h2h if p.get("fecha") and p["fecha"] >= desde_str]
+            if not partidos_recientes:
+                continue
+            ultimo = partidos_recientes[0]
+            ganador_real = jugador_a if ultimo["gano_a"] else jugador_b
+            acierto_ganador = 1 if ganador_real == ganador_predicho else 0
+            total_real = ultimo["pts_a"] + ultimo["pts_b"]
+            if linea_betsson_ou is None:
+                acierto_ou = None
+            else:
+                try:
+                    linea = float(linea_betsson_ou)
+                    acierto_ou = 1 if (total_real > linea if prediccion_ou == "Over" else total_real < linea) else 0
+                except:
+                    acierto_ou = None
+            pts_a = ultimo["pts_a"]
+            pts_b = ultimo["pts_b"]
+            c.execute('''UPDATE predicciones SET resultado_real=?, acierto_ganador=?, acierto_ou=?, procesado=1,
+                         pts_real_a=?, pts_real_b=?
+                         WHERE id=?''', (ganador_real, acierto_ganador, acierto_ou, pts_a, pts_b, pred_id))
+        except Exception as e:
+            print(f"Error verificando predicción {pred_id}: {e}")
             continue
-        c.execute("SELECT fecha_prediccion FROM predicciones WHERE id=?", (pred_id,))
-        r = c.fetchone()
-        if not r:
-            continue
-        fecha_pred_dt = datetime.strptime(r[0], "%Y-%m-%d %H:%M:%S")
-        desde_dt = fecha_pred_dt - timedelta(hours=6)
-        desde_str = desde_dt.strftime("%Y-%m-%d")
-        partidos_recientes = [p for p in partidos_h2h if p.get("fecha") and p["fecha"] >= desde_str]
-        if not partidos_recientes:
-            continue
-        ultimo = partidos_recientes[0]
-        ganador_real = jugador_a if ultimo["gano_a"] else jugador_b
-        acierto_ganador = 1 if ganador_real == ganador_predicho else 0
-        total_real = ultimo["pts_a"] + ultimo["pts_b"]
-        # Usar línea Betsson como referencia para O/U
-        if linea_betsson_ou is None:
-            acierto_ou = None
-        elif prediccion_ou == "Over":
-            acierto_ou = 1 if total_real > linea_betsson_ou else 0
-        else:
-            acierto_ou = 1 if total_real < linea_betsson_ou else 0
-        pts_a = ultimo["pts_a"]
-        pts_b = ultimo["pts_b"]
-        c.execute('''UPDATE predicciones SET resultado_real=?, acierto_ganador=?, acierto_ou=?, procesado=1,
-                     pts_real_a=?, pts_real_b=?
-                     WHERE id=?''', (ganador_real, acierto_ganador, acierto_ou, pts_a, pts_b, pred_id))
     conn.commit()
     conn.close()
 
