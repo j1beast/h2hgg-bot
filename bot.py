@@ -1217,7 +1217,7 @@ async def proximos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("No tienes acceso a este bot.")
         return
     await update.message.reply_text("🔄 Consultando próximos partidos...")
-    cuotas = get_cuotas_betsson()
+    cuotas = await get_cuotas_betsson()
     if not cuotas:
         await update.message.reply_text("No hay próximos partidos disponibles ahora mismo.")
         return
