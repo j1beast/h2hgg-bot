@@ -903,12 +903,14 @@ def buscar_matchup_franquicias(franq_a, franq_b):
 
     # 1. Coincidencia exacta
     total, victorias_a = buscar(fa, fb, "exact")
+    print(f"[MATCHUP] Exacto '{fa}' vs '{fb}': {total} partidos")
 
     # 2. Si no hay, coincidencia parcial con primera palabra (ej: "CHARLOTTE")
     if total == 0:
         fa_key = fa.split()[0]
         fb_key = fb.split()[0]
         total, victorias_a = buscar(fa_key, fb_key, "like")
+        print(f"[MATCHUP] LIKE '%{fa_key}%' vs '%{fb_key}%': {total} partidos")
 
     conn.close()
     if total == 0:
@@ -1017,7 +1019,10 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         resultado["h2h_wins_eq_a"] = 0
 
     # Matchup de franquicias
-    prob_matchup = buscar_matchup_franquicias(franq_a, franq_b)
+    mq_fa = partidos_a[0]["franquicia"] if partidos_a else franq_a
+    mq_fb = partidos_b[0]["franquicia"] if partidos_b else franq_b
+    print(f"[MATCHUP] Buscando: '{mq_fa}' vs '{mq_fb}'")
+    prob_matchup = buscar_matchup_franquicias(mq_fa, mq_fb)
     resultado["matchup_total"] = prob_matchup
     
     # Rendimiento con equipo actual (25%)
