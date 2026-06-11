@@ -1136,6 +1136,10 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
     else:
         prob_final_a = (prob_h2h * w_h2h) + (prob_equipo * w_equipo) + (prob_forma * w_forma) + (prob_h2h_rec * w_h2h_rec) + (prob_matchup * w_matchup) + (prob_defensa * w_defensa)
     prob_final_b = 1 - prob_final_a
+    resultado["prob_a"] = round(prob_final_a, 4)
+    resultado["prob_b"] = round(prob_final_b, 4)
+    resultado["cuota_a"] = prob_to_odds(prob_final_a)
+    resultado["cuota_b"] = prob_to_odds(prob_final_b)
 
     # Over/Under
     todos_pts_a = [p["pts_favor"] for p in partidos_a]
