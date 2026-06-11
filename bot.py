@@ -1216,18 +1216,17 @@ async def proximos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         await update.message.reply_text("No tienes acceso a este bot.")
         return
-    await update.message.reply_text("🔍 Consultando próximos partidos...")
-    partidos = get_upcoming()
-    if not partidos:
+    await update.message.reply_text("🔄 Consultando próximos partidos...")
+    cuotas = get_cuotas_betsson()
+    if not cuotas:
         await update.message.reply_text("No hay próximos partidos disponibles ahora mismo.")
         return
     msg = "🏀 *Próximos partidos H2H GG League:*\n\n"
-    for ev in partidos[:8]:
-        home = ev.get("home", {}).get("name", "?")
-        away = ev.get("away", {}).get("name", "?")
-        t = ev.get("time", "")
-        hora = datetime.utcfromtimestamp(int(t)).strftime("%H:%M") if t else "?"
-        msg += f"• {home} vs {away} — {hora} UTC\n"
+    for datos in cuotas.values():
+        home = datos.get("home", "?")
+        away = datos.get("away", "?")
+        hora = datos.get("hora_utc", "?")
+        msg += f"• {home} vs {away} — {hora}\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def resultados(update: Update, context: ContextTypes.DEFAULT_TYPE):
