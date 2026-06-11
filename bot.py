@@ -1226,7 +1226,10 @@ async def proximos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         home = datos.get("home", "?")
         away = datos.get("away", "?")
         hora = datos.get("hora_utc", "?")
-        msg += f"• {home} vs {away} — {hora}\n"
+        franq_a = datos.get("franq_a", "")
+        franq_b = datos.get("franq_b", "")
+        franq_txt = f" ({franq_a} vs {franq_b})" if franq_a and franq_b else ""
+        msg += f"• {home} vs {away}{franq_txt} — {hora}\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def resultados(update: Update, context: ContextTypes.DEFAULT_TYPE):
