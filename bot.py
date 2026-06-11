@@ -1447,6 +1447,7 @@ def generar_perfil_jugador(jugador, api, stats_liga):
     bl_3pp   = liga_avg("threePointersPercent") or 42.0
     bl_fb    = liga_avg("avgFastBreakPoints") or 6.0
     bl_fg    = liga_avg("avgFieldGoalsPercent") or 48.0
+    bl_pts   = liga_avg("avgPoints") or 55.0
     vals_contra = []
     for p in jugadores:
         mp_p = p.get("matchesPlayed") or 0
@@ -1456,90 +1457,132 @@ def generar_perfil_jugador(jugador, api, stats_liga):
     bl_contra = sum(vals_contra) / len(vals_contra) if vals_contra else None
     mp = api.get("matchesPlayed") or 1
     pts_contra = round(api["pointsAgainst"] / mp, 1) if api.get("pointsAgainst") and mp > 0 else None
-    msg = f"🏀 *Perfil de {jugador}*\n\n"
-    # Ritmo
-    pos = api.get("avgTimeOfPossession")
-    if pos:
-        if pos > bl_pos * 1.10:
-            ritmo_txt = "🐢 Lento"
-        elif pos < bl_pos * 0.90:
-            ritmo_txt = "⚡ Rápido"
-        else:
-            ritmo_txt = "➡️ Medio"
-        msg += f"*Ritmo:* {ritmo_txt} ({pos}s posesión, liga {round(bl_pos,1)}s)\n"
-    # Pintura
+    pos   = api.get("avgTimeOfPossession")
     paint = api.get("avgPointsInThePaint")
-    if paint:
-        if paint > bl_paint * 1.15:
-            paint_txt = "🎨 Alto en pintura"
-        elif paint < bl_paint * 0.85:
-            paint_txt = "📉 Bajo en pintura"
-        else:
-            paint_txt = "➡️ Medio"
-        msg += f"*Pintura:* {paint_txt} ({paint} pts, liga {round(bl_paint,1)})\n"
-    # Triple
-    t3a = api.get("avg3PointersAttempted")
-    t3p = api.get("threePointersPercent")
-    if t3a and t3p:
-        triple_score = t3a * (t3p / 100)
-        bl_ts = bl_3pa * (bl_3pp / 100)
-        if triple_score > bl_ts * 1.20:
-            triple_txt = "🎯 Tirador de perímetro"
-        elif triple_score < bl_ts * 0.70:
-            triple_txt = "📉 Poco triple"
-        else:
-            triple_txt = "➡️ Medio"
-        msg += f"*Triple:* {triple_txt} ({t3p}% / {t3a} intentos)\n"
-    # Contraataque
-    fb = api.get("avgFastBreakPoints")
-    if fb:
-        if fb > bl_fb * 1.25:
-            fb_txt = "⚡ Alto"
-        elif fb < bl_fb * 0.75:
-            fb_txt = "📉 Bajo"
-        else:
-            fb_txt = "➡️ Medio"
-        msg += f"*Contraataque:* {fb_txt} ({fb} pts, liga {round(bl_fb,1)})\n"
-    # Control de balón
-    ast = api.get("avgAssists")
-    to = api.get("avgTurnovers")
-    if ast and to and to > 0:
-        ratio = round(ast / to, 2)
-        ast_txt = "🟢 Alto" if ratio > 2.5 else "🔴 Bajo" if ratio < 1.5 else "🟡 Medio"
-        msg += f"*AST/TO:* {ast} ast / {to} perd → ratio {ratio} ({ast_txt})\n"
-    # Defensa
-    if pts_contra and bl_contra:
-        def_txt = "🟢 Sólida" if pts_contra < bl_contra * 0.90 else "🔴 Débil" if pts_contra > bl_contra * 1.10 else "🟡 Media"
-        msg += f"*Defensa:* {def_txt} ({pts_contra} pts recibidos, liga {round(bl_contra,1)})\n"
-        blk = api.get("avgBlocks")
-        stl = api.get("avgSteals")
-        if blk or stl:
-            msg += f"*Tap/Rob:* {blk or 0} tapones / {stl or 0} robos\n"
-    # Eficiencia
-    fg = api.get("avgFieldGoalsPercent")
-    pts = api.get("avgPoints")
-    wp = api.get("matchesWinPct")
-    if fg:
-        diff_fg = round(fg - bl_fg, 1)
-        emoji_fg = "🟢" if diff_fg > 2 else "🔴" if diff_fg < -2 else "🟡"
-        msg += f"*Tiro campo:* {fg}% ({emoji_fg} {'+' if diff_fg >= 0 else ''}{diff_fg}% vs liga)\n"
+    t3a   = api.get("avg3PointersAttempted")
+    t3p   = api.get("threePointersPercent")
+    fb    = api.get("avgFastBreakPoints")
+    ast   = api.get("avgAssists")
+    to    = api.get("avgTurnovers")
+    fg    = api.get("avgFieldGoalsPercent")
+    pts   = api.get("avgPoints")
+    wp    = api.get("matchesWinPct")
+    blk   = api.get("avgBlocks")
+    stl   = api.get("avgSteals")
+    bl_triple_score = bl_3pa * bl_3pp / 100
+    triple_score = (t3a * t3p / 100) if t3a and t3p else None
+    ratio_astto = round(ast / to, 2) if ast and to and to > 0 else None
+    # Clasificaciones
+    es_rapido   = pos and pos < bl_pos * 0.88
+    es_lento    = pos and pos > bl_pos * 1.12
+    es_interior = paint and paint > bl_paint * 1.15
+    es_tirador  = triple_score and triple_score > bl_triple_score * 1.20
+    poco_triple = triple_score and triple_score < bl_triple_score * 0.70
+    es_transicion = fb and fb > bl_fb * 1.25
+    buen_distribuidor = ratio_astto and ratio_astto > 2.5
+    muchas_perdidas   = ratio_astto and ratio_astto < 1.5
+    buena_defensa = pts_contra and bl_contra and pts_contra < bl_contra * 0.90
+    mala_defensa  = pts_contra and bl_contra and pts_contra > bl_contra * 1.10
+    gran_anotador = pts and pts > bl_pts * 1.10
+    poco_anotador = pts and pts < bl_pts * 0.90
+    eficiente     = fg and (fg - bl_fg) > 3
+    ineficiente   = fg and (fg - bl_fg) < -3
+    # Tags rápidos
+    tags = []
+    if es_rapido: tags.append("⚡ Ritmo rápido")
+    if es_lento:  tags.append("🐢 Ritmo lento")
+    if es_interior: tags.append("🎨 Interior")
+    if es_tirador:  tags.append("🎯 Tirador")
+    if es_transicion: tags.append("🏃 Transición")
+    if buena_defensa: tags.append("🛡️ Defensor")
+    if buen_distribuidor: tags.append("🧠 Distribuidor")
+    if gran_anotador: tags.append("💥 Anotador")
+    msg = f"🏀 *{jugador}*\n"
+    if tags:
+        msg += " | ".join(tags) + "\n"
+    msg += "\n"
+    # Ataque
+    msg += "⚔️ *Ataque*\n"
     if pts:
-        msg += f"*Puntos:* {pts} avg\n"
+        if gran_anotador:
+            msg += f"• Gran anotador: {round(pts,1)} pts/partido (liga {round(bl_pts,1)})\n"
+        elif poco_anotador:
+            msg += f"• Anotación baja: {round(pts,1)} pts/partido (liga {round(bl_pts,1)})\n"
+        else:
+            msg += f"• {round(pts,1)} pts/partido (en línea con la liga)\n"
+    if paint:
+        if es_interior:
+            msg += f"• Domina en pintura: {round(paint,1)} pts (liga {round(bl_paint,1)})\n"
+        elif paint < bl_paint * 0.85:
+            msg += f"• Evita la zona, prefiere el exterior\n"
+    if t3a and t3p:
+        if es_tirador:
+            msg += f"• Tirador de triple: {round(t3p,1)}% en {round(t3a,1)} intentos/partido\n"
+        elif poco_triple:
+            msg += f"• Casi no usa el triple ({round(t3a,1)} intentos, {round(t3p,1)}%)\n"
+        else:
+            msg += f"• Uso normal del triple ({round(t3p,1)}% / {round(t3a,1)} intentos)\n"
+    if fb:
+        if es_transicion:
+            msg += f"• Muy activo en contraataque: {round(fb,1)} pts (liga {round(bl_fb,1)})\n"
+        elif fb < bl_fb * 0.75:
+            msg += f"• Poco juego en transición\n"
+    if ast and to:
+        if buen_distribuidor:
+            msg += f"• Excelente con el balón: {round(ast,1)} ast y solo {round(to,1)} pérdidas\n"
+        elif muchas_perdidas:
+            msg += f"• Pierde mucho el balón: {round(ast,1)} ast pero {round(to,1)} pérdidas\n"
+        else:
+            msg += f"• Control de balón correcto: {round(ast,1)} ast / {round(to,1)} pérdidas\n"
+    if fg:
+        diff = round(fg - bl_fg, 1)
+        if eficiente:
+            msg += f"• Muy eficiente anotando: {round(fg,1)}% tiro (+{diff}% vs liga)\n"
+        elif ineficiente:
+            msg += f"• Poco eficiente: {round(fg,1)}% tiro ({diff}% vs liga)\n"
+    # Defensa
+    msg += "\n🛡️ *Defensa*\n"
+    if pts_contra and bl_contra:
+        if buena_defensa:
+            msg += f"• Defensa sólida: recibe {pts_contra} pts de media (liga {round(bl_contra,1)})\n"
+        elif mala_defensa:
+            msg += f"• Defensa débil: recibe {pts_contra} pts de media (liga {round(bl_contra,1)})\n"
+        else:
+            msg += f"• Defensa normal: {pts_contra} pts recibidos (liga {round(bl_contra,1)})\n"
+    if stl and stl > 4.0:
+        msg += f"• Muy activo en robos: {round(stl,1)}/partido\n"
+    elif stl:
+        msg += f"• Robos: {round(stl,1)}/partido\n"
+    if blk and blk > 1.5:
+        msg += f"• Buen taponador: {round(blk,1)}/partido\n"
+    # Rendimiento
+    msg += "\n📊 *Rendimiento*\n"
     if wp:
         emoji_wp = "🟢" if wp > 55 else "🔴" if wp < 45 else "🟡"
-        msg += f"*Win rate:* {wp}% {emoji_wp}\n"
-    # Resumen
-    rasgos = []
-    if pos:
-        if pos > bl_pos * 1.10: rasgos.append("ritmo lento")
-        elif pos < bl_pos * 0.90: rasgos.append("ritmo rápido")
-    if paint and paint > bl_paint * 1.15: rasgos.append("anotador en pintura")
-    if t3a and t3p and (t3a * t3p/100) > (bl_3pa * bl_3pp/100) * 1.20: rasgos.append("tirador de triple")
-    if ast and to and to > 0 and (ast/to) > 2.5: rasgos.append("buen distribuidor")
-    if pts_contra and bl_contra and pts_contra < bl_contra * 0.90: rasgos.append("defensa sólida")
-    if fb and fb > bl_fb * 1.25: rasgos.append("juego en transición")
-    if rasgos:
-        msg += f"\n💡 *Resumen:* {', '.join(rasgos).capitalize()}."
+        wp_txt = "por encima de la media" if wp > 55 else "por debajo de la media" if wp < 45 else "en la media"
+        msg += f"• Win rate: {wp}% {emoji_wp} ({wp_txt})\n"
+    # Resumen narrativo
+    fortalezas = []
+    debilidades = []
+    if gran_anotador or eficiente: fortalezas.append("anotación")
+    if es_tirador: fortalezas.append("triple")
+    if buen_distribuidor: fortalezas.append("manejo del balón")
+    if buena_defensa: fortalezas.append("defensa")
+    if es_transicion: fortalezas.append("contraataque")
+    if es_interior: fortalezas.append("juego interior")
+    if ineficiente or poco_anotador: debilidades.append("eficiencia ofensiva")
+    if muchas_perdidas: debilidades.append("pérdidas de balón")
+    if mala_defensa: debilidades.append("defensa")
+    if poco_triple and not es_interior: debilidades.append("amenaza exterior")
+    msg += "\n💡 *Resumen:*\n"
+    if fortalezas and debilidades:
+        msg += f"Destaca en {', '.join(fortalezas)}. Su punto débil es {', '.join(debilidades)}."
+    elif fortalezas:
+        msg += f"Jugador sólido. Destaca en {', '.join(fortalezas)}. Sin debilidades claras."
+    elif debilidades:
+        msg += f"Jugador con margen de mejora en {', '.join(debilidades)}."
+    else:
+        msg += "Jugador equilibrado, sin características especialmente destacadas ni debilidades claras."
     return msg
     
 # ─────────────────────────────────────────────
