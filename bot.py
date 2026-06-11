@@ -237,7 +237,7 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
     c.execute('''SELECT id, cuota_betsson_a FROM predicciones 
                  WHERE ((jugador_a=? AND jugador_b=?) OR (jugador_a=? AND jugador_b=?))
                  AND fecha_prediccion LIKE ?
-                 AND procesado IN (0, 1)''',
+                 AND procesado = 0''',
               (jugador_a, jugador_b, jugador_b, jugador_a, f"{hoy}%"))
     existing = c.fetchone()
     if existing:
