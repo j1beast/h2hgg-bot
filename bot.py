@@ -1436,6 +1436,112 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
 
     return msg
 
+def generar_perfil_jugador(jugador, api, stats_liga):
+    jugadores = list(stats_liga.values())
+    def liga_avg(key):
+        vals = [p.get(key) for p in jugadores if p.get(key) is not None]
+        return sum(vals) / len(vals) if vals else None
+    bl_pos   = liga_avg("avgTimeOfPossession") or 9.0
+    bl_paint = liga_avg("avgPointsInThePaint") or 34.0
+    bl_3pa   = liga_avg("avg3PointersAttempted") or 13.0
+    bl_3pp   = liga_avg("threePointersPercent") or 42.0
+    bl_fb    = liga_avg("avgFastBreakPoints") or 6.0
+    bl_fg    = liga_avg("avgFieldGoalsPercent") or 48.0
+    vals_contra = []
+    for p in jugadores:
+        mp_p = p.get("matchesPlayed") or 0
+        pa = p.get("pointsAgainst")
+        if pa and mp_p > 0:
+            vals_contra.append(pa / mp_p)
+    bl_contra = sum(vals_contra) / len(vals_contra) if vals_contra else None
+    mp = api.get("matchesPlayed") or 1
+    pts_contra = round(api["pointsAgainst"] / mp, 1) if api.get("pointsAgainst") and mp > 0 else None
+    msg = f"🏀 *Perfil de {jugador}*\n\n"
+    # Ritmo
+    pos = api.get("avgTimeOfPossession")
+    if pos:
+        if pos > bl_pos * 1.10:
+            ritmo_txt = "🐢 Lento"
+        elif pos < bl_pos * 0.90:
+            ritmo_txt = "⚡ Rápido"
+        else:
+            ritmo_txt = "➡️ Medio"
+        msg += f"*Ritmo:* {ritmo_txt} ({pos}s posesión, liga {round(bl_pos,1)}s)\n"
+    # Pintura
+    paint = api.get("avgPointsInThePaint")
+    if paint:
+        if paint > bl_paint * 1.15:
+            paint_txt = "🎨 Alto en pintura"
+        elif paint < bl_paint * 0.85:
+            paint_txt = "📉 Bajo en pintura"
+        else:
+            paint_txt = "➡️ Medio"
+        msg += f"*Pintura:* {paint_txt} ({paint} pts, liga {round(bl_paint,1)})\n"
+    # Triple
+    t3a = api.get("avg3PointersAttempted")
+    t3p = api.get("threePointersPercent")
+    if t3a and t3p:
+        triple_score = t3a * (t3p / 100)
+        bl_ts = bl_3pa * (bl_3pp / 100)
+        if triple_score > bl_ts * 1.20:
+            triple_txt = "🎯 Tirador de perímetro"
+        elif triple_score < bl_ts * 0.70:
+            triple_txt = "📉 Poco triple"
+        else:
+            triple_txt = "➡️ Medio"
+        msg += f"*Triple:* {triple_txt} ({t3p}% / {t3a} intentos)\n"
+    # Contraataque
+    fb = api.get("avgFastBreakPoints")
+    if fb:
+        if fb > bl_fb * 1.25:
+            fb_txt = "⚡ Alto"
+        elif fb < bl_fb * 0.75:
+            fb_txt = "📉 Bajo"
+        else:
+            fb_txt = "➡️ Medio"
+        msg += f"*Contraataque:* {fb_txt} ({fb} pts, liga {round(bl_fb,1)})\n"
+    # Control de balón
+    ast = api.get("avgAssists")
+    to = api.get("avgTurnovers")
+    if ast and to and to > 0:
+        ratio = round(ast / to, 2)
+        ast_txt = "🟢 Alto" if ratio > 2.5 else "🔴 Bajo" if ratio < 1.5 else "🟡 Medio"
+        msg += f"*AST/TO:* {ast} ast / {to} perd → ratio {ratio} ({ast_txt})\n"
+    # Defensa
+    if pts_contra and bl_contra:
+        def_txt = "🟢 Sólida" if pts_contra < bl_contra * 0.90 else "🔴 Débil" if pts_contra > bl_contra * 1.10 else "🟡 Media"
+        msg += f"*Defensa:* {def_txt} ({pts_contra} pts recibidos, liga {round(bl_contra,1)})\n"
+        blk = api.get("avgBlocks")
+        stl = api.get("avgSteals")
+        if blk or stl:
+            msg += f"*Tap/Rob:* {blk or 0} tapones / {stl or 0} robos\n"
+    # Eficiencia
+    fg = api.get("avgFieldGoalsPercent")
+    pts = api.get("avgPoints")
+    wp = api.get("matchesWinPct")
+    if fg:
+        diff_fg = round(fg - bl_fg, 1)
+        emoji_fg = "🟢" if diff_fg > 2 else "🔴" if diff_fg < -2 else "🟡"
+        msg += f"*Tiro campo:* {fg}% ({emoji_fg} {'+' if diff_fg >= 0 else ''}{diff_fg}% vs liga)\n"
+    if pts:
+        msg += f"*Puntos:* {pts} avg\n"
+    if wp:
+        emoji_wp = "🟢" if wp > 55 else "🔴" if wp < 45 else "🟡"
+        msg += f"*Win rate:* {wp}% {emoji_wp}\n"
+    # Resumen
+    rasgos = []
+    if pos:
+        if pos > bl_pos * 1.10: rasgos.append("ritmo lento")
+        elif pos < bl_pos * 0.90: rasgos.append("ritmo rápido")
+    if paint and paint > bl_paint * 1.15: rasgos.append("anotador en pintura")
+    if t3a and t3p and (t3a * t3p/100) > (bl_3pa * bl_3pp/100) * 1.20: rasgos.append("tirador de triple")
+    if ast and to and to > 0 and (ast/to) > 2.5: rasgos.append("buen distribuidor")
+    if pts_contra and bl_contra and pts_contra < bl_contra * 0.90: rasgos.append("defensa sólida")
+    if fb and fb > bl_fb * 1.25: rasgos.append("juego en transición")
+    if rasgos:
+        msg += f"\n💡 *Resumen:* {', '.join(rasgos).capitalize()}."
+    return msg
+    
 # ─────────────────────────────────────────────
 # COMANDOS TELEGRAM
 # ─────────────────────────────────────────────
@@ -2279,6 +2385,23 @@ async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("Escribe algo como: *MYTH vs MALICE* o usa /pronostico MYTH vs MALICE", parse_mode="Markdown")
 
+async def perfil(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        await update.message.reply_text("No tienes acceso a este bot.")
+        return
+    if not context.args:
+        await update.message.reply_text("Uso: /perfil JUGADOR\nEjemplo: /perfil CHIEF")
+        return
+    jugador = " ".join(context.args).upper()
+    await update.message.reply_text(f"🔍 Analizando perfil de {jugador}...")
+    stats_liga = get_stats_liga()
+    api = stats_liga.get(jugador)
+    if not api:
+        await update.message.reply_text(f"No encontré datos de {jugador} en la API de la liga.")
+        return
+    msg = generar_perfil_jugador(jugador, api, stats_liga)
+    await update.message.reply_text(msg, parse_mode="Markdown")
+    
 # ─────────────────────────────────────────────
 # MAIN
 # ─────────────────────────────────────────────
@@ -2337,6 +2460,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("debug", debug))
     app.add_handler(CommandHandler("resetunidades", reset_unidades))
     app.add_handler(CommandHandler("optimizar", optimizar))
+    app.add_handler(CommandHandler("perfil", perfil))
     app.add_handler(CommandHandler("debugvalor", debugvalor))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
