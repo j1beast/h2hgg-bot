@@ -759,7 +759,7 @@ def calcular_pesos_optimos():
                               ('defensa', prob_defensa), ('api', prob_api)]:
             if prob is None:
                 continue
-            if abs(prob - 0.5) < 0.01:
+            if prob is None:
                 continue
             factores_data[nombre].append(int((prob > 0.5) == ganó_a))
     accuracies = {}
