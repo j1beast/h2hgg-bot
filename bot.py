@@ -1106,6 +1106,9 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
 
     prob_api = calcular_prob_api(api_a, api_b)
     prob_api_val = prob_api if prob_api is not None else 0.5
+    print(f"[API] {jugador_a}: FG%={api_a.get('avgFieldGoalsPercent')} AST={api_a.get('avgAssists')} TO={api_a.get('avgTurnovers')} WP={api_a.get('matchesWinPct')}")
+    print(f"[API] {jugador_b}: FG%={api_b.get('avgFieldGoalsPercent')} AST={api_b.get('avgAssists')} TO={api_b.get('avgTurnovers')} WP={api_b.get('matchesWinPct')}")
+    print(f"[API] prob_api={prob_api} → prob_api_val={prob_api_val}")
 
     if partidos_a_franq:
         margenes_a = [p["pts_favor"] - p["pts_contra"] for p in partidos_a_franq]
