@@ -704,7 +704,7 @@ def cargar_pesos():
             return _pesos_cache
         except:
             pass
-    _pesos_cache = {'h2h': 0.20, 'equipo': 0.18, 'forma': 0.17, 'h2h_rec': 0.12, 'matchup': 0.13, 'defensa': 0.20}
+    _pesos_cache = {'h2h': 0.18, 'equipo': 0.16, 'forma': 0.15, 'h2h_rec': 0.11, 'matchup': 0.12, 'defensa': 0.18, 'api': 0.10}
     _pesos_cache_ts = ahora
     return _pesos_cache
 
@@ -806,6 +806,39 @@ def calcular_linea_api(api_a, api_b):
 
     ajuste = max(-15, min(15, ajuste))
     return round(base + ajuste, 1)
+
+def calcular_prob_api(api_a, api_b):
+    if not api_a or not api_b:
+        return None
+    scores = []
+
+    fg_a = api_a.get("avgFieldGoalsPercent")
+    fg_b = api_b.get("avgFieldGoalsPercent")
+    if fg_a and fg_b and (fg_a + fg_b) > 0:
+        scores.append(fg_a / (fg_a + fg_b))
+
+    ast_a = api_a.get("avgAssists") or 0
+    to_a = api_a.get("avgTurnovers") or 1
+    ast_b = api_b.get("avgAssists") or 0
+    to_b = api_b.get("avgTurnovers") or 1
+    ratio_a = ast_a / max(to_a, 0.1)
+    ratio_b = ast_b / max(to_b, 0.1)
+    if (ratio_a + ratio_b) > 0:
+        scores.append(ratio_a / (ratio_a + ratio_b))
+
+    tp_a = api_a.get("threePointersPercent")
+    tp_b = api_b.get("threePointersPercent")
+    if tp_a and tp_b and (tp_a + tp_b) > 0:
+        scores.append(tp_a / (tp_a + tp_b))
+
+    wp_a = api_a.get("matchesWinPct")
+    wp_b = api_b.get("matchesWinPct")
+    if wp_a and wp_b and (wp_a + wp_b) > 0:
+        scores.append(wp_a / (wp_a + wp_b))
+
+    if not scores:
+        return None
+    return round(sum(scores) / len(scores), 4)
     
 def get_stats_liga():
     global _stats_liga_cache, _stats_liga_cache_ts
@@ -1071,6 +1104,9 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
     if avg_contra_b_franq is None and api_contra_b:
         avg_contra_b_franq = api_contra_b
 
+    prob_api = calcular_prob_api(api_a, api_b)
+    prob_api_val = prob_api if prob_api is not None else 0.5
+
     if partidos_a_franq:
         margenes_a = [p["pts_favor"] - p["pts_contra"] for p in partidos_a_franq]
     elif partidos_a:
@@ -1135,12 +1171,13 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
 
            # Probabilidad final ponderada
     pesos = cargar_pesos()
-    w_h2h = pesos.get('h2h', 0.20)
-    w_equipo = pesos.get('equipo', 0.18)
-    w_forma = pesos.get('forma', 0.17)
-    w_h2h_rec = pesos.get('h2h_rec', 0.12)
-    w_matchup = pesos.get('matchup', 0.13)
-    w_defensa = pesos.get('defensa', 0.20)
+    w_h2h = pesos.get('h2h', 0.18)
+    w_equipo = pesos.get('equipo', 0.16)
+    w_forma = pesos.get('forma', 0.15)
+    w_h2h_rec = pesos.get('h2h_rec', 0.11)
+    w_matchup = pesos.get('matchup', 0.12)
+    w_defensa = pesos.get('defensa', 0.18)
+    w_api = pesos.get('api', 0.10)
 
     pocos_partidos_franq = (resultado.get("partidos_a_franq") or 0) < 5 or (resultado.get("partidos_b_franq") or 0) < 5
     if pocos_partidos_franq:
@@ -1155,9 +1192,9 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
             w_equipo_f = w_equipo * 0.35
         else:
             w_h2h_f, w_forma_f, w_h2h_rec_f, w_matchup_f, w_defensa_f, w_equipo_f = w_h2h, w_forma, w_h2h_rec, w_matchup, w_defensa, w_equipo
-        prob_final_a = (prob_h2h * w_h2h_f) + (prob_equipo * w_equipo_f) + (prob_forma * w_forma_f) + (prob_h2h_rec * w_h2h_rec_f) + (prob_matchup * w_matchup_f) + (prob_defensa * w_defensa_f)
+        prob_final_a = (prob_h2h * w_h2h_f) + (prob_equipo * w_equipo_f) + (prob_forma * w_forma_f) + (prob_h2h_rec * w_h2h_rec_f) + (prob_matchup * w_matchup_f) + (prob_defensa * w_defensa_f) + (prob_api_val * w_api)
     else:
-        prob_final_a = (prob_h2h * w_h2h) + (prob_equipo * w_equipo) + (prob_forma * w_forma) + (prob_h2h_rec * w_h2h_rec) + (prob_matchup * w_matchup) + (prob_defensa * w_defensa)
+        prob_final_a = (prob_h2h * w_h2h) + (prob_equipo * w_equipo) + (prob_forma * w_forma) + (prob_h2h_rec * w_h2h_rec) + (prob_matchup * w_matchup) + (prob_defensa * w_defensa) + (prob_api_val * w_api)
     prob_final_b = 1 - prob_final_a
     resultado["prob_a"] = round(prob_final_a, 4)
     resultado["prob_b"] = round(prob_final_b, 4)
@@ -1291,6 +1328,7 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         resultado["prob_h2h_eq"] = round(prob_h2h_eq, 4)
         resultado["prob_forma"] = round(prob_forma, 4)
         resultado["prob_h2h_rec"] = round(prob_h2h_rec, 4)
+        resultado["prob_api"] = round(prob_api, 4) if prob_api is not None else None
 
     return resultado
 # ─────────────────────────────────────────────
