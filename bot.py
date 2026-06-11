@@ -2181,7 +2181,10 @@ async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
     c.execute("SELECT COUNT(*) FROM predicciones WHERE procesado=1 AND es_valor=1")
     valor_procesadas = c.fetchone()[0]
     c.execute("SELECT jugador_a, jugador_b, fecha_prediccion FROM predicciones WHERE procesado=0 AND cuota_betsson_a IS NOT NULL ORDER BY id DESC LIMIT 5")
-    c.execute("SELECT jugador_a, jugador_b, fecha_prediccion, acierto_ganador FROM predicciones WHERE procesado=1 AND DATE(fecha_prediccion)=DATE('now') ORDER BY id DESC LIMIT 5")
+    c.execute("""SELECT jugador_a, jugador_b, fecha_prediccion, acierto_ganador, 
+                 pts_real_a, pts_real_b FROM predicciones 
+                 WHERE procesado=1 AND DATE(fecha_prediccion)=DATE('now') 
+                 ORDER BY id DESC LIMIT 8""")
     recientes = c.fetchall()
     pendientes = c.fetchall()
     conn.close()
@@ -2196,9 +2199,10 @@ async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg += f"• {ja} vs {jb} ({fecha[:10]})\n"
     if recientes:
         msg += f"\n*Procesadas hoy:*\n"
-        for ja, jb, fecha, ac in recientes:
+        for ja, jb, fecha, ac, pa, pb in recientes:
             ic = "✅" if ac == 1 else "❌" if ac == 0 else "?"
-            msg += f"• {ic} {ja} vs {jb} ({fecha[11:16]})\n"
+            score = f" ({pa}-{pb})" if pa is not None else ""
+            msg += f"• {ic} {ja} vs {jb}{score} ({fecha[11:16]})\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def debugvalor(update: Update, context: ContextTypes.DEFAULT_TYPE):
