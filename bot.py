@@ -296,32 +296,79 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
     conn.close()
 
 def verificar_predicciones():
+    try:
+        resp = requests.get("https://api-h2h.hudstats.com/v1/schedule/past/nba?limit=50", timeout=10,
+                            headers={"Origin": "https://h2hggl.com"})
+        resultados_api = resp.json() if resp.status_code == 200 else []
+    except:
+        resultados_api = []
+
     conn = get_db()
     c = conn.cursor()
-    c.execute('''SELECT id, jugador_a, jugador_b, ganador_predicho, 
+    c.execute('''SELECT id, jugador_a, jugador_b, ganador_predicho,
                  linea_betsson_ou, prediccion_ou, ganador_predicho,
-                 cuota_betsson_a, cuota_betsson_b
+                 cuota_betsson_a, cuota_betsson_b, fecha_prediccion
                  FROM predicciones WHERE procesado = 0 AND cuota_betsson_a IS NOT NULL''')
     pendientes = c.fetchall()
     print(f"[VERIFY] {len(pendientes)} pendientes")
+
     for row in pendientes:
         try:
-            pred_id, jugador_a, jugador_b, ganador_predicho, linea_betsson_ou, prediccion_ou, _, cb_a, cb_b = row
+            pred_id, jugador_a, jugador_b, ganador_predicho, linea_betsson_ou, prediccion_ou, _, cb_a, cb_b, fecha_pred = row
+            fecha_pred_dt = datetime.strptime(fecha_pred, "%Y-%m-%d %H:%M:%S")
+            desde_dt = fecha_pred_dt - timedelta(hours=6)
+
+            # Buscar en API de la liga (sin lag)
+            resultado_api = None
+            for r in resultados_api:
+                if r.get("matchStatus") != "MATCH_ENDED":
+                    continue
+                pa = r.get("participantAName", "").upper()
+                pb = r.get("participantBName", "").upper()
+                ja = jugador_a.upper()
+                jb = jugador_b.upper()
+                if (pa == ja and pb == jb) or (pa == jb and pb == ja):
+                    try:
+                        start = datetime.strptime(r["startDate"], "%Y-%m-%dT%H:%M:%SZ")
+                        if start >= desde_dt:
+                            resultado_api = r
+                            break
+                    except:
+                        pass
+
+            if resultado_api:
+                if resultado_api["participantAName"].upper() == jugador_a.upper():
+                    pts_a = resultado_api["teamAScore"]
+                    pts_b = resultado_api["teamBScore"]
+                else:
+                    pts_a = resultado_api["teamBScore"]
+                    pts_b = resultado_api["teamAScore"]
+                ganador_real = jugador_a if pts_a > pts_b else jugador_b
+                acierto_ganador = 1 if ganador_real == ganador_predicho else 0
+                total_real = pts_a + pts_b
+                if linea_betsson_ou is None:
+                    acierto_ou = None
+                else:
+                    try:
+                        linea = float(linea_betsson_ou)
+                        acierto_ou = 1 if (total_real > linea if prediccion_ou == "Over" else total_real < linea) else 0
+                    except:
+                        acierto_ou = None
+                c.execute('''UPDATE predicciones SET resultado_real=?, acierto_ganador=?, acierto_ou=?, procesado=1,
+                             pts_real_a=?, pts_real_b=? WHERE id=?''',
+                          (ganador_real, acierto_ganador, acierto_ou, pts_a, pts_b, pred_id))
+                print(f"[OK] {jugador_a} vs {jugador_b}: procesado (liga)")
+                continue
+
+            # Fallback: historial BetsAPI
             partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
             if not partidos_h2h:
                 print(f"[SKIP] {jugador_a} vs {jugador_b}: sin H2H")
                 continue
-            c.execute("SELECT fecha_prediccion FROM predicciones WHERE id=?", (pred_id,))
-            r = c.fetchone()
-            if not r:
-                print(f"[SKIP] pred_id={pred_id}: sin fecha_prediccion")
-                continue
-            fecha_pred_dt = datetime.strptime(r[0], "%Y-%m-%d %H:%M:%S")
-            desde_dt = fecha_pred_dt - timedelta(hours=6)
             desde_str = desde_dt.strftime("%Y-%m-%d")
             partidos_recientes = [p for p in partidos_h2h if p.get("fecha") and p["fecha"] >= desde_str]
             if not partidos_recientes:
-                print(f"[SKIP] {jugador_a} vs {jugador_b}: sin partidos desde {desde_str} (H2H total={len(partidos_h2h)}, ultimo={partidos_h2h[0].get('fecha')})")
+                print(f"[SKIP] {jugador_a} vs {jugador_b}: sin partidos desde {desde_str} (H2H total={len(partidos_h2h)}, ultimo={partidos_h2h[0].get('fecha','?')})")
                 continue
             ultimo = partidos_recientes[0]
             ganador_real = jugador_a if ultimo["gano_a"] else jugador_b
@@ -335,15 +382,20 @@ def verificar_predicciones():
                     acierto_ou = 1 if (total_real > linea if prediccion_ou == "Over" else total_real < linea) else 0
                 except:
                     acierto_ou = None
-            pts_a = ultimo["pts_a"]
-            pts_b = ultimo["pts_b"]
             c.execute('''UPDATE predicciones SET resultado_real=?, acierto_ganador=?, acierto_ou=?, procesado=1,
-                         pts_real_a=?, pts_real_b=?
-                         WHERE id=?''', (ganador_real, acierto_ganador, acierto_ou, pts_a, pts_b, pred_id))
+                         pts_real_a=?, pts_real_b=? WHERE id=?''',
+                      (ganador_real, acierto_ganador, acierto_ou, ultimo["pts_a"], ultimo["pts_b"], pred_id))
             print(f"[OK] {jugador_a} vs {jugador_b}: procesado")
         except Exception as e:
-            print(f"[ERROR] verificando pred_id={pred_id}: {e}")
+            print(f"Error verificando predicción {pred_id}: {e}")
             continue
+
+    # Expirar predicciones con más de 4 horas sin procesar
+    desde_expiracion = (datetime.utcnow() - timedelta(hours=4)).strftime("%Y-%m-%d %H:%M:%S")
+    c.execute('''UPDATE predicciones SET procesado=2
+                 WHERE procesado=0 AND fecha_prediccion <= ?''', (desde_expiracion,))
+    if c.rowcount > 0:
+        print(f"[EXPIRADAS] {c.rowcount} predicciones expiradas")
     conn.commit()
     conn.close()
 
