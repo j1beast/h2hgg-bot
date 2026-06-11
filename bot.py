@@ -270,30 +270,30 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
     es_valor = 0
     
     try:
-            c.execute('''INSERT INTO predicciones
-                (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador,
-                linea_total, cuota_over, cuota_under, prediccion_ou, fecha_prediccion, procesado,
-                prob_h2h, prob_equipo, prob_h2h_eq, prob_forma, prob_h2h_rec,
-                cuota_betsson_a, cuota_betsson_b, linea_betsson_ou, cuota_betsson_over, cuota_betsson_under, es_valor, ratio_def_a, ratio_def_b, margen_avg_a, margen_avg_b, ou_h2h_total, ou_general, ou_franq, ou_reciente, ou_h2h_eq, ou_defensa_a, ou_defensa_b, prob_matchup, prob_defensa)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-                (jugador_a, jugador_b, franq_a, franq_b, ganador, cuota_ganador,
-                 analisis.get("linea_total"), analisis.get("over_total"), analisis.get("under_total"),
-                 prediccion_ou, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), 0,
-                 analisis.get("prob_h2h"), analisis.get("prob_equipo"), analisis.get("prob_h2h_eq"),
-                 analisis.get("prob_forma"), analisis.get("prob_h2h_rec"),
-                 cb_a, cb_b, linea_bs, over_bs, under_bs, es_valor,
-                 analisis.get("ratio_def_a"), analisis.get("ratio_def_b"),
-                 analisis.get("margen_avg_a"), analisis.get("margen_avg_b"),
-                 analisis.get("ou_h2h_total"), analisis.get("ou_general"),
-                 analisis.get("ou_franq"), analisis.get("ou_reciente"),
-                 analisis.get("ou_h2h_eq"), analisis.get("ou_defensa_a"),
-                 analisis.get("ou_defensa_b"),
-                 analisis.get("prob_matchup"),
-                 analisis.get("prob_defensa")))
-            conn.commit()
-        except Exception as e:
-            print(f"[ERROR INSERT prediccion] {e}")
-        conn.close()
+        c.execute('''INSERT INTO predicciones
+            (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador,
+            linea_total, cuota_over, cuota_under, prediccion_ou, fecha_prediccion, procesado,
+            prob_h2h, prob_equipo, prob_h2h_eq, prob_forma, prob_h2h_rec,
+            cuota_betsson_a, cuota_betsson_b, linea_betsson_ou, cuota_betsson_over, cuota_betsson_under, es_valor, ratio_def_a, ratio_def_b, margen_avg_a, margen_avg_b, ou_h2h_total, ou_general, ou_franq, ou_reciente, ou_h2h_eq, ou_defensa_a, ou_defensa_b, prob_matchup, prob_defensa)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            (jugador_a, jugador_b, franq_a, franq_b, ganador, cuota_ganador,
+             analisis.get("linea_total"), analisis.get("over_total"), analisis.get("under_total"),
+             prediccion_ou, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), 0,
+             analisis.get("prob_h2h"), analisis.get("prob_equipo"), analisis.get("prob_h2h_eq"),
+             analisis.get("prob_forma"), analisis.get("prob_h2h_rec"),
+             cb_a, cb_b, linea_bs, over_bs, under_bs, es_valor,
+             analisis.get("ratio_def_a"), analisis.get("ratio_def_b"),
+             analisis.get("margen_avg_a"), analisis.get("margen_avg_b"),
+             analisis.get("ou_h2h_total"), analisis.get("ou_general"),
+             analisis.get("ou_franq"), analisis.get("ou_reciente"),
+             analisis.get("ou_h2h_eq"), analisis.get("ou_defensa_a"),
+             analisis.get("ou_defensa_b"),
+             analisis.get("prob_matchup"),
+             analisis.get("prob_defensa")))
+        conn.commit()
+    except Exception as e:
+        print(f"[ERROR INSERT prediccion] {e}")
+    conn.close()
 
 def verificar_predicciones():
     conn = get_db()
