@@ -753,6 +753,60 @@ def calcular_pesos_optimos():
     pesos = {k: round(v / total, 4) for k, v in pesos.items()}
     return pesos, accuracies, n_muestras
 
+def calcular_linea_api(api_a, api_b):
+    if not api_a or not api_b:
+        return None
+    pts_a = api_a.get("avgPoints")
+    pts_b = api_b.get("avgPoints")
+    if not pts_a or not pts_b:
+        return None
+    base = pts_a + pts_b
+
+    stats_liga = get_stats_liga()
+    jugadores = list(stats_liga.values()) if stats_liga else []
+    def bl(key, default):
+        vals = [p.get(key) for p in jugadores if p.get(key)]
+        return round(sum(vals) / len(vals), 2) if vals else default
+
+    bl_pos   = bl("avgTimeOfPossession", 9.0)
+    bl_fb    = bl("avgFastBreakPoints", 6.0)
+    bl_to    = bl("avgTurnovers", 5.0)
+    bl_fga   = bl("avgFieldGoalsAttempted", 40.0)
+    bl_3pa   = bl("avg3PointersAttempted", 13.0)
+    bl_3pp   = bl("threePointersPercent", 42.0)
+    bl_paint = bl("avgPointsInThePaint", 34.0)
+
+    ajuste = 0.0
+
+    pos_a = api_a.get("avgTimeOfPossession") or bl_pos
+    pos_b = api_b.get("avgTimeOfPossession") or bl_pos
+    ajuste += (bl_pos - (pos_a + pos_b) / 2) * 2.0
+
+    fga_a = api_a.get("avgFieldGoalsAttempted") or bl_fga
+    fga_b = api_b.get("avgFieldGoalsAttempted") or bl_fga
+    ajuste += ((fga_a + fga_b) / 2 - bl_fga) * 0.3
+
+    t3a_a = api_a.get("avg3PointersAttempted") or bl_3pa
+    t3a_b = api_b.get("avg3PointersAttempted") or bl_3pa
+    t3p_a = api_a.get("threePointersPercent") or bl_3pp
+    t3p_b = api_b.get("threePointersPercent") or bl_3pp
+    ajuste += ((t3a_a - bl_3pa) * (t3p_a / 100) + (t3a_b - bl_3pa) * (t3p_b / 100)) * 0.5
+
+    paint_a = api_a.get("avgPointsInThePaint") or bl_paint
+    paint_b = api_b.get("avgPointsInThePaint") or bl_paint
+    ajuste += ((paint_a + paint_b) / 2 - bl_paint) * 0.25
+
+    fb_a = api_a.get("avgFastBreakPoints") or bl_fb
+    fb_b = api_b.get("avgFastBreakPoints") or bl_fb
+    ajuste += ((fb_a + fb_b) / 2 - bl_fb) * 0.7
+
+    to_a = api_a.get("avgTurnovers") or bl_to
+    to_b = api_b.get("avgTurnovers") or bl_to
+    ajuste += ((to_a + to_b) / 2 - bl_to) * 0.5
+
+    ajuste = max(-15, min(15, ajuste))
+    return round(base + ajuste, 1)
+    
 def get_stats_liga():
     global _stats_liga_cache, _stats_liga_cache_ts
     ahora = time.time()
@@ -1165,14 +1219,27 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         resultado["ou_reciente"] = round(avg_reciente_a + avg_reciente_b, 1)
         resultado["ou_h2h_eq"] = round(avg_h2h_eq_a + avg_h2h_eq_b, 1) if pts_a_h2h_eq and pts_b_h2h_eq else None
 
-        linea_total = round(
-            avg_total_h2h * 0.22 +
-            (resultado["avg_pts_a"] + resultado["avg_pts_b"]) * 0.13 +
-            (consistencia_a + consistencia_b) * 0.08 +
-            (adj_a + adj_b) * 0.10 +
-            (avg_reciente_a + avg_reciente_b) * 0.15 +
-            (avg_h2h_eq_a + avg_h2h_eq_b) * 0.10 +
-            linea_def * 0.22, 1)
+        linea_api = calcular_linea_api(api_a, api_b)
+        resultado["linea_api"] = linea_api
+        if linea_api:
+            linea_total = round(
+                avg_total_h2h * 0.20 +
+                (resultado["avg_pts_a"] + resultado["avg_pts_b"]) * 0.10 +
+                (consistencia_a + consistencia_b) * 0.07 +
+                (adj_a + adj_b) * 0.08 +
+                (avg_reciente_a + avg_reciente_b) * 0.13 +
+                (avg_h2h_eq_a + avg_h2h_eq_b) * 0.10 +
+                linea_def * 0.20 +
+                linea_api * 0.12, 1)
+        else:
+            linea_total = round(
+                avg_total_h2h * 0.22 +
+                (resultado["avg_pts_a"] + resultado["avg_pts_b"]) * 0.13 +
+                (consistencia_a + consistencia_b) * 0.08 +
+                (adj_a + adj_b) * 0.10 +
+                (avg_reciente_a + avg_reciente_b) * 0.15 +
+                (avg_h2h_eq_a + avg_h2h_eq_b) * 0.10 +
+                linea_def * 0.22, 1)
 
         confianza_over_a = 0.5 + (1 / (1 + std_a / 10)) * 0.20 if linea_a <= resultado["avg_pts_a"] else 0.5 - (1 / (1 + std_a / 10)) * 0.20
         confianza_a = max(0.40, min(0.75, confianza_over_a))
