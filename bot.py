@@ -2393,10 +2393,11 @@ async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = "✅ *Optimización completada*\n\n"
     msg += "📊 *Precisión por factor:*\n"
     for k in ['h2h', 'equipo', 'forma', 'h2h_rec', 'matchup', 'defensa', 'api']:
-        if n_muestras.get(k, 0) == 0:
+        n = n_muestras.get(k, 0)
+        if n < 5:
+            msg += f"⚪ {nombres[k]}: sin datos suficientes ({n} muestras)\n"
             continue
         acc = round(accuracies[k] * 100, 1)
-        n = n_muestras[k]
         emoji = "🟢" if acc >= 55 else "🟡" if acc >= 50 else "🔴"
         msg += f"{emoji} {nombres[k]}: {acc}% ({n} muestras)\n"
     msg += "\n⚖️ *Pesos anteriores → Nuevos:*\n"
