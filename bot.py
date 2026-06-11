@@ -688,6 +688,8 @@ def calcular_std(valores):
 
 _pesos_cache = {}
 _pesos_cache_ts = 0
+_stats_liga_cache = {}
+_stats_liga_cache_ts = 0
 
 def cargar_pesos():
     global _pesos_cache, _pesos_cache_ts
@@ -750,7 +752,27 @@ def calcular_pesos_optimos():
     total = sum(pesos.values())
     pesos = {k: round(v / total, 4) for k, v in pesos.items()}
     return pesos, accuracies, n_muestras
-    
+
+def get_stats_liga():
+    global _stats_liga_cache, _stats_liga_cache_ts
+    ahora = time.time()
+    if _stats_liga_cache and (ahora - _stats_liga_cache_ts) < 3600:
+        return _stats_liga_cache
+    try:
+        resp = requests.get(
+            "https://api-h2h.hudstats.com/v1/participant/nba",
+            headers={"Origin": "https://h2hggl.com"},
+            timeout=10
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            _stats_liga_cache = {p["participantName"].upper(): p for p in data if "participantName" in p}
+            _stats_liga_cache_ts = ahora
+            print(f"[STATS] Cache actualizado: {len(_stats_liga_cache)} jugadores")
+    except Exception as e:
+        print(f"[STATS] Error cargando stats: {e}")
+    return _stats_liga_cache
+
 # ─────────────────────────────────────────────
 # CONSULTAS A LA BASE DE DATOS
 # ─────────────────────────────────────────────
@@ -952,6 +974,26 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
     avg_contra_b = round(sum(todos_contra_b) / len(todos_contra_b), 1) if todos_contra_b else None
     avg_contra_a_franq = round(sum(contra_franq_a) / len(contra_franq_a), 1) if contra_franq_a else avg_contra_a
     avg_contra_b_franq = round(sum(contra_franq_b) / len(contra_franq_b), 1) if contra_franq_b else avg_contra_b
+
+    # Stats API como fallback
+    stats_liga = get_stats_liga()
+    api_a = stats_liga.get(jugador_a.upper(), {})
+    api_b = stats_liga.get(jugador_b.upper(), {})
+    mp_a = api_a.get("matchesPlayed") or 0
+    mp_b = api_b.get("matchesPlayed") or 0
+    api_contra_a = round(api_a["pointsAgainst"] / mp_a, 1) if mp_a > 0 and api_a.get("pointsAgainst") else None
+    api_contra_b = round(api_b["pointsAgainst"] / mp_b, 1) if mp_b > 0 and api_b.get("pointsAgainst") else None
+    api_pts_a = api_a.get("avgPoints")
+    api_pts_b = api_b.get("avgPoints")
+    if avg_contra_a is None and api_contra_a:
+        avg_contra_a = api_contra_a
+    if avg_contra_b is None and api_contra_b:
+        avg_contra_b = api_contra_b
+    if avg_contra_a_franq is None and api_contra_a:
+        avg_contra_a_franq = api_contra_a
+    if avg_contra_b_franq is None and api_contra_b:
+        avg_contra_b_franq = api_contra_b
+
     if partidos_a_franq:
         margenes_a = [p["pts_favor"] - p["pts_contra"] for p in partidos_a_franq]
     elif partidos_a:
@@ -1056,15 +1098,15 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         resultado["avg_pts_a"] = round(sum(todos_pts_a) / len(todos_pts_a), 1)
         resultado["std_pts_a"] = calcular_std(todos_pts_a)
     else:
-        resultado["avg_pts_a"] = None
-        resultado["std_pts_a"] = None
+        resultado["avg_pts_a"] = api_pts_a
+        resultado["std_pts_a"] = 10 if api_pts_a else None
 
     if todos_pts_b:
         resultado["avg_pts_b"] = round(sum(todos_pts_b) / len(todos_pts_b), 1)
         resultado["std_pts_b"] = calcular_std(todos_pts_b)
     else:
-        resultado["avg_pts_b"] = None
-        resultado["std_pts_b"] = None
+        resultado["avg_pts_b"] = api_pts_b
+        resultado["std_pts_b"] = 10 if api_pts_b else None
 
     if pts_totales_h2h:
         resultado["avg_total_h2h"] = round(sum(pts_totales_h2h) / len(pts_totales_h2h), 1)
@@ -1311,29 +1353,64 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     jugador = " ".join(context.args).upper()
     await update.message.reply_text(f"🔍 Buscando estadísticas de {jugador}...")
+
     partidos = buscar_partidos_jugador_db(jugador)
-    if not partidos:
-        await update.message.reply_text(f"No encontré partidos de {jugador} en la base de datos.")
+    stats_liga = get_stats_liga()
+    api = stats_liga.get(jugador, {})
+
+    if not partidos and not api:
+        await update.message.reply_text(f"No encontré datos de {jugador}.")
         return
-    total = len(partidos)
-    victorias = sum(1 for p in partidos if p["gano"])
-    derrotas = total - victorias
-    avg_pts = round(sum(p["pts_favor"] for p in partidos) / total, 1)
-    avg_contra = round(sum(p["pts_contra"] for p in partidos) / total, 1)
-    std = calcular_std([p["pts_favor"] for p in partidos])
-    recientes = partidos[:10]
-    racha = sum(1 for p in recientes if p["gano"])
-    racha_str = "-".join(["W" if p["gano"] else "L" for p in recientes])
-    msg = (
-        f"📊 *Estadísticas de {jugador}*\n\n"
-        f"• Partidos: {total}\n"
-        f"• Victorias: {victorias} ({round(victorias/total*100,1)}%)\n"
-        f"• Derrotas: {derrotas}\n"
-        f"• Promedio puntos: {avg_pts}\n"
-        f"• Promedio recibidos: {avg_contra}\n"
-        f"• Consistencia: ±{std} pts\n"
-        f"• Últimos 10: {racha_str}\n"
-    )
+
+    msg = f"📊 *Estadísticas de {jugador}*\n\n"
+
+    # Stats de la liga oficial (API)
+    if api:
+        mp = api.get("matchesPlayed") or 1
+        avg_contra_api = round(api["pointsAgainst"] / mp, 1) if api.get("pointsAgainst") else None
+        form_raw = api.get("matchForm", [])
+        form_str = " ".join(["W" if r.lower() == "w" else "L" for r in form_raw[:10]]) if form_raw else "—"
+        wins_form = sum(1 for r in form_raw[:10] if r.lower() == "w")
+
+        msg += f"🌐 *Liga oficial ({mp} partidos totales)*\n"
+        msg += f"• Victorias: {api.get('matchesWon', '?')} ({api.get('matchesWinPct', '?')}%)\n"
+        msg += f"• Puntos: `{api.get('avgPoints', '?')}` avg"
+        if avg_contra_api:
+            msg += f" | Recibidos: `{avg_contra_api}` avg"
+        msg += f"\n"
+        if api.get("avgFieldGoalsPercent"):
+            msg += f"• Tiro campo: {api['avgFieldGoalsPercent']}% ({api.get('avgFieldGoalsScored','?')} anotados)\n"
+        if api.get("threePointersPercent"):
+            msg += f"• Triples: {api['threePointersPercent']}% ({api.get('avg3PointersScored','?')} avg)\n"
+        if api.get("freeThrowsPercent"):
+            msg += f"• Libres: {api['freeThrowsPercent']}%\n"
+        if api.get("avgAssists"):
+            msg += f"• Asistencias: {api['avgAssists']} | Pérdidas: {api.get('avgTurnovers','?')}\n"
+        if api.get("avgBlocks") or api.get("avgSteals"):
+            msg += f"• Tapones: {api.get('avgBlocks','?')} | Robos: {api.get('avgSteals','?')}\n"
+        if api.get("avgDefensiveRebounds") or api.get("avgOffensiveRebounds"):
+            msg += f"• Reb DEF: {api.get('avgDefensiveRebounds','?')} | Reb OF: {api.get('avgOffensiveRebounds','?')}\n"
+        if api.get("avgDunks"):
+            msg += f"• Mates: {api['avgDunks']} avg\n"
+        if api.get("avgBiggestLead"):
+            msg += f"• Mayor ventaja media: {api['avgBiggestLead']} pts\n"
+        msg += f"• Forma reciente: {form_str} ({wins_form}/10)\n"
+
+    # Stats locales (DB)
+    if partidos:
+        total = len(partidos)
+        victorias = sum(1 for p in partidos if p["gano"])
+        avg_pts = round(sum(p["pts_favor"] for p in partidos) / total, 1)
+        avg_contra = round(sum(p["pts_contra"] for p in partidos) / total, 1)
+        std = calcular_std([p["pts_favor"] for p in partidos])
+        recientes = partidos[:10]
+        racha_str = " ".join(["W" if p["gano"] else "L" for p in recientes])
+        msg += f"\n🗄️ *Base de datos local ({total} partidos)*\n"
+        msg += f"• Victorias: {victorias} ({round(victorias/total*100,1)}%)\n"
+        msg += f"• Puntos: `{avg_pts}` avg | Recibidos: `{avg_contra}` avg\n"
+        msg += f"• Consistencia: ±{std} pts\n"
+        msg += f"• Últimos 10: {racha_str}\n"
+
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def h2h(update: Update, context: ContextTypes.DEFAULT_TYPE):
