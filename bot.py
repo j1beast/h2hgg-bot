@@ -2500,6 +2500,48 @@ async def perfil(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     msg = generar_perfil_jugador(jugador, api, stats_liga)
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        await update.message.reply_text("No tienes acceso a este bot.")
+        return
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT jugador_a, jugador_b, franquicia_a, franquicia_b,
+                 linea_predicha, prediccion, confianza, prob_final_a,
+                 prob_h2h, prob_equipo, prob_forma, prob_h2h_rec,
+                 prob_matchup, prob_defensa, prob_api, n_h2h, fecha_prediccion
+                 FROM predicciones
+                 WHERE procesado=0
+                 ORDER BY fecha_prediccion''')
+    rows = c.fetchall()
+    conn.close()
+    if not rows:
+        await update.message.reply_text("No hay predicciones pendientes.")
+        return
+    msg = f"📋 *Predicciones pendientes ({len(rows)}):*\n\n"
+    for r in rows:
+        jugador_a, jugador_b, franq_a, franq_b, linea, pred, confianza, prob_final, \
+        p_h2h, p_equipo, p_forma, p_h2h_rec, p_matchup, p_defensa, p_api, n_h2h, fecha = r
+        pred_icon = "⬆️" if pred == "Over" else "⬇️"
+        conf_icon = "🔴" if confianza == "alta" else "🟡" if confianza == "media" else "⚪"
+        franq_txt = f"_{franq_a} vs {franq_b}_\n" if franq_a and franq_b else ""
+        msg += f"*{jugador_a} vs {jugador_b}*\n"
+        msg += franq_txt
+        msg += f"{pred_icon} {pred} {linea} {conf_icon} {confianza} — Prob: {round((prob_final or 0.5)*100)}%\n"
+        msg += f"H2H: {n_h2h or 0} partidos\n"
+        factores = []
+        if p_h2h is not None: factores.append(f"H2H {round(p_h2h*100)}%")
+        if p_equipo is not None: factores.append(f"Eq {round(p_equipo*100)}%")
+        if p_forma is not None: factores.append(f"Forma {round(p_forma*100)}%")
+        if p_h2h_rec is not None: factores.append(f"H2Hrec {round(p_h2h_rec*100)}%")
+        if p_matchup is not None: factores.append(f"MQ {round(p_matchup*100)}%")
+        if p_defensa is not None: factores.append(f"Def {round(p_defensa*100)}%")
+        if p_api is not None: factores.append(f"API {round(p_api*100)}%")
+        if factores:
+            msg += " · ".join(factores) + "\n"
+        msg += "\n"
+    await update.message.reply_text(msg, parse_mode="Markdown")
     
 # ─────────────────────────────────────────────
 # MAIN
@@ -2560,6 +2602,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("resetunidades", reset_unidades))
     app.add_handler(CommandHandler("optimizar", optimizar))
     app.add_handler(CommandHandler("perfil", perfil))
+    app.add_handler(CommandHandler("pendientes", pendientes))
     app.add_handler(CommandHandler("debugvalor", debugvalor))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
