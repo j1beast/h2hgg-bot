@@ -317,7 +317,7 @@ def verificar_predicciones():
         try:
             pred_id, jugador_a, jugador_b, ganador_predicho, linea_betsson_ou, prediccion_ou, _, cb_a, cb_b, fecha_pred = row
             fecha_pred_dt = datetime.strptime(fecha_pred, "%Y-%m-%d %H:%M:%S")
-            desde_dt = fecha_pred_dt - timedelta(hours=6)
+            desde_dt = fecha_pred_dt - timedelta(minutes=30)
 
             # Buscar en API de la liga (sin lag)
             resultado_api = None
