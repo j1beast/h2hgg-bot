@@ -786,49 +786,89 @@ def calcular_linea_api(api_a, api_b):
     if not pts_a or not pts_b:
         return None
     base = pts_a + pts_b
-
     stats_liga = get_stats_liga()
     jugadores = list(stats_liga.values()) if stats_liga else []
     def bl(key, default):
         vals = [p.get(key) for p in jugadores if p.get(key)]
         return round(sum(vals) / len(vals), 2) if vals else default
-
     bl_pos   = bl("avgTimeOfPossession", 9.0)
-    bl_fb    = bl("avgFastBreakPoints", 6.0)
+    bl_fb    = bl("avgFastBreakPoints", 9.9)
     bl_to    = bl("avgTurnovers", 5.0)
     bl_fga   = bl("avgFieldGoalsAttempted", 40.0)
     bl_3pa   = bl("avg3PointersAttempted", 13.0)
     bl_3pp   = bl("threePointersPercent", 42.0)
     bl_paint = bl("avgPointsInThePaint", 34.0)
-
-    ajuste = 0.0
-
-    pos_a = api_a.get("avgTimeOfPossession") or bl_pos
-    pos_b = api_b.get("avgTimeOfPossession") or bl_pos
-    ajuste += (bl_pos - (pos_a + pos_b) / 2) * 2.0
-
-    fga_a = api_a.get("avgFieldGoalsAttempted") or bl_fga
-    fga_b = api_b.get("avgFieldGoalsAttempted") or bl_fga
-    ajuste += ((fga_a + fga_b) / 2 - bl_fga) * 0.3
-
-    t3a_a = api_a.get("avg3PointersAttempted") or bl_3pa
-    t3a_b = api_b.get("avg3PointersAttempted") or bl_3pa
-    t3p_a = api_a.get("threePointersPercent") or bl_3pp
-    t3p_b = api_b.get("threePointersPercent") or bl_3pp
-    ajuste += ((t3a_a - bl_3pa) * (t3p_a / 100) + (t3a_b - bl_3pa) * (t3p_b / 100)) * 0.5
-
+    bl_fg    = bl("avgFieldGoalsPercent", 48.0)
+    bl_orb   = bl("avgOffensiveRebounds", 5.0)
+    vals_contra = []
+    for p in jugadores:
+        mp_p = p.get("matchesPlayed") or 0
+        pa = p.get("pointsAgainst")
+        if pa and mp_p > 0:
+            vals_contra.append(pa / mp_p)
+    bl_contra = sum(vals_contra) / len(vals_contra) if vals_contra else 54.0
+    mp_a = api_a.get("matchesPlayed") or 1
+    mp_b = api_b.get("matchesPlayed") or 1
+    pos_a   = api_a.get("avgTimeOfPossession") or bl_pos
+    pos_b   = api_b.get("avgTimeOfPossession") or bl_pos
+    fb_a    = api_a.get("avgFastBreakPoints") or bl_fb
+    fb_b    = api_b.get("avgFastBreakPoints") or bl_fb
+    to_a    = api_a.get("avgTurnovers") or bl_to
+    to_b    = api_b.get("avgTurnovers") or bl_to
+    fga_a   = api_a.get("avgFieldGoalsAttempted") or bl_fga
+    fga_b   = api_b.get("avgFieldGoalsAttempted") or bl_fga
+    t3a_a   = api_a.get("avg3PointersAttempted") or bl_3pa
+    t3a_b   = api_b.get("avg3PointersAttempted") or bl_3pa
+    t3p_a   = api_a.get("threePointersPercent") or bl_3pp
+    t3p_b   = api_b.get("threePointersPercent") or bl_3pp
     paint_a = api_a.get("avgPointsInThePaint") or bl_paint
     paint_b = api_b.get("avgPointsInThePaint") or bl_paint
+    fg_a    = api_a.get("avgFieldGoalsPercent") or bl_fg
+    fg_b    = api_b.get("avgFieldGoalsPercent") or bl_fg
+    orb_a   = api_a.get("avgOffensiveRebounds") or bl_orb
+    orb_b   = api_b.get("avgOffensiveRebounds") or bl_orb
+    contra_a = (api_a.get("pointsAgainst") or (bl_contra * mp_a)) / mp_a
+    contra_b = (api_b.get("pointsAgainst") or (bl_contra * mp_b)) / mp_b
+    ajuste = 0.0
+    # 1. POSESIÓN + DEFENSA
+    pos_media    = (pos_a + pos_b) / 2
+    contra_media = (contra_a + contra_b) / 2
+    es_rapido_a = pos_a < bl_pos * 0.88
+    es_lento_a  = pos_a > bl_pos * 1.12
+    es_rapido_b = pos_b < bl_pos * 0.88
+    es_lento_b  = pos_b > bl_pos * 1.12
+    if (es_lento_a or es_lento_b) and contra_media < bl_contra * 0.90:
+        ajuste -= 3.0  # dominante + defensivo = partido lento con pocos puntos
+    elif (es_lento_a or es_lento_b) and contra_media > bl_contra * 1.10:
+        ajuste -= 0.5  # dominante pero mal defensor = efecto leve
+    elif es_rapido_a and es_rapido_b:
+        ajuste += 2.0  # ambos rápidos = más posesiones = más puntos
+    elif (es_rapido_a and es_lento_b) or (es_lento_a and es_rapido_b):
+        pass           # estilos opuestos = se neutralizan
+    else:
+        ajuste += (bl_pos - pos_media) * 1.5
+    # 2. INTENTOS DE TIRO
+    ajuste += ((fga_a + fga_b) / 2 - bl_fga) * 0.3
+    # 3. TRIPLES
+    ajuste += ((t3a_a - bl_3pa) * (t3p_a / 100) + (t3a_b - bl_3pa) * (t3p_b / 100)) * 0.5
+    # 4. PINTURA
     ajuste += ((paint_a + paint_b) / 2 - bl_paint) * 0.25
-
-    fb_a = api_a.get("avgFastBreakPoints") or bl_fb
-    fb_b = api_b.get("avgFastBreakPoints") or bl_fb
+    # 5. CONTRAATAQUE — lineal + interacción si ambos corren mucho
     ajuste += ((fb_a + fb_b) / 2 - bl_fb) * 0.7
-
-    to_a = api_a.get("avgTurnovers") or bl_to
-    to_b = api_b.get("avgTurnovers") or bl_to
+    if fb_a > bl_fb * 1.25 and fb_b > bl_fb * 1.25:
+        ajuste += 2.0
+    # 6. PÉRDIDAS — lineal + interacción si ambos pierden mucho
     ajuste += ((to_a + to_b) / 2 - bl_to) * 0.5
-
+    if to_a > bl_to * 1.25 and to_b > bl_to * 1.25:
+        ajuste += 1.5
+    # 7. EFICIENCIA DE TIRO
+    if fg_a > bl_fg * 1.05 and fg_b > bl_fg * 1.05:
+        ajuste += 2.5   # ambos eficientes = más puntos por posesión
+    elif fg_a < bl_fg * 0.95 and fg_b < bl_fg * 0.95:
+        ajuste -= 2.5   # ambos ineficientes = posesiones desperdiciadas
+    # 8. REBOTES OFENSIVOS
+    if orb_a > bl_orb * 1.20 and orb_b > bl_orb * 1.20:
+        ajuste += 1.5   # ambos buscan segundas oportunidades
     ajuste = max(-15, min(15, ajuste))
     return round(base + ajuste, 1)
 
