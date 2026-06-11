@@ -1792,6 +1792,7 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     conn = get_db()
     c = conn.cursor()
+    reset_fecha = get_meta("reset_unidades") or "2000-01-01"
     c.execute('''SELECT ganador_predicho, resultado_real, acierto_ganador,
                  prediccion_ou, acierto_ou,
                  cuota_betsson_a, cuota_betsson_b,
@@ -1800,7 +1801,8 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
                  FROM predicciones
                  WHERE procesado = 1
                    AND cuota_betsson_a IS NOT NULL
-                 ORDER BY id ASC''')
+                   AND fecha_prediccion >= ?
+                 ORDER BY id ASC''', (reset_fecha,))
     rows = c.fetchall()
     conn.close()
     if not rows:
@@ -1968,6 +1970,13 @@ async def renovar_cookies_betsson():
     except Exception as e:
         print(f"Error renovando cookies: {e}")
         return None
+
+async def reset_unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    set_meta("reset_unidades", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
+    await update.message.reply_text("✅ Contador de unidades reseteado desde ahora.")
+    
 async def get_cuotas_betsson():
     try:
         cookies_str = cargar_cookies_betsson()
@@ -2297,6 +2306,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("unidades", unidades))
     app.add_handler(CommandHandler("renovarcookies", renovar_cookies_cmd))
     app.add_handler(CommandHandler("debug", debug))
+    app.add_handler(CommandHandler("resetunidades", reset_unidades))
     app.add_handler(CommandHandler("optimizar", optimizar))
     app.add_handler(CommandHandler("debugvalor", debugvalor))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
