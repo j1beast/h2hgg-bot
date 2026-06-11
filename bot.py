@@ -2540,6 +2540,16 @@ async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg += " · ".join(factores) + "\n"
         msg += "\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def schema(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("PRAGMA table_info(predicciones)")
+    cols = [row[1] for row in c.fetchall()]
+    conn.close()
+    await update.message.reply_text("\n".join(cols))
     
 # ─────────────────────────────────────────────
 # MAIN
@@ -2601,6 +2611,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("optimizar", optimizar))
     app.add_handler(CommandHandler("perfil", perfil))
     app.add_handler(CommandHandler("pendientes", pendientes))
+    app.add_handler(CommandHandler("schema", schema))
     app.add_handler(CommandHandler("debugvalor", debugvalor))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
