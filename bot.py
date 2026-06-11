@@ -176,6 +176,25 @@ def get_ended(page=1, day=None):
         print(f"Error get_ended: {e}")
         return []
 
+  
+def get_upcoming_h2hggl():
+    try:
+        local_now = datetime.utcnow() + timedelta(hours=1)
+        fecha = local_now.strftime("%Y-%m-%dT00:00:00+01:00")
+        resp = requests.get(
+            "https://api-h2h.hudstats.com/v1/schedule/nba",
+            params={"date": fecha},
+            headers={"Origin": "https://h2hggl.com"},
+            timeout=10
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            return [g for g in data if not g.get("isCancelled") and g.get("matchStatus") is None]
+        return []
+    except Exception as e:
+        print(f"Error get_upcoming_h2hggl: {e}")
+        return []  
+
 # ─────────────────────────────────────────────
 # CARGA INICIAL Y ACTUALIZACION DIARIA
 # ─────────────────────────────────────────────
@@ -309,7 +328,7 @@ def verificar_predicciones():
     c.execute('''SELECT id, jugador_a, jugador_b, ganador_predicho,
                  linea_betsson_ou, prediccion_ou, ganador_predicho,
                  cuota_betsson_a, cuota_betsson_b, fecha_prediccion
-                 FROM predicciones WHERE procesado = 0 AND cuota_betsson_a IS NOT NULL
+                 FROM predicciones WHERE procesado = 0
                  AND datetime(fecha_prediccion) <= datetime('now', '-15 minutes')''')
     pendientes = c.fetchall()
     print(f"[VERIFY] {len(pendientes)} pendientes")
@@ -404,7 +423,7 @@ def verificar_predicciones():
 async def tarea_predicciones_automaticas(app_ref):
     while True:
         try:
-            proximos = get_upcoming()
+            proximos_liga = get_upcoming_h2hggl()
             cuotas_betsson = await get_cuotas_betsson()
             # Actualizar cuotas Betsson en predicciones que no las tienen
             for key, val in cuotas_betsson.items():
@@ -425,45 +444,49 @@ async def tarea_predicciones_automaticas(app_ref):
                 conn_u.commit()
                 conn_u.close()
             partidos_enviados = set()
-            for key_bs, betsson_pred in cuotas_betsson.items():
-                partes = key_bs.split("_vs_")
-                if len(partes) != 2:
-                    continue
-                jugador_a, jugador_b = partes[0], partes[1]
+            for partido in proximos_liga:
+                jugador_a = partido["participantAName"].upper()
+                jugador_b = partido["participantBName"].upper()
+                franq_a = partido.get("teamAName", jugador_a)
+                franq_b = partido.get("teamBName", jugador_b)
+                try:
+                    hora_utc = datetime.strptime(partido["startDate"], "%Y-%m-%dT%H:%M:%SZ").strftime("%H:%M UTC")
+                except:
+                    hora_utc = "?? UTC"
                 key_norm = "_vs_".join(sorted([jugador_a, jugador_b]))
                 if key_norm in partidos_enviados:
                     continue
                 partidos_enviados.add(key_norm)
-                hora_utc = betsson_pred.get("hora_utc", "?? UTC")
-                # Buscar hora en proximos de BetsAPI (sobreescribe si está disponible)
-                for ev in proximos:
-                    home_ev = extraer_nombre_jugador(ev.get("home", {}).get("name", "")).upper()
-                    away_ev = extraer_nombre_jugador(ev.get("away", {}).get("name", "")).upper()
-                    if (home_ev == jugador_a and away_ev == jugador_b) or (home_ev == jugador_b and away_ev == jugador_a):
-                        hora_utc = datetime.utcfromtimestamp(int(ev.get("time", 0))).strftime("%H:%M UTC") if ev.get("time") else "?? UTC"
-                        break
+                key_ab = f"{jugador_a}_vs_{jugador_b}"
+                key_ba = f"{jugador_b}_vs_{jugador_a}"
+                betsson_raw = cuotas_betsson.get(key_ab) or cuotas_betsson.get(key_ba)
+                betsson_pred = None
+                if betsson_raw:
+                    invertido = key_ba in cuotas_betsson and key_ab not in cuotas_betsson
+                    if invertido:
+                        betsson_pred = {
+                            "cuota_a": betsson_raw["cuota_b"], "cuota_b": betsson_raw["cuota_a"],
+                            "cuota_over": betsson_raw.get("cuota_over"), "cuota_under": betsson_raw.get("cuota_under"),
+                            "linea_ou": betsson_raw.get("linea_ou"),
+                            "hora_utc": betsson_raw.get("hora_utc", hora_utc)
+                        }
+                    else:
+                        betsson_pred = dict(betsson_raw)
+                    hora_utc = betsson_pred.get("hora_utc", hora_utc)
                 partidos_a = buscar_partidos_jugador_db(jugador_a)
                 partidos_b = buscar_partidos_jugador_db(jugador_b)
-                franq_a = betsson_pred.get("franq_a") or (partidos_a[0]["franquicia"] if partidos_a else jugador_a)
-                franq_b = betsson_pred.get("franq_b") or (partidos_b[0]["franquicia"] if partidos_b else jugador_b)
                 partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
                 if partidos_a and partidos_b:
                     analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
                     guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson=betsson_pred)
-                    if analisis.get("confianza") in ["🟢 Alta", "🟡 Media"]:
-                        key_ab = f"{jugador_a}_vs_{jugador_b}"
-                        key_ba = f"{jugador_b}_vs_{jugador_a}"
-                        betsson = cuotas_betsson.get(key_ab) or cuotas_betsson.get(key_ba)
-                        if not betsson:
-                            continue
+                    if betsson_pred and analisis.get("confianza") in ["🟢 Alta", "🟡 Media"]:
                         # Detectar valor
-                        invertido = key_ba in cuotas_betsson and key_ab not in cuotas_betsson
                         bot_a = analisis.get("cuota_a", 0)
                         bot_b = analisis.get("cuota_b", 0)
-                        cb_a = betsson["cuota_b"] if invertido else betsson["cuota_a"]
-                        cb_b = betsson["cuota_a"] if invertido else betsson["cuota_b"]
+                        cb_a = betsson_pred["cuota_a"]
+                        cb_b = betsson_pred["cuota_b"]
                         linea_bot = analisis.get("linea_total")
-                        bs_linea = betsson.get("linea_ou")
+                        bs_linea = betsson_pred.get("linea_ou")
                         hay_valor_ganador = (cb_a > 0 and bot_a > 0 and cb_a / bot_a >= 1.20) or (cb_b > 0 and bot_b > 0 and cb_b / bot_b >= 1.20)
                         hay_valor_ou = False
                         if linea_bot and bs_linea:
@@ -509,8 +532,8 @@ async def tarea_predicciones_automaticas(app_ref):
                                 msg += f"Betsson: {jugador_b} gana → `{cb_b}`\n"
                                 msg += f"Bot: `{bot_b}` (+{pct}% diferencia)\n"
                         # Valor O/U
-                        bs_over = betsson.get("cuota_over")
-                        bs_under = betsson.get("cuota_under")
+                        bs_over = betsson_pred.get("cuota_over")
+                        bs_under = betsson_pred.get("cuota_under")
                         if hay_valor_ou and bs_linea and linea_bot:
                             try:
                                 diff_pts = round(float(linea_bot) - float(bs_linea), 1)
@@ -1445,19 +1468,25 @@ async def proximos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("No tienes acceso a este bot.")
         return
     await update.message.reply_text("🔄 Consultando próximos partidos...")
-    cuotas = await get_cuotas_betsson()
-    if not cuotas:
+    proximos_lista = get_upcoming_h2hggl()
+    if not proximos_lista:
         await update.message.reply_text("No hay próximos partidos disponibles ahora mismo.")
         return
+    cuotas = await get_cuotas_betsson()
     msg = "🏀 *Próximos partidos H2H GG League:*\n\n"
-    for datos in cuotas.values():
-        home = datos.get("home", "?")
-        away = datos.get("away", "?")
-        hora = datos.get("hora_utc", "?")
-        franq_a = datos.get("franq_a", "")
-        franq_b = datos.get("franq_b", "")
+    for p in proximos_lista[:20]:
+        ja = p["participantAName"].upper()
+        jb = p["participantBName"].upper()
+        franq_a = p.get("teamAName", "")
+        franq_b = p.get("teamBName", "")
+        try:
+            hora = datetime.strptime(p["startDate"], "%Y-%m-%dT%H:%M:%SZ").strftime("%H:%M UTC")
+        except:
+            hora = "?? UTC"
         franq_txt = f" ({franq_a} vs {franq_b})" if franq_a and franq_b else ""
-        msg += f"• {home} vs {away}{franq_txt} — {hora}\n"
+        has_cuota = f"{ja}_vs_{jb}" in cuotas or f"{jb}_vs_{ja}" in cuotas
+        cuota_icon = " 💰" if has_cuota else ""
+        msg += f"• {ja} vs {jb}{franq_txt} — {hora}{cuota_icon}\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def resultados(update: Update, context: ContextTypes.DEFAULT_TYPE):
