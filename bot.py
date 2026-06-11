@@ -1123,6 +1123,7 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
     mq_fb = partidos_b[0]["franquicia"] if partidos_b else franq_b
     prob_matchup = buscar_matchup_franquicias(mq_fa, mq_fb)
     resultado["matchup_total"] = prob_matchup
+    resultado["prob_matchup"] = round(prob_matchup, 4)
     
     # Rendimiento con equipo actual (25%)
     partidos_a_franq = [p for p in partidos_a if p.get("franquicia", "").upper() == franq_a.upper()]
@@ -1210,6 +1211,7 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         prob_defensa = 0.5
         resultado["ratio_def_a"] = None
         resultado["ratio_def_b"] = None
+    resultado["prob_defensa"] = round(prob_defensa, 4)
 
     # Forma reciente (20%)
     recientes_a = partidos_a[:15]
