@@ -2507,10 +2507,10 @@ async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     conn = get_db()
     c = conn.cursor()
-    c.execute('''SELECT jugador_a, jugador_b,
-                 linea_predicha, prediccion, confianza, prob_final_a,
+    c.execute('''SELECT jugador_a, jugador_b, franq_a, franq_b,
+                 linea_total, prediccion_ou,
                  prob_h2h, prob_equipo, prob_forma, prob_h2h_rec,
-                 prob_matchup, prob_defensa, prob_api, n_h2h, fecha_prediccion
+                 prob_matchup, prob_defensa, prob_api, fecha_prediccion
                  FROM predicciones
                  WHERE procesado=0
                  ORDER BY fecha_prediccion''')
@@ -2521,13 +2521,13 @@ async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     msg = f"📋 *Predicciones pendientes ({len(rows)}):*\n\n"
     for r in rows:
-        jugador_a, jugador_b, linea, pred, confianza, prob_final, \
-        p_h2h, p_equipo, p_forma, p_h2h_rec, p_matchup, p_defensa, p_api, n_h2h, fecha = r
+        jugador_a, jugador_b, franq_a, franq_b, linea, pred, \
+        p_h2h, p_equipo, p_forma, p_h2h_rec, p_matchup, p_defensa, p_api, fecha = r
         pred_icon = "⬆️" if pred == "Over" else "⬇️"
-        conf_icon = "🔴" if confianza == "alta" else "🟡" if confianza == "media" else "⚪"
+        franq_txt = f"_{franq_a} vs {franq_b}_\n" if franq_a and franq_b else ""
         msg += f"*{jugador_a} vs {jugador_b}*\n"
-        msg += f"{pred_icon} {pred} {linea} {conf_icon} {confianza} — Prob: {round((prob_final or 0.5)*100)}%\n"
-        msg += f"H2H: {n_h2h or 0} partidos\n"
+        msg += franq_txt
+        msg += f"{pred_icon} {pred} {linea}\n"
         factores = []
         if p_h2h is not None: factores.append(f"H2H {round(p_h2h*100)}%")
         if p_equipo is not None: factores.append(f"Eq {round(p_equipo*100)}%")
