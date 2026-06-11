@@ -309,7 +309,8 @@ def verificar_predicciones():
     c.execute('''SELECT id, jugador_a, jugador_b, ganador_predicho,
                  linea_betsson_ou, prediccion_ou, ganador_predicho,
                  cuota_betsson_a, cuota_betsson_b, fecha_prediccion
-                 FROM predicciones WHERE procesado = 0 AND cuota_betsson_a IS NOT NULL''')
+                 FROM predicciones WHERE procesado = 0 AND cuota_betsson_a IS NOT NULL
+                 AND datetime(fecha_prediccion) <= datetime('now', '-15 minutes')''')
     pendientes = c.fetchall()
     print(f"[VERIFY] {len(pendientes)} pendientes")
 
