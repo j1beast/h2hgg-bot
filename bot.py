@@ -269,7 +269,7 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
         under_bs = betsson.get("cuota_under")
     es_valor = 0
     
-        try:
+    try:
             c.execute('''INSERT INTO predicciones
                 (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador,
                 linea_total, cuota_over, cuota_under, prediccion_ou, fecha_prediccion, procesado,
