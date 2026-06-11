@@ -876,20 +876,41 @@ def buscar_partidos_jugador_db(jugador):
 def buscar_matchup_franquicias(franq_a, franq_b):
     conn = get_db()
     c = conn.cursor()
-    fa = franq_a.upper()
-    fb = franq_b.upper()
-    c.execute('''SELECT COUNT(*) as total,
-                 SUM(CASE WHEN UPPER(home_franquicia)=? AND score_home > score_away THEN 1
-                          WHEN UPPER(away_franquicia)=? AND score_away > score_home THEN 1
-                          ELSE 0 END) as victorias_a
-                 FROM partidos
-                 WHERE (UPPER(home_franquicia)=? AND UPPER(away_franquicia)=?)
-                    OR (UPPER(home_franquicia)=? AND UPPER(away_franquicia)=?)''',
-              (fa, fa, fa, fb, fb, fa))
-    row = c.fetchone()
+    fa = franq_a.strip().upper()
+    fb = franq_b.strip().upper()
+
+    def buscar(query_a, query_b, modo="exact"):
+        if modo == "exact":
+            c.execute('''SELECT COUNT(*),
+                         SUM(CASE WHEN UPPER(home_franquicia)=? AND score_home > score_away THEN 1
+                                  WHEN UPPER(away_franquicia)=? AND score_away > score_home THEN 1
+                                  ELSE 0 END)
+                         FROM partidos
+                         WHERE (UPPER(home_franquicia)=? AND UPPER(away_franquicia)=?)
+                            OR (UPPER(home_franquicia)=? AND UPPER(away_franquicia)=?)''',
+                      (query_a, query_a, query_a, query_b, query_b, query_a))
+        else:
+            c.execute('''SELECT COUNT(*),
+                         SUM(CASE WHEN UPPER(home_franquicia) LIKE ? AND score_home > score_away THEN 1
+                                  WHEN UPPER(away_franquicia) LIKE ? AND score_away > score_home THEN 1
+                                  ELSE 0 END)
+                         FROM partidos
+                         WHERE (UPPER(home_franquicia) LIKE ? AND UPPER(away_franquicia) LIKE ?)
+                            OR (UPPER(home_franquicia) LIKE ? AND UPPER(away_franquicia) LIKE ?)''',
+                      (f"%{query_a}%", f"%{query_a}%", f"%{query_a}%", f"%{query_b}%", f"%{query_b}%", f"%{query_a}%"))
+        row = c.fetchone()
+        return row[0] or 0, row[1] or 0
+
+    # 1. Coincidencia exacta
+    total, victorias_a = buscar(fa, fb, "exact")
+
+    # 2. Si no hay, coincidencia parcial con primera palabra (ej: "CHARLOTTE")
+    if total == 0:
+        fa_key = fa.split()[0]
+        fb_key = fb.split()[0]
+        total, victorias_a = buscar(fa_key, fb_key, "like")
+
     conn.close()
-    total = row[0] or 0
-    victorias_a = row[1] or 0
     if total == 0:
         return 0.5
     return victorias_a / total
