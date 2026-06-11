@@ -2390,7 +2390,6 @@ async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'defensa': 'Defensa',
         'api': 'Stats API liga'
     }
-    }
     msg = "✅ *Optimización completada*\n\n"
     msg += "📊 *Precisión por factor:*\n"
     for k in ['h2h', 'equipo', 'forma', 'h2h_rec', 'matchup', 'defensa', 'api']:
