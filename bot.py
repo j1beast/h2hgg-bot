@@ -813,13 +813,11 @@ def calcular_pesos_optimos_ou():
         accuracies[nombre] = sum(resultados) / n if n >= 10 else 0.5
     edges = {k: max(0.0, v - 0.5) for k, v in accuracies.items()}
     total_edge = sum(edges.values())
-    min_w = 0.05
-    n_factores = len(edges)
     if total_edge == 0:
+        n_factores = len(edges)
         pesos = {k: 1.0 / n_factores for k in edges}
     else:
-        extra = 1.0 - (min_w * n_factores)
-        pesos = {k: min_w + (edges[k] / total_edge) * extra for k in edges}
+        pesos = {k: edges[k] / total_edge for k in edges}
     total = sum(pesos.values())
     pesos = {k: round(v / total, 4) for k, v in pesos.items()}
     return pesos, accuracies, n_muestras
