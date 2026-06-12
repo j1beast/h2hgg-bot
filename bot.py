@@ -782,6 +782,48 @@ def calcular_pesos_optimos():
     pesos = {k: round(v / total, 4) for k, v in pesos.items()}
     return pesos, accuracies, n_muestras
 
+def calcular_pesos_optimos_ou():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT ou_h2h_total, ou_general, ou_franq, ou_reciente, ou_h2h_eq,
+                 ou_defensa_a, ou_defensa_b, linea_betsson_ou, pts_real_a, pts_real_b
+                 FROM predicciones
+                 WHERE procesado=1 AND linea_betsson_ou IS NOT NULL
+                 AND pts_real_a IS NOT NULL AND ou_h2h_total IS NOT NULL''')
+    rows = c.fetchall()
+    conn.close()
+    if len(rows) < 30:
+        return None, "Necesitas al menos 30 predicciones procesadas", {}
+    factores_data = {'h2h': [], 'general': [], 'franq': [], 'reciente': [], 'h2h_eq': [], 'defensa': []}
+    for ou_h2h, ou_gen, ou_franq, ou_rec, ou_eq, def_a, def_b, linea_bs, pts_a, pts_b in rows:
+        total_real = pts_a + pts_b
+        real_over = total_real > linea_bs
+        ou_def = (def_a + def_b) if def_a and def_b else None
+        for nombre, val in [('h2h', ou_h2h), ('general', ou_gen), ('franq', ou_franq),
+                             ('reciente', ou_rec), ('h2h_eq', ou_eq), ('defensa', ou_def)]:
+            if val is None:
+                continue
+            pred_over = val > linea_bs
+            factores_data[nombre].append(int(pred_over == real_over))
+    accuracies = {}
+    n_muestras = {}
+    for nombre, resultados in factores_data.items():
+        n = len(resultados)
+        n_muestras[nombre] = n
+        accuracies[nombre] = sum(resultados) / n if n >= 10 else 0.5
+    edges = {k: max(0.0, v - 0.5) for k, v in accuracies.items()}
+    total_edge = sum(edges.values())
+    min_w = 0.05
+    n_factores = len(edges)
+    if total_edge == 0:
+        pesos = {k: 1.0 / n_factores for k in edges}
+    else:
+        extra = 1.0 - (min_w * n_factores)
+        pesos = {k: min_w + (edges[k] / total_edge) * extra for k in edges}
+    total = sum(pesos.values())
+    pesos = {k: round(v / total, 4) for k, v in pesos.items()}
+    return pesos, accuracies, n_muestras
+
 def calcular_linea_api(api_a, api_b):
     if not api_a or not api_b:
         return None
@@ -1362,25 +1404,33 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
 
         linea_api = calcular_linea_api(api_a, api_b)
         resultado["linea_api"] = linea_api
+        pesos_ou = json.loads(get_meta("pesos_ou_optimizados") or "{}")
+        w_h2h_ou = pesos_ou.get('h2h', 0.20)
+        w_gen_ou = pesos_ou.get('general', 0.18)
+        w_franq_ou = pesos_ou.get('franq', 0.15)
+        w_rec_ou = pesos_ou.get('reciente', 0.18)
+        w_eq_ou = pesos_ou.get('h2h_eq', 0.12)
+        w_def_ou = pesos_ou.get('defensa', 0.17)
+        w_total = w_h2h_ou + w_gen_ou + w_franq_ou + w_rec_ou + w_eq_ou + w_def_ou
         if linea_api:
+            w_api_ou = 0.12
+            factor = 1.0 - w_api_ou
             linea_total = round(
-                avg_total_h2h * 0.20 +
-                (resultado["avg_pts_a"] + resultado["avg_pts_b"]) * 0.10 +
-                (consistencia_a + consistencia_b) * 0.07 +
-                (adj_a + adj_b) * 0.08 +
-                (avg_reciente_a + avg_reciente_b) * 0.13 +
-                (avg_h2h_eq_a + avg_h2h_eq_b) * 0.10 +
-                linea_def * 0.20 +
-                linea_api * 0.12, 1)
+                avg_total_h2h * (w_h2h_ou / w_total * factor) +
+                (resultado["avg_pts_a"] + resultado["avg_pts_b"]) * (w_gen_ou / w_total * factor) +
+                (adj_a + adj_b) * (w_franq_ou / w_total * factor) +
+                (avg_reciente_a + avg_reciente_b) * (w_rec_ou / w_total * factor) +
+                (avg_h2h_eq_a + avg_h2h_eq_b) * (w_eq_ou / w_total * factor) +
+                linea_def * (w_def_ou / w_total * factor) +
+                linea_api * w_api_ou, 1)
         else:
             linea_total = round(
-                avg_total_h2h * 0.22 +
-                (resultado["avg_pts_a"] + resultado["avg_pts_b"]) * 0.13 +
-                (consistencia_a + consistencia_b) * 0.08 +
-                (adj_a + adj_b) * 0.10 +
-                (avg_reciente_a + avg_reciente_b) * 0.15 +
-                (avg_h2h_eq_a + avg_h2h_eq_b) * 0.10 +
-                linea_def * 0.22, 1)
+                avg_total_h2h * (w_h2h_ou / w_total) +
+                (resultado["avg_pts_a"] + resultado["avg_pts_b"]) * (w_gen_ou / w_total) +
+                (adj_a + adj_b) * (w_franq_ou / w_total) +
+                (avg_reciente_a + avg_reciente_b) * (w_rec_ou / w_total) +
+                (avg_h2h_eq_a + avg_h2h_eq_b) * (w_eq_ou / w_total) +
+                linea_def * (w_def_ou / w_total), 1)
 
         confianza_over_a = 0.5 + (1 / (1 + std_a / 10)) * 0.20 if linea_a <= resultado["avg_pts_a"] else 0.5 - (1 / (1 + std_a / 10)) * 0.20
         confianza_a = max(0.40, min(0.75, confianza_over_a))
@@ -2416,6 +2466,20 @@ async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cambio = "↑" if nuevos_pesos[k] > pesos_actuales.get(k, 0) else "↓" if nuevos_pesos[k] < pesos_actuales.get(k, 0) else "="
         msg += f"• {nombres[k]}: {ant}% {cambio} {nuevo}%\n"
     msg += "\n✅ Pesos activos en próximas predicciones"
+    pesos_ou, accuracies_ou, n_ou = calcular_pesos_optimos_ou()
+    if pesos_ou:
+        set_meta("pesos_ou_optimizados", json.dumps(pesos_ou))
+        nombres_ou = {'h2h': 'H2H total', 'general': 'Promedio general', 'franq': 'Franquicia',
+                      'reciente': 'Forma reciente', 'h2h_eq': 'H2H mismos equipos', 'defensa': 'Defensa'}
+        msg += "\n\n📊 *Precisión O/U por componente:*\n"
+        for k in ['h2h', 'general', 'franq', 'reciente', 'h2h_eq', 'defensa']:
+            n = n_ou.get(k, 0)
+            if n < 10:
+                msg += f"⚪ {nombres_ou[k]}: sin datos ({n})\n"
+                continue
+            acc = round(accuracies_ou[k] * 100, 1)
+            emoji = "🟢" if acc >= 55 else "🟡" if acc >= 50 else "🔴"
+            msg += f"{emoji} {nombres_ou[k]}: {acc}% ({n} muestras)\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
     
 async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
