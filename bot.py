@@ -493,7 +493,7 @@ async def tarea_predicciones_automaticas(app_ref):
                         hay_valor_ou = False
                         if linea_bot and bs_linea:
                             try:
-                                hay_valor_ou = abs(float(linea_bot) - float(bs_linea)) >= 5
+                                hay_valor_ou = abs(float(linea_bot) - float(bs_linea)) >= 8
                             except:
                                 pass
                         if not hay_valor_ganador and not hay_valor_ou:
@@ -874,7 +874,7 @@ def calcular_linea_api(api_a, api_b):
     if orb_a > bl_orb * 1.20 and orb_b > bl_orb * 1.20:
         ajuste += 1.5   # ambos buscan segundas oportunidades
     ajuste = max(-15, min(15, ajuste))
-    return round(base + ajuste, 1)
+    return round(base + ajuste + 1.5, 1)
 
 def calcular_prob_api(api_a, api_b):
     if not api_a or not api_b:
