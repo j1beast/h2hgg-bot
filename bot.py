@@ -1094,7 +1094,10 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         peso_total = sum(calcular_peso_fecha(p.get("fecha")) for p in partidos_h2h)
         wins_a = sum(calcular_peso_fecha(p.get("fecha")) for p in partidos_h2h if p["gano_a"])
         total_h2h = len(partidos_h2h)
-        prob_h2h = wins_a / peso_total if peso_total > 0 else 0.5
+        if total_h2h < 5:
+                prob_h2h = 0.5 + (wins_a / peso_total - 0.5) * 0.3 if peso_total > 0 else 0.5
+            else:
+                prob_h2h = wins_a / peso_total if peso_total > 0 else 0.5
         pts_a_h2h = [p["pts_a"] for p in partidos_h2h]
         pts_b_h2h = [p["pts_b"] for p in partidos_h2h]
         resultado["h2h_total"] = total_h2h
@@ -1236,7 +1239,10 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
     if h2h_reciente:
         peso_rec = sum(calcular_peso_fecha(p.get("fecha")) for p in h2h_reciente)
         wins_rec = sum(calcular_peso_fecha(p.get("fecha")) for p in h2h_reciente if p["gano_a"])
-        prob_h2h_rec = wins_rec / peso_rec if peso_rec > 0 else 0.5
+        if len(h2h_reciente) < 5:
+            prob_h2h_rec = 0.5 + (wins_rec / peso_rec - 0.5) * 0.3 if peso_rec > 0 else 0.5
+        else:
+            prob_h2h_rec = wins_rec / peso_rec if peso_rec > 0 else 0.5
     else:
         prob_h2h_rec = 0.5
 
