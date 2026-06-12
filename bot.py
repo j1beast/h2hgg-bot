@@ -2538,6 +2538,17 @@ async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if p_api is not None: factores.append(f"API {round(p_api*100)}%")
         if factores:
             msg += " · ".join(factores) + "\n"
+        probs = [p for p in [p_h2h, p_equipo, p_forma, p_h2h_rec, p_matchup, p_defensa, p_api] if p is not None]
+        if probs:
+            media = sum(probs) / 7
+            factores_con_datos = sum(1 for p in probs if abs(p - 0.5) > 0.02)
+            if media >= 0.60:
+                conf_icon = "🟢 Alta"
+            elif media >= 0.55:
+                conf_icon = "🟡 Media"
+            else:
+                conf_icon = "⚪ Baja"
+            msg += f"{conf_icon} — {factores_con_datos}/7 factores con datos\n"
         msg += "\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
