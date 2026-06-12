@@ -2101,7 +2101,8 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
                  jugador_a, jugador_b
                  FROM predicciones
                  WHERE procesado=1 AND es_valor=1 AND cuota_betsson_a IS NOT NULL
-                 ORDER BY id ASC''')
+                 AND fecha_prediccion >= ?
+                 ORDER BY id ASC''', (reset_fecha,))
     rows_v = c_v.fetchall()
     conn_v.close()
     if rows_v:
