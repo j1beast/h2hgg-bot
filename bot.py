@@ -2465,9 +2465,11 @@ async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg += "\n✅ Pesos activos en próximas predicciones"
     pesos_ou, accuracies_ou, n_ou = calcular_pesos_optimos_ou()
     if pesos_ou:
+        pesos_ou_prev_str = get_meta("pesos_ou_optimizados") or "{}"
         set_meta("pesos_ou_optimizados", json.dumps(pesos_ou))
         nombres_ou = {'h2h': 'H2H total', 'general': 'Promedio general', 'franq': 'Franquicia',
                       'reciente': 'Forma reciente', 'defensa': 'Defensa'}
+        pesos_ou_anteriores = json.loads(pesos_ou_prev_str)
         msg += "\n\n📊 *Precisión O/U por componente:*\n"
         for k in ['h2h', 'general', 'franq', 'reciente', 'defensa']:
             n = n_ou.get(k, 0)
@@ -2477,6 +2479,12 @@ async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             acc = round(accuracies_ou[k] * 100, 1)
             emoji = "🟢" if acc >= 55 else "🟡" if acc >= 50 else "🔴"
             msg += f"{emoji} {nombres_ou[k]}: {acc}% ({n} muestras)\n"
+        msg += "\n⚖️ *Pesos O/U anteriores → Nuevos:*\n"
+        for k in ['h2h', 'general', 'franq', 'reciente', 'defensa']:
+            ant = round(pesos_ou_anteriores.get(k, 0) * 100, 1)
+            nuevo = round(pesos_ou[k] * 100, 1)
+            cambio = "↑" if pesos_ou[k] > pesos_ou_anteriores.get(k, 0) else "↓" if pesos_ou[k] < pesos_ou_anteriores.get(k, 0) else "="
+            msg += f"• {nombres_ou[k]}: {ant}% {cambio} {nuevo}%\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
     
 async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
