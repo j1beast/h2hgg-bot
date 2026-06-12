@@ -2561,6 +2561,37 @@ async def schema(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cols = [row[1] for row in c.fetchall()]
     conn.close()
     await update.message.reply_text("\n".join(cols))
+
+async def debug_ou(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT linea_total, linea_betsson_ou, pts_real_a, pts_real_b
+                 FROM predicciones
+                 WHERE procesado=1
+                 AND linea_betsson_ou IS NOT NULL
+                 AND pts_real_a IS NOT NULL
+                 LIMIT 200''')
+    rows = c.fetchall()
+    conn.close()
+    if not rows:
+        await update.message.reply_text("Sin datos suficientes.")
+        return
+    diffs_bot = []
+    diffs_betsson = []
+    for linea_bot, linea_bs, pts_a, pts_b in rows:
+        total_real = pts_a + pts_b
+        if linea_bot:
+            diffs_bot.append(total_real - linea_bot)
+        if linea_bs:
+            diffs_betsson.append(total_real - linea_bs)
+    avg_bot = round(sum(diffs_bot) / len(diffs_bot), 2) if diffs_bot else None
+    avg_bs = round(sum(diffs_betsson) / len(diffs_betsson), 2) if diffs_betsson else None
+    msg = f"📊 *Calibración O/U ({len(rows)} partidos)*\n\n"
+    msg += f"Bot: predice {avg_bot:+} pts vs resultado real\n" if avg_bot else "Bot: sin datos\n"
+    msg += f"Betsson: predice {avg_bs:+} pts vs resultado real\n" if avg_bs else "Betsson: sin datos\n"
+    await update.message.reply_text(msg, parse_mode="Markdown")
     
 # ─────────────────────────────────────────────
 # MAIN
@@ -2622,6 +2653,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("optimizar", optimizar))
     app.add_handler(CommandHandler("perfil", perfil))
     app.add_handler(CommandHandler("pendientes", pendientes))
+    app.add_handler(CommandHandler("debugou", debug_ou))
     app.add_handler(CommandHandler("schema", schema))
     app.add_handler(CommandHandler("debugvalor", debugvalor))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
