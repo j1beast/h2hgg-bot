@@ -2599,6 +2599,18 @@ async def debug_ou(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg += f"Bot: predice {avg_bot:+} pts vs resultado real\n" if avg_bot else "Bot: sin datos\n"
     msg += f"Betsson: predice {avg_bs:+} pts vs resultado real\n" if avg_bs else "Betsson: sin datos\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def debug_ou2(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT COUNT(*) FROM predicciones 
+                 WHERE procesado=1 AND linea_betsson_ou IS NOT NULL 
+                 AND pts_real_a IS NOT NULL AND ou_h2h_total IS NOT NULL''')
+    n = c.fetchone()[0]
+    conn.close()
+    await update.message.reply_text(f"Predicciones válidas para optimizar O/U: {n}")
     
 # ─────────────────────────────────────────────
 # MAIN
@@ -2663,6 +2675,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("debugou", debug_ou))
     app.add_handler(CommandHandler("schema", schema))
     app.add_handler(CommandHandler("debugvalor", debugvalor))
+    app.add_handler(CommandHandler("debugou2", debug_ou2))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
