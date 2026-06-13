@@ -1619,11 +1619,11 @@ def generar_perfil_jugador(jugador, api, stats_liga):
     msg += "⚔️ *Ataque*\n"
     if pos:
         if es_rapido:
-            ritmo_txt = f"⚡ Rápido ({pos} min posesión, liga {round(bl_pos,1)} min)"
+            ritmo_txt = f"⚡ Rápido ({pos} seg posesión, liga {round(bl_pos,1)} seg)"
         elif es_lento:
-            ritmo_txt = f"🐢 Lento ({pos} min posesión, liga {round(bl_pos,1)} min)"
+            ritmo_txt = f"🐢 Lento ({pos} seg posesión, liga {round(bl_pos,1)} seg)"
         else:
-            ritmo_txt = f"➡️ Medio ({pos} min posesión, liga {round(bl_pos,1)} min)"
+            ritmo_txt = f"➡️ Medio ({pos} seg posesión, liga {round(bl_pos,1)} seg)"
         msg += f"• Posesión: {ritmo_txt}\n"
     if pts:
         if gran_anotador:
