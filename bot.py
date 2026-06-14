@@ -277,7 +277,10 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
             conn.commit()
         conn.close()
         return
-    prediccion_ou = "Over" if (analisis.get("over_total") or 99) < (analisis.get("under_total") or 99) else "Under"
+    if betsson and betsson.get("linea_ou") and analisis.get("linea_total"):
+        prediccion_ou = "Over" if float(analisis["linea_total"]) > float(betsson["linea_ou"]) else "Under"
+    else:
+        prediccion_ou = "Over" if (analisis.get("over_total") or 99) < (analisis.get("under_total") or 99) else "Under"
     prob_a = analisis.get("prob_a") or 0.5
     prob_b = analisis.get("prob_b") or 0.5
     ganador = jugador_a if prob_a > prob_b else jugador_b
