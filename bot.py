@@ -2121,11 +2121,14 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     unidades_ganador = 0.0
     unidades_ou = 0.0
+    unidades_contra = 0.0
     aciertos_g = 0
     aciertos_ou = 0
+    aciertos_contra = 0
     total = len(rows)
     racha_g = []
     racha_ou = []
+    racha_contra = []
     for row in rows:
         gan_pred, res_real, ac_g, pred_ou, ac_ou, cb_a, cb_b, cb_over, cb_under, jug_a, jug_b, fecha = row
         # Ganador: cuota del jugador predicho
@@ -2154,6 +2157,15 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 unidades_ou -= 1
                 racha_ou.append("❌")
+        cuota_contra = cb_under if pred_ou == "Over" else cb_over
+        if cuota_contra and cuota_contra > 1:
+            if ac_ou == 0:
+                unidades_contra += round(cuota_contra - 1, 4)
+                aciertos_contra += 1
+                racha_contra.append("✅")
+            elif ac_ou == 1:
+                unidades_contra -= 1
+                racha_contra.append("❌")
     unidades_ganador = round(unidades_ganador, 2)
     unidades_ou = round(unidades_ou, 2)
     emoji_g = "📈" if unidades_ganador >= 0 else "📉"
@@ -2169,7 +2181,13 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg += f"🔢 *OVER/UNDER*\n"
     msg += f"Predicciones: {len(racha_ou)} | Aciertos: {aciertos_ou}\n"
     msg += f"Últimas 10: {ultimas_ou}\n"
-    msg += f"{emoji_ou} Resultado: `{'+' if unidades_ou >= 0 else ''}{unidades_ou}u`\n"
+    msg += f"{emoji_ou} Resultado: `{'+' if unidades_ou >= 0 else ''}{unidades_ou}u`\n\n"
+    emoji_contra = "📈" if unidades_contra >= 0 else "📉"
+    ultimas_contra = "".join(racha_contra[-10:])
+    msg += f"🔄 *O/U A LA CONTRA (bot invertido):*\n"
+    msg += f"Predicciones: {len(racha_contra)} | Aciertos: {aciertos_contra}\n"
+    msg += f"Últimas 10: {ultimas_contra}\n"
+    msg += f"{emoji_contra} Resultado: `{'+' if unidades_contra >= 0 else ''}{unidades_contra}u`\n"
     # Unidades solo de valor
     conn_v = get_db()
     c_v = conn_v.cursor()
