@@ -2691,8 +2691,7 @@ async def debug_ou(update: Update, context: ContextTypes.DEFAULT_TYPE):
                  FROM predicciones
                  WHERE procesado=1
                  AND linea_betsson_ou IS NOT NULL
-                 AND pts_real_a IS NOT NULL
-                 LIMIT 200''')
+                 AND pts_real_a IS NOT NULL''')
     rows = c.fetchall()
     conn.close()
     if not rows:
