@@ -789,7 +789,7 @@ def calcular_pesos_optimos():
 def calcular_pesos_optimos_ou():
     conn = get_db()
     c = conn.cursor()
-    c.execute('''SELECT ou_h2h_total, ou_general, ou_franq, ou_reciente,
+    c.execute('''SELECT ou_h2h_total, ou_general, ou_reciente,
                  ou_defensa_a, ou_defensa_b, ou_historial, ou_tendencia, linea_betsson_ou, pts_real_a, pts_real_b
                  FROM predicciones
                  WHERE procesado=1 AND linea_betsson_ou IS NOT NULL
@@ -798,12 +798,12 @@ def calcular_pesos_optimos_ou():
     conn.close()
     if len(rows) < 30:
         return None, "Necesitas al menos 30 predicciones procesadas", {}
-    factores_data = {'h2h': [], 'general': [], 'franq': [], 'reciente': [], 'defensa': [], 'historial': [], 'tendencia': []}
-    for ou_h2h, ou_gen, ou_franq, ou_rec, def_a, def_b, ou_hist, ou_tend, linea_bs, pts_a, pts_b in rows:
+    factores_data = {'h2h': [], 'general': [], 'reciente': [], 'defensa': [], 'historial': [], 'tendencia': []}
+    for ou_h2h, ou_gen, ou_rec, def_a, def_b, ou_hist, ou_tend, linea_bs, pts_a, pts_b in rows:
         total_real = pts_a + pts_b
         real_over = total_real > linea_bs
         ou_def = (def_a + def_b) if def_a and def_b else None
-        for nombre, val in [('h2h', ou_h2h), ('general', ou_gen), ('franq', ou_franq),
+        for nombre, val in [('h2h', ou_h2h), ('general', ou_gen),
                              ('reciente', ou_rec), ('defensa', ou_def), ('historial', ou_hist), ('tendencia', ou_tend)]:
             if val is None:
                 continue
@@ -2493,11 +2493,11 @@ async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if pesos_ou:
         pesos_ou_prev_str = get_meta("pesos_ou_optimizados") or "{}"
         set_meta("pesos_ou_optimizados", json.dumps(pesos_ou))
-        nombres_ou = {'h2h': 'H2H total', 'general': 'Promedio general', 'franq': 'Franquicia',
+        nombres_ou = {'h2h': 'H2H total', 'general': 'Promedio general',
                       'reciente': 'Forma reciente', 'defensa': 'Defensa', 'historial': 'Historial O/U', 'tendencia': 'Tendencia reciente'}
         pesos_ou_anteriores = json.loads(pesos_ou_prev_str)
         msg += "\n\n📊 *Precisión O/U por componente:*\n"
-        for k in ['h2h', 'general', 'franq', 'reciente', 'defensa', 'historial', 'tendencia']:
+        for k in ['h2h', 'general', 'reciente', 'defensa', 'historial', 'tendencia']:
             n = n_ou.get(k, 0)
             if n < 10:
                 msg += f"⚪ {nombres_ou[k]}: sin datos ({n})\n"
@@ -2506,7 +2506,7 @@ async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             emoji = "🟢" if acc >= 55 else "🟡" if acc >= 50 else "🔴"
             msg += f"{emoji} {nombres_ou[k]}: {acc}% ({n} muestras)\n"
         msg += "\n⚖️ *Pesos O/U anteriores → Nuevos:*\n"
-        for k in ['h2h', 'general', 'franq', 'reciente', 'defensa', 'historial', 'tendencia']:
+        for k in ['h2h', 'general', 'reciente', 'defensa', 'historial', 'tendencia']:
             ant = round(pesos_ou_anteriores.get(k, 0) * 100, 1)
             nuevo = round(pesos_ou[k] * 100, 1)
             cambio = "↑" if pesos_ou[k] > pesos_ou_anteriores.get(k, 0) else "↓" if pesos_ou[k] < pesos_ou_anteriores.get(k, 0) else "="
