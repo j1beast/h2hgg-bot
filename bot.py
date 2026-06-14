@@ -2724,6 +2724,38 @@ async def debug_ou2(update: Update, context: ContextTypes.DEFAULT_TYPE):
     n = c.fetchone()[0]
     conn.close()
     await update.message.reply_text(f"Predicciones válidas para optimizar O/U: {n}")
+
+async def debug_ou3(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT prediccion_ou, acierto_ou, linea_total, linea_betsson_ou, pts_real_a, pts_real_b
+                 FROM predicciones
+                 WHERE procesado=1 AND linea_betsson_ou IS NOT NULL
+                 AND pts_real_a IS NOT NULL AND acierto_ou IS NOT NULL''')
+    rows = c.fetchall()
+    conn.close()
+    if not rows:
+        await update.message.reply_text("Sin datos suficientes.")
+        return
+    total = len(rows)
+    overs = [r for r in rows if r[0] == "Over"]
+    unders = [r for r in rows if r[0] == "Under"]
+    ac_over = sum(1 for r in overs if r[1] == 1)
+    ac_under = sum(1 for r in unders if r[1] == 1)
+    diffs_bot = [r[4] + r[5] - r[2] for r in rows if r[2]]
+    diffs_bs = [r[4] + r[5] - r[3] for r in rows if r[3]]
+    avg_diff_bot = round(sum(diffs_bot) / len(diffs_bot), 2) if diffs_bot else None
+    avg_diff_bs = round(sum(diffs_bs) / len(diffs_bs), 2) if diffs_bs else None
+    msg = f"🔍 *Análisis O/U ({total} partidos)*\n\n"
+    msg += f"*Predicciones por dirección:*\n"
+    msg += f"Over: {len(overs)} → {ac_over} acertados ({round(ac_over/len(overs)*100,1) if overs else 0}%)\n"
+    msg += f"Under: {len(unders)} → {ac_under} acertados ({round(ac_under/len(unders)*100,1) if unders else 0}%)\n\n"
+    msg += f"*Calibración de líneas:*\n"
+    msg += f"Bot: {avg_diff_bot:+} pts vs resultado real\n" if avg_diff_bot else ""
+    msg += f"Betsson: {avg_diff_bs:+} pts vs resultado real\n" if avg_diff_bs else ""
+    await update.message.reply_text(msg, parse_mode="Markdown")
     
 # ─────────────────────────────────────────────
 # MAIN
@@ -2789,6 +2821,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("schema", schema))
     app.add_handler(CommandHandler("debugvalor", debugvalor))
     app.add_handler(CommandHandler("debugou2", debug_ou2))
+    app.add_handler(CommandHandler("debugou3", debug_ou3))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
