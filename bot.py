@@ -2187,7 +2187,7 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg += f"🔄 *O/U A LA CONTRA (bot invertido):*\n"
     msg += f"Predicciones: {len(racha_contra)} | Aciertos: {aciertos_contra}\n"
     msg += f"Últimas 10: {ultimas_contra}\n"
-    msg += f"{emoji_contra} Resultado: `{'+' if unidades_contra >= 0 else ''}{unidades_contra}u`\n"
+    msg += f"{emoji_contra} Resultado: `{'+' if unidades_contra >= 0 else ''}{round(unidades_contra, 2)}u`\n"
     # Unidades solo de valor
     conn_v = get_db()
     c_v = conn_v.cursor()
