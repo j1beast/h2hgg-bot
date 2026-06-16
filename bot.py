@@ -2789,6 +2789,24 @@ async def debug_ou3(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg += f"Bot: {avg_diff_bot:+} pts vs resultado real\n" if avg_diff_bot else ""
     msg += f"Betsson: {avg_diff_bs:+} pts vs resultado real\n" if avg_diff_bs else ""
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def debug_historial_ou(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT ou_historial, acierto_ou FROM predicciones
+                 WHERE procesado=1 AND ou_historial IS NOT NULL AND acierto_ou IS NOT NULL''')
+    rows = c.fetchall()
+    conn.close()
+    over = [r for r in rows if r[0] > 0.5]
+    under = [r for r in rows if r[0] <= 0.5]
+    ac_over = sum(1 for r in over if r[1] == 1)
+    ac_under = sum(1 for r in under if r[1] == 1)
+    msg = f"🔍 *Debug Historial O/U ({len(rows)} muestras)*\n\n"
+    msg += f"Predice Over ({len(over)}): {round(ac_over/len(over)*100,1) if over else 0}% acierto\n"
+    msg += f"Predice Under ({len(under)}): {round(ac_under/len(under)*100,1) if under else 0}% acierto\n"
+    await update.message.reply_text(msg, parse_mode="Markdown")
     
 # ─────────────────────────────────────────────
 # MAIN
@@ -2855,6 +2873,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("debugvalor", debugvalor))
     app.add_handler(CommandHandler("debugou2", debug_ou2))
     app.add_handler(CommandHandler("debugou3", debug_ou3))
+    app.add_handler(CommandHandler("debughistou", debug_historial_ou))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
