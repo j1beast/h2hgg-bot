@@ -812,23 +812,7 @@ def calcular_pesos_optimos_ou():
                              ('reciente', ou_rec), ('defensa', ou_def), ('historial', ou_hist), ('tendencia', ou_tend), ('ritmo', ou_ritmo)]:
             if val is None:
                 continue
-            if nombre in ('historial', 'tendencia'):
-                pred_over = val > 0
-            elif nombre == 'ritmo':
-                stats_liga = get_stats_liga()
-                jugadores = list(stats_liga.values())
-                ritmos = []
-                for p in jugadores:
-                    fga = p.get("avgFieldGoalsAttempted") or 0
-                    to = p.get("avgTurnovers") or 0
-                    orb = p.get("avgOffensiveRebounds") or 0
-                    fg = (p.get("avgFieldGoalsPercent") or 0) / 100
-                    if fga and fg:
-                        ritmos.append((fga + to * 0.44 - orb) * fg)
-                media_ritmo = sum(ritmos) / len(ritmos) if ritmos else 18.0
-                pred_over = val > media_ritmo * 2
-            else:
-                pred_over = val > linea_bs
+            pred_over = val > linea_bs
             factores_data[nombre].append(int(pred_over == real_over))
     accuracies = {}
     n_muestras = {}
@@ -1426,16 +1410,22 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         resultado["ou_h2h_eq"] = round(avg_h2h_eq_a + avg_h2h_eq_b, 1) if pts_a_h2h_eq and pts_b_h2h_eq else None
 
         if todos_pts_a and resultado.get("avg_pts_a"):
+            ultimos_a = todos_pts_a[:20]
             avg_ref_a = resultado["avg_pts_a"]
-            over_rate_a = sum(1 for p in todos_pts_a[:20] if p > avg_ref_a) / min(len(todos_pts_a), 20)
+            over_pts_a = [p for p in ultimos_a if p > avg_ref_a]
+            hist_a = sum(over_pts_a) / len(over_pts_a) if over_pts_a else avg_ref_a
         else:
-            over_rate_a = 0.5
+            hist_a = resultado.get("avg_pts_a") or 0
         if todos_pts_b and resultado.get("avg_pts_b"):
+            ultimos_b = todos_pts_b[:20]
             avg_ref_b = resultado["avg_pts_b"]
-            over_rate_b = sum(1 for p in todos_pts_b[:20] if p > avg_ref_b) / min(len(todos_pts_b), 20)
+            over_pts_b = [p for p in ultimos_b if p > avg_ref_b]
+            hist_b = sum(over_pts_b) / len(over_pts_b) if over_pts_b else avg_ref_b
         else:
-            over_rate_b = 0.5
-        resultado["ou_historial"] = round((over_rate_a + over_rate_b) / 2, 4)
+            hist_b = resultado.get("avg_pts_b") or 0
+        resultado["ou_historial"] = round(hist_a + hist_b, 4) if hist_a and hist_b else None
+        avg_a = resultado.get("avg_pts_a") or 0
+        avg_b = resultado.get("avg_pts_b") or 0
         if todos_pts_a and len(todos_pts_a) >= 10:
             tend_a = sum(todos_pts_a[:5]) / 5 - sum(todos_pts_a[:20]) / min(len(todos_pts_a), 20)
         else:
@@ -1444,7 +1434,7 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
             tend_b = sum(todos_pts_b[:5]) / 5 - sum(todos_pts_b[:20]) / min(len(todos_pts_b), 20)
         else:
             tend_b = 0
-        resultado["ou_tendencia"] = round((tend_a + tend_b) / 2, 4)
+        resultado["ou_tendencia"] = round((avg_a + tend_a) + (avg_b + tend_b), 4) if avg_a and avg_b else None
         fga_a = api_a.get("avgFieldGoalsAttempted") or 0
         fga_b = api_b.get("avgFieldGoalsAttempted") or 0
         to_a_api = api_a.get("avgTurnovers") or 0
@@ -1456,9 +1446,9 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         if fga_a and fga_b and fg_a_pct and fg_b_pct:
             pos_a = fga_a + (to_a_api * 0.44) - orb_a
             pos_b = fga_b + (to_b_api * 0.44) - orb_b
-            ritmo_a = pos_a * fg_a_pct
-            ritmo_b = pos_b * fg_b_pct
-            resultado["ou_ritmo"] = round(ritmo_a + ritmo_b, 4)
+            pts_est_a = pos_a * fg_a_pct * 2.5
+            pts_est_b = pos_b * fg_b_pct * 2.5
+            resultado["ou_ritmo"] = round(pts_est_a + pts_est_b, 4)
         else:
             resultado["ou_ritmo"] = None
 
