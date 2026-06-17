@@ -958,6 +958,19 @@ def calcular_prob_api(api_a, api_b):
     if wp_a and wp_b and (wp_a + wp_b) > 0:
         scores.append(wp_a / (wp_a + wp_b))
 
+    mp_a = api_a.get("matchesPlayed") or 1
+    mp_b = api_b.get("matchesPlayed") or 1
+    pts_a = api_a.get("avgPoints")
+    pts_b = api_b.get("avgPoints")
+    contra_a = round(api_a["pointsAgainst"] / mp_a, 1) if api_a.get("pointsAgainst") and mp_a > 0 else None
+    contra_b = round(api_b["pointsAgainst"] / mp_b, 1) if api_b.get("pointsAgainst") and mp_b > 0 else None
+    if pts_a and pts_b and contra_a and contra_b and pts_a > 0 and pts_b > 0:
+        dominio_a = (pts_a - contra_a) / pts_a
+        dominio_b = (pts_b - contra_b) / pts_b
+        dom_sum = (dominio_a + 1) + (dominio_b + 1)
+        if dom_sum > 0:
+            scores.append((dominio_a + 1) / dom_sum)
+
     if not scores:
         return None
     return round(sum(scores) / len(scores), 4)
