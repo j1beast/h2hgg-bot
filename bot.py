@@ -1463,8 +1463,12 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         if fga_a and fga_b and fg_a_pct and fg_b_pct:
             pos_a = fga_a + (to_a_api * 0.44) - orb_a
             pos_b = fga_b + (to_b_api * 0.44) - orb_b
-            pts_est_a = pos_a * fg_a_pct * 2.5
-            pts_est_b = pos_b * fg_b_pct * 2.5
+            avg_pts_api_a = api_a.get("avgPoints")
+            avg_pts_api_b = api_b.get("avgPoints")
+            factor_a = avg_pts_api_a / (pos_a * fg_a_pct) if avg_pts_api_a and pos_a * fg_a_pct > 0 else 2.5
+            factor_b = avg_pts_api_b / (pos_b * fg_b_pct) if avg_pts_api_b and pos_b * fg_b_pct > 0 else 2.5
+            pts_est_a = pos_a * fg_a_pct * factor_a
+            pts_est_b = pos_b * fg_b_pct * factor_b
             resultado["ou_ritmo"] = round(pts_est_a + pts_est_b, 4)
         else:
             resultado["ou_ritmo"] = None
