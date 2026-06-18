@@ -2762,6 +2762,17 @@ async def debug_ou(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg += f"Betsson: predice {avg_bs:+} pts vs resultado real\n" if avg_bs else "Betsson: sin datos\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
+async def reset_valor(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    conn = get_db()
+    conn.execute('''UPDATE predicciones SET es_valor=0, es_valor_ganador=0, es_valor_ou=0
+                    WHERE enviado_canal IS NULL OR enviado_canal=0''')
+    conn.commit()
+    n = conn.execute("SELECT changes()").fetchone()[0]
+    conn.close()
+    await update.message.reply_text(f"✅ Reset completado: {n} predicciones limpiadas.")
+
 async def debug_ou2(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         return
@@ -2886,6 +2897,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("pendientes", pendientes))
     app.add_handler(CommandHandler("debugou", debug_ou))
     app.add_handler(CommandHandler("schema", schema))
+    app.add_handler(CommandHandler("resetvalor", reset_valor))
     app.add_handler(CommandHandler("debugvalor", debugvalor))
     app.add_handler(CommandHandler("debugou2", debug_ou2))
     app.add_handler(CommandHandler("debugou3", debug_ou3))
