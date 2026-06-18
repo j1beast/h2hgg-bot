@@ -510,16 +510,8 @@ async def tarea_predicciones_automaticas(app_ref):
                         if not hay_valor_ganador and not hay_valor_ou:
                             continue
                             
-                        if hay_valor_ganador or hay_valor_ou:
-                            conn_v = get_db()
-                            conn_v.execute('''UPDATE predicciones SET es_valor=1,
-                                             es_valor_ganador=?, es_valor_ou=?
-                                             WHERE jugador_a=? AND jugador_b=? AND fecha_prediccion LIKE ?''',
-                                          (1 if hay_valor_ganador else 0,
-                                           1 if hay_valor_ou else 0,
-                                           jugador_a, jugador_b, f"{datetime.utcnow().strftime('%Y-%m-%d')}%"))
-                            conn_v.commit()
-                            conn_v.close()
+                        if not hay_valor_ganador and not hay_valor_ou:
+                            continue
                             # No enviar si ya se envió antes
                         conn_c = get_db()
                         ya_enviado = conn_c.execute('''SELECT enviado_canal FROM predicciones
@@ -566,6 +558,15 @@ async def tarea_predicciones_automaticas(app_ref):
                                 msg += f"Línea bot: {linea_bot} pts ({diff_str})\n"
                             except:
                                 pass
+                        conn_v = get_db()
+                        conn_v.execute('''UPDATE predicciones SET es_valor=1,
+                                         es_valor_ganador=?, es_valor_ou=?
+                                         WHERE jugador_a=? AND jugador_b=? AND fecha_prediccion LIKE ?''',
+                                      (1 if hay_valor_ganador else 0,
+                                       1 if hay_valor_ou else 0,
+                                       jugador_a, jugador_b, f"{datetime.utcnow().strftime('%Y-%m-%d')}%"))
+                        conn_v.commit()
+                        conn_v.close()
                         try:
                             await app_ref.bot.send_message(chat_id=CANAL_ID, text=msg, parse_mode="Markdown")
                             conn_e = get_db()
@@ -1580,8 +1581,8 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
         cb_a = betsson.get('cuota_a')
         cb_b = betsson.get('cuota_b')
         if cb_a and cb_b:
-            valor_a = " ✅" if cb_a > 0 and analisis['cuota_a'] > 0 and cb_a / analisis['cuota_a'] >= 1.15 else ""
-            valor_b = " ✅" if cb_b > 0 and analisis['cuota_b'] > 0 and cb_b / analisis['cuota_b'] >= 1.15 else ""
+            valor_a = " ✅" if cb_a > 0 and analisis['cuota_a'] > 0 and cb_a / analisis['cuota_a'] >= 1.25 and cb_a <= 2.50 else ""
+            valor_b = " ✅" if cb_b > 0 and analisis['cuota_b'] > 0 and cb_b / analisis['cuota_b'] >= 1.25 and cb_b <= 2.50 else ""
             msg += f"{'BETSSON:':10}{str(cb_a) + valor_a:<{espaciado}}{cb_b}{valor_b}\n"
 
     if analisis.get('linea_total'):
@@ -1597,7 +1598,7 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
             valor_ou = ""
             if linea_bot and bs_linea:
                 try:
-                    if abs(float(linea_bot) - float(bs_linea)) >= 5:
+                    if abs(float(linea_bot) - float(bs_linea)) >= 8:
                         valor_ou = " ✅ VALOR OVER" if float(linea_bot) > float(bs_linea) else " ✅ VALOR UNDER"
                 except:
                     pass
