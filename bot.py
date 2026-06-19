@@ -2834,6 +2834,62 @@ async def debug_historial_ou(update: Update, context: ContextTypes.DEFAULT_TYPE)
     msg += f"Predice Over ({len(over)}): {round(ac_over/len(over)*100,1) if over else 0}% acierto\n"
     msg += f"Predice Under ({len(under)}): {round(ac_under/len(under)*100,1) if under else 0}% acierto\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def debug_over(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT prediccion_ou, acierto_ou, linea_total, linea_betsson_ou,
+                 ou_reciente, pts_real_a, pts_real_b
+                 FROM predicciones
+                 WHERE procesado=1 AND linea_betsson_ou IS NOT NULL
+                 AND pts_real_a IS NOT NULL AND acierto_ou IS NOT NULL
+                 AND prediccion_ou = 'Over' ''')
+    rows = c.fetchall()
+    conn.close()
+    if not rows:
+        await update.message.reply_text("Sin datos suficientes.")
+        return
+    # Por tamaño de diferencia
+    rangos = {'5-8': [], '8-12': [], '12+': []}
+    for pred, ac, linea_bot, linea_bs, ou_rec, pts_a, pts_b in rows:
+        if not linea_bot or not linea_bs:
+            continue
+        diff = abs(float(linea_bot) - float(linea_bs))
+        if diff < 5:
+            continue
+        elif diff < 8:
+            rangos['5-8'].append(ac)
+        elif diff < 12:
+            rangos['8-12'].append(ac)
+        else:
+            rangos['12+'].append(ac)
+    # Cuando forma reciente coincide en Over
+    con_forma = []
+    sin_forma = []
+    for pred, ac, linea_bot, linea_bs, ou_rec, pts_a, pts_b in rows:
+        if not linea_bs or not ou_rec:
+            continue
+        forma_dice_over = float(ou_rec) > float(linea_bs)
+        if forma_dice_over:
+            con_forma.append(ac)
+        else:
+            sin_forma.append(ac)
+    msg = f"🔍 *Debug Over ({len(rows)} predicciones)*\n\n"
+    msg += f"*Por diferencia de línea:*\n"
+    for rango, resultados in rangos.items():
+        if resultados:
+            acc = round(sum(resultados) / len(resultados) * 100, 1)
+            msg += f"• {rango} pts: {acc}% ({len(resultados)} muestras)\n"
+    msg += f"\n*Cuando forma reciente coincide en Over:*\n"
+    if con_forma:
+        acc = round(sum(con_forma) / len(con_forma) * 100, 1)
+        msg += f"• Forma coincide: {acc}% ({len(con_forma)} muestras)\n"
+    if sin_forma:
+        acc = round(sum(sin_forma) / len(sin_forma) * 100, 1)
+        msg += f"• Forma no coincide: {acc}% ({len(sin_forma)} muestras)\n"
+    await update.message.reply_text(msg, parse_mode="Markdown")
     
 # ─────────────────────────────────────────────
 # MAIN
@@ -2902,6 +2958,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("debugou2", debug_ou2))
     app.add_handler(CommandHandler("debugou3", debug_ou3))
     app.add_handler(CommandHandler("debughistou", debug_historial_ou))
+    app.add_handler(CommandHandler("debugover", debug_over))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
