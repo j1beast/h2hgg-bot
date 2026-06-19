@@ -90,6 +90,9 @@ def init_db():
         ("ou_ritmo", "REAL"),
         ("es_valor_ganador", "INTEGER"),
         ("es_valor_ou", "INTEGER"),
+        ("ou_contraataque", "REAL"),
+        ("ou_deficit_def", "REAL"),
+        ("ou_consistencia", "REAL"),
     ]:
         try:
             c.execute(f"ALTER TABLE predicciones ADD COLUMN {col} {tipo}")
@@ -303,8 +306,8 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
             (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador,
             linea_total, cuota_over, cuota_under, prediccion_ou, fecha_prediccion, procesado,
             prob_h2h, prob_equipo, prob_h2h_eq, prob_forma, prob_h2h_rec,
-            cuota_betsson_a, cuota_betsson_b, linea_betsson_ou, cuota_betsson_over, cuota_betsson_under, es_valor, ratio_def_a, ratio_def_b, margen_avg_a, margen_avg_b, ou_h2h_total, ou_general, ou_franq, ou_reciente, ou_h2h_eq, ou_defensa_a, ou_defensa_b, prob_matchup, prob_defensa, prob_api, ou_historial, ou_tendencia, ou_ritmo)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            cuota_betsson_a, cuota_betsson_b, linea_betsson_ou, cuota_betsson_over, cuota_betsson_under, es_valor, ratio_def_a, ratio_def_b, margen_avg_a, margen_avg_b, ou_h2h_total, ou_general, ou_franq, ou_reciente, ou_h2h_eq, ou_defensa_a, ou_defensa_b, prob_matchup, prob_defensa, prob_api, ou_historial, ou_tendencia, ou_ritmo, ou_contraataque, ou_deficit_def, ou_consistencia)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
             (jugador_a, jugador_b, franq_a, franq_b, ganador, cuota_ganador,
              analisis.get("linea_total"), analisis.get("over_total"), analisis.get("under_total"),
              prediccion_ou, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), 0,
@@ -322,7 +325,10 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
              analisis.get("prob_api"),
              analisis.get("ou_historial"),
              analisis.get("ou_tendencia"),
-             analisis.get("ou_ritmo")))
+             analisis.get("ou_ritmo"),
+             analisis.get("ou_contraataque"),
+             analisis.get("ou_deficit_def"),
+             analisis.get("ou_consistencia")))
         conn.commit()
     except Exception as e:
         print(f"[ERROR INSERT prediccion] {e}")
@@ -800,7 +806,7 @@ def calcular_pesos_optimos_ou():
     conn = get_db()
     c = conn.cursor()
     c.execute('''SELECT ou_h2h_total, ou_reciente,
-                 ou_defensa_a, ou_defensa_b, ou_historial, ou_tendencia, ou_ritmo, linea_betsson_ou, pts_real_a, pts_real_b
+                 ou_tendencia, ou_contraataque, ou_deficit_def, ou_consistencia, linea_betsson_ou, pts_real_a, pts_real_b
                  FROM predicciones
                  WHERE procesado=1 AND linea_betsson_ou IS NOT NULL
                  AND pts_real_a IS NOT NULL AND ou_h2h_total IS NOT NULL''')
@@ -808,13 +814,13 @@ def calcular_pesos_optimos_ou():
     conn.close()
     if len(rows) < 30:
         return None, "Necesitas al menos 30 predicciones procesadas", {}
-    factores_data = {'h2h': [], 'reciente': [], 'defensa': [], 'historial': [], 'tendencia': [], 'ritmo': []}
-    for ou_h2h, ou_rec, def_a, def_b, ou_hist, ou_tend, ou_ritmo, linea_bs, pts_a, pts_b in rows:
+    factores_data = {'h2h': [], 'reciente': [], 'tendencia': [], 'contraataque': [], 'deficit_def': [], 'consistencia': []}
+    for ou_h2h, ou_rec, ou_tend, ou_contra, ou_def, ou_cons, linea_bs, pts_a, pts_b in rows:
         total_real = pts_a + pts_b
         real_over = total_real > linea_bs
         ou_def = (def_a + def_b) if def_a and def_b else None
-        for nombre, val in [('h2h', ou_h2h),
-                             ('reciente', ou_rec), ('defensa', ou_def), ('historial', ou_hist), ('tendencia', ou_tend), ('ritmo', ou_ritmo)]:
+        for nombre, val in [('h2h', ou_h2h), ('reciente', ou_rec), ('tendencia', ou_tend),
+                             ('contraataque', ou_contra), ('deficit_def', ou_def), ('consistencia', ou_cons)]:
             if val is None:
                 continue
             pred_over = val > linea_bs
@@ -1453,6 +1459,28 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         else:
             tend_b = 0
         resultado["ou_tendencia"] = round((avg_a + tend_a) + (avg_b + tend_b), 4) if avg_a and avg_b else None
+        fb_a_api = api_a.get("avgFastBreakPoints")
+        fb_b_api = api_b.get("avgFastBreakPoints")
+        if fb_a_api and fb_b_api:
+            resultado["ou_contraataque"] = round(fb_a_api + fb_b_api, 4)
+        else:
+            resultado["ou_contraataque"] = None
+
+        mp_a_api = api_a.get("matchesPlayed") or 1
+        mp_b_api = api_b.get("matchesPlayed") or 1
+        contra_a_api = round(api_a["pointsAgainst"] / mp_a_api, 2) if api_a.get("pointsAgainst") else None
+        contra_b_api = round(api_b["pointsAgainst"] / mp_b_api, 2) if api_b.get("pointsAgainst") else None
+        if contra_a_api and contra_b_api:
+            resultado["ou_deficit_def"] = round(contra_a_api + contra_b_api, 4)
+        else:
+            resultado["ou_deficit_def"] = None
+
+        std_a_val = resultado.get("std_pts_a")
+        std_b_val = resultado.get("std_pts_b")
+        if std_a_val and std_b_val:
+            resultado["ou_consistencia"] = round(std_a_val + std_b_val, 4)
+        else:
+            resultado["ou_consistencia"] = None
         fga_a = api_a.get("avgFieldGoalsAttempted") or 0
         fga_b = api_b.get("avgFieldGoalsAttempted") or 0
         to_a_api = api_a.get("avgTurnovers") or 0
@@ -2561,11 +2589,11 @@ async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if pesos_ou:
         pesos_ou_prev_str = get_meta("pesos_ou_optimizados") or "{}"
         set_meta("pesos_ou_optimizados", json.dumps(pesos_ou))
-        nombres_ou = {'h2h': 'H2H total',
-                      'reciente': 'Forma reciente', 'defensa': 'Defensa', 'historial': 'Historial O/U', 'tendencia': 'Tendencia reciente', 'ritmo': 'Ritmo ofensivo'}
+        nombres_ou = {'h2h': 'H2H total', 'reciente': 'Forma reciente', 'tendencia': 'Tendencia reciente',
+                      'contraataque': 'Contraataque', 'deficit_def': 'Déficit defensivo', 'consistencia': 'Consistencia'}
         pesos_ou_anteriores = json.loads(pesos_ou_prev_str)
         msg += "\n\n📊 *Precisión O/U por componente:*\n"
-        for k in ['h2h', 'reciente', 'defensa', 'historial', 'tendencia', 'ritmo']:
+        for k in ['h2h', 'reciente', 'tendencia', 'contraataque', 'deficit_def', 'consistencia']:
             n = n_ou.get(k, 0)
             if n < 10:
                 msg += f"⚪ {nombres_ou[k]}: sin datos ({n})\n"
@@ -2574,7 +2602,7 @@ async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             emoji = "🟢" if acc >= 55 else "🟡" if acc >= 50 else "🔴"
             msg += f"{emoji} {nombres_ou[k]}: {acc}% ({n} muestras)\n"
         msg += "\n⚖️ *Pesos O/U anteriores → Nuevos:*\n"
-        for k in ['h2h', 'reciente', 'defensa', 'historial', 'tendencia', 'ritmo']:
+        for k in ['h2h', 'reciente', 'tendencia', 'contraataque', 'deficit_def', 'consistencia']:
             ant = round(pesos_ou_anteriores.get(k, 0) * 100, 1)
             nuevo = round(pesos_ou[k] * 100, 1)
             cambio = "↑" if pesos_ou[k] > pesos_ou_anteriores.get(k, 0) else "↓" if pesos_ou[k] < pesos_ou_anteriores.get(k, 0) else "="
