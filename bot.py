@@ -2938,6 +2938,51 @@ async def debug_over(update: Update, context: ContextTypes.DEFAULT_TYPE):
         acc = round(sum(sin_forma) / len(sin_forma) * 100, 1)
         msg += f"• Forma no coincide: {acc}% ({len(sin_forma)} muestras)\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def debug_cuotas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT ganador_predicho, jugador_a, jugador_b, acierto_ganador,
+                 cuota_betsson_a, cuota_betsson_b
+                 FROM predicciones
+                 WHERE procesado=1 AND acierto_ganador IS NOT NULL
+                 AND cuota_betsson_a IS NOT NULL''')
+    rows = c.fetchall()
+    conn.close()
+    rangos = {
+        '<1.40': [], '1.40-1.60': [], '1.60-1.80': [],
+        '1.80-2.00': [], '2.00-2.20': [], '>2.20': []
+    }
+    for gan_pred, jug_a, jug_b, acierto, cb_a, cb_b in rows:
+        cuota = cb_a if gan_pred == jug_a else cb_b
+        if not cuota:
+            continue
+        u = round(cuota - 1, 4) if acierto == 1 else -1
+        if cuota < 1.40:
+            rangos['<1.40'].append((acierto, u))
+        elif cuota < 1.60:
+            rangos['1.40-1.60'].append((acierto, u))
+        elif cuota < 1.80:
+            rangos['1.60-1.80'].append((acierto, u))
+        elif cuota < 2.00:
+            rangos['1.80-2.00'].append((acierto, u))
+        elif cuota <= 2.20:
+            rangos['2.00-2.20'].append((acierto, u))
+        else:
+            rangos['>2.20'].append((acierto, u))
+    msg = "📊 *Rendimiento por tramo de cuota (ganador)*\n\n"
+    for rango, datos in rangos.items():
+        if not datos:
+            continue
+        n = len(datos)
+        ac = sum(1 for d in datos if d[0] == 1)
+        u = round(sum(d[1] for d in datos), 2)
+        acc = round(ac / n * 100, 1)
+        emoji = "📈" if u >= 0 else "📉"
+        msg += f"*{rango}:* {n} apuestas | {acc}% acierto | {emoji} {'+' if u >= 0 else ''}{u}u\n"
+    await update.message.reply_text(msg, parse_mode="Markdown")
     
 # ─────────────────────────────────────────────
 # MAIN
@@ -3007,6 +3052,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("debugou3", debug_ou3))
     app.add_handler(CommandHandler("debughistou", debug_historial_ou))
     app.add_handler(CommandHandler("debugover", debug_over))
+    app.add_handler(CommandHandler("debugcuotas", debug_cuotas))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
