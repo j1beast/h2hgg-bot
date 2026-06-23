@@ -818,7 +818,11 @@ def calcular_pesos_optimos_ou():
     for ou_h2h, ou_rec, ou_tend, ou_contra, ou_def, ou_cons, linea_bs, pts_a, pts_b in rows:
         total_real = pts_a + pts_b
         real_over = total_real > linea_bs
-        ou_def = None
+    for ou_h2h, ou_rec, ou_tend, ou_contra, ou_def, ou_cons, linea_bs, pts_a, pts_b in rows:
+    total_real = pts_a + pts_b
+    real_over = total_real > linea_bs
+    ou_def = None   # ← esta línea, borrarla
+    for nombre, val in [('h2h', ou_h2h), ...
         for nombre, val in [('h2h', ou_h2h), ('reciente', ou_rec), ('tendencia', ou_tend),
                              ('contraataque', ou_contra), ('deficit_def', ou_def)]:
             if val is None:
