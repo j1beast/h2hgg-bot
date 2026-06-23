@@ -510,7 +510,13 @@ async def tarea_predicciones_automaticas(app_ref):
                         cb_b = betsson_pred["cuota_b"]
                         linea_bot = analisis.get("linea_total")
                         bs_linea = betsson_pred.get("linea_ou")
-                        hay_valor_ganador = (cb_a > 0 and bot_a > 0 and cb_a / bot_a >= 1.20 and cb_a <= 2.20) or (cb_b > 0 and bot_b > 0 and cb_b / bot_b >= 1.20 and cb_b <= 2.20)
+                        def es_valor_ganador(cb, bot):
+                            if not cb or not bot or bot <= 0:
+                                return False
+                            if cb <= 1.60:
+                                return cb / bot >= 1.12 and cb <= 2.00
+                            return cb / bot >= 1.20 and cb <= 2.00
+                        hay_valor_ganador = es_valor_ganador(cb_a, bot_a) or es_valor_ganador(cb_b, bot_b)
                         hay_valor_ou = False
                         if linea_bot and bs_linea:
                             try:
