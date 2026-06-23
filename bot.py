@@ -93,6 +93,8 @@ def init_db():
         ("ou_contraataque", "REAL"),
         ("ou_deficit_def", "REAL"),
         ("ou_consistencia", "REAL"),
+        ("ou_eficiencia", "REAL"),
+        ("ou_matchup_def", "REAL"),
     ]:
         try:
             c.execute(f"ALTER TABLE predicciones ADD COLUMN {col} {tipo}")
@@ -306,8 +308,8 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
             (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador,
             linea_total, cuota_over, cuota_under, prediccion_ou, fecha_prediccion, procesado,
             prob_h2h, prob_equipo, prob_h2h_eq, prob_forma, prob_h2h_rec,
-            cuota_betsson_a, cuota_betsson_b, linea_betsson_ou, cuota_betsson_over, cuota_betsson_under, es_valor, ratio_def_a, ratio_def_b, margen_avg_a, margen_avg_b, ou_h2h_total, ou_general, ou_franq, ou_reciente, ou_h2h_eq, ou_defensa_a, ou_defensa_b, prob_matchup, prob_defensa, prob_api, ou_historial, ou_tendencia, ou_ritmo, ou_contraataque, ou_deficit_def, ou_consistencia)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            cuota_betsson_a, cuota_betsson_b, linea_betsson_ou, cuota_betsson_over, cuota_betsson_under, es_valor, ratio_def_a, ratio_def_b, margen_avg_a, margen_avg_b, ou_h2h_total, ou_general, ou_franq, ou_reciente, ou_h2h_eq, ou_defensa_a, ou_defensa_b, prob_matchup, prob_defensa, prob_api, ou_historial, ou_tendencia, ou_ritmo, ou_contraataque, ou_deficit_def, ou_consistencia, ou_eficiencia, ou_matchup_def)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
             (jugador_a, jugador_b, franq_a, franq_b, ganador, cuota_ganador,
              analisis.get("linea_total"), analisis.get("over_total"), analisis.get("under_total"),
              prediccion_ou, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), 0,
@@ -328,7 +330,9 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
              analisis.get("ou_ritmo"),
              analisis.get("ou_contraataque"),
              analisis.get("ou_deficit_def"),
-             analisis.get("ou_consistencia")))
+             analisis.get("ou_consistencia"),
+             analisis.get("ou_eficiencia"),
+             analisis.get("ou_matchup_def")))
         conn.commit()
     except Exception as e:
         print(f"[ERROR INSERT prediccion] {e}")
@@ -755,49 +759,41 @@ def cargar_pesos():
     _pesos_cache_ts = ahora
     return _pesos_cache
 
-def calcular_pesos_optimos():
+def calcular_pesos_optimos_ou():
     conn = get_db()
     c = conn.cursor()
-    c.execute('''SELECT jugador_a, resultado_real,
-                 prob_h2h, prob_equipo, prob_forma, prob_h2h_rec, prob_matchup, prob_defensa, prob_api
-                 FROM predicciones 
-                 WHERE procesado=1 
-                 AND acierto_ganador IS NOT NULL
-                 AND resultado_real IS NOT NULL
-                 AND prob_h2h IS NOT NULL''')
+    c.execute('''SELECT ou_h2h_total, ou_reciente,
+                 ou_tendencia, ou_contraataque, ou_eficiencia, ou_matchup_def, linea_betsson_ou, pts_real_a, pts_real_b
+                 FROM predicciones
+                 WHERE procesado=1 AND linea_betsson_ou IS NOT NULL
+                 AND pts_real_a IS NOT NULL AND ou_h2h_total IS NOT NULL''')
     rows = c.fetchall()
     conn.close()
     if len(rows) < 30:
         return None, "Necesitas al menos 30 predicciones procesadas", {}
-    factores_data = {'h2h': [], 'equipo': [], 'forma': [], 'h2h_rec': [], 'matchup': [], 'defensa': [], 'api': []}
-    for jugador_a, resultado_real, prob_h2h, prob_equipo, prob_forma, prob_h2h_rec, prob_matchup, prob_defensa, prob_api in rows:
-        if resultado_real is None:
-            continue
-        ganó_a = (resultado_real == jugador_a)
-        for nombre, prob in [('h2h', prob_h2h), ('equipo', prob_equipo), ('forma', prob_forma),
-                              ('h2h_rec', prob_h2h_rec), ('matchup', prob_matchup),
-                              ('defensa', prob_defensa), ('api', prob_api)]:
-            if prob is None:
+    factores_data = {'h2h': [], 'reciente': [], 'tendencia': [], 'contraataque': [], 'eficiencia': [], 'matchup_def': []}
+    for ou_h2h, ou_rec, ou_tend, ou_contra, ou_ef, ou_mq, linea_bs, pts_a, pts_b in rows:
+        total_real = pts_a + pts_b
+        real_over = total_real > linea_bs
+        for nombre, val in [('h2h', ou_h2h), ('reciente', ou_rec), ('tendencia', ou_tend),
+                             ('contraataque', ou_contra), ('eficiencia', ou_ef), ('matchup_def', ou_mq)]:
+            if val is None:
                 continue
-            if prob is None:
-                continue
-            factores_data[nombre].append(int((prob > 0.5) == ganó_a))
+            pred_over = val > linea_bs
+            factores_data[nombre].append(int(pred_over == real_over))
     accuracies = {}
     n_muestras = {}
     for nombre, resultados in factores_data.items():
         n = len(resultados)
         n_muestras[nombre] = n
-        accuracies[nombre] = sum(resultados) / n if n >= 5 else 0.5
+        accuracies[nombre] = sum(resultados) / n if n >= 10 else 0.5
     edges = {k: max(0.0, v - 0.5) for k, v in accuracies.items()}
     total_edge = sum(edges.values())
-    min_w = 0.05
-    n_factores = len(edges)
     if total_edge == 0:
-        w_base = 1.0 / n_factores
-        pesos = {k: w_base for k in edges}
+        n_factores = len(edges)
+        pesos = {k: 1.0 / n_factores for k in edges}
     else:
-        extra = 1.0 - (min_w * n_factores)
-        pesos = {k: min_w + (edges[k] / total_edge) * extra for k in edges}
+        pesos = {k: edges[k] / total_edge for k in edges}
     total = sum(pesos.values())
     pesos = {k: round(v / total, 4) for k, v in pesos.items()}
     return pesos, accuracies, n_muestras
@@ -1465,14 +1461,33 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         else:
             resultado["ou_contraataque"] = None
 
-        mp_a_api = api_a.get("matchesPlayed") or 1
-        mp_b_api = api_b.get("matchesPlayed") or 1
-        contra_a_api = round(api_a["pointsAgainst"] / mp_a_api, 2) if api_a.get("pointsAgainst") else None
-        contra_b_api = round(api_b["pointsAgainst"] / mp_b_api, 2) if api_b.get("pointsAgainst") else None
-        if contra_a_api and contra_b_api:
-            resultado["ou_deficit_def"] = round(contra_a_api + contra_b_api, 4)
+        jugadores_liga = list(stats_liga.values()) if stats_liga else []
+
+        fg_vals = [p.get("avgFieldGoalsPercent") for p in jugadores_liga if p.get("avgFieldGoalsPercent")]
+        liga_fg = sum(fg_vals) / len(fg_vals) if fg_vals else 48.0
+        fg_a_ef = api_a.get("avgFieldGoalsPercent")
+        fg_b_ef = api_b.get("avgFieldGoalsPercent")
+        avg_a_ef = resultado.get("avg_pts_a") or api_a.get("avgPoints")
+        avg_b_ef = resultado.get("avg_pts_b") or api_b.get("avgPoints")
+        if fg_a_ef and fg_b_ef and avg_a_ef and avg_b_ef and liga_fg > 0:
+            resultado["ou_eficiencia"] = round(avg_a_ef * (fg_a_ef / liga_fg) + avg_b_ef * (fg_b_ef / liga_fg), 4)
         else:
-            resultado["ou_deficit_def"] = None
+            resultado["ou_eficiencia"] = None
+
+        liga_pts_vals = [p.get("avgPoints") for p in jugadores_liga if p.get("avgPoints")]
+        liga_pts_avg = sum(liga_pts_vals) / len(liga_pts_vals) if liga_pts_vals else 55.0
+        mp_a_mq = api_a.get("matchesPlayed") or 1
+        mp_b_mq = api_b.get("matchesPlayed") or 1
+        pts_a_mq = api_a.get("avgPoints")
+        pts_b_mq = api_b.get("avgPoints")
+        contra_a_mq = api_a.get("pointsAgainst", 0) / mp_a_mq if api_a.get("pointsAgainst") else None
+        contra_b_mq = api_b.get("pointsAgainst", 0) / mp_b_mq if api_b.get("pointsAgainst") else None
+        if pts_a_mq and pts_b_mq and contra_a_mq and contra_b_mq and liga_pts_avg > 0:
+            expected_a = pts_a_mq * (contra_b_mq / liga_pts_avg)
+            expected_b = pts_b_mq * (contra_a_mq / liga_pts_avg)
+            resultado["ou_matchup_def"] = round(expected_a + expected_b, 4)
+        else:
+            resultado["ou_matchup_def"] = None
 
         std_a_val = resultado.get("std_pts_a")
         std_b_val = resultado.get("std_pts_b")
@@ -2589,10 +2604,10 @@ async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pesos_ou_prev_str = get_meta("pesos_ou_optimizados") or "{}"
         set_meta("pesos_ou_optimizados", json.dumps(pesos_ou))
         nombres_ou = {'h2h': 'H2H total', 'reciente': 'Forma reciente', 'tendencia': 'Tendencia reciente',
-                      'contraataque': 'Contraataque', 'deficit_def': 'Déficit defensivo'}
+                      'contraataque': 'Contraataque', 'eficiencia': 'Eficiencia tiro', 'matchup_def': 'Matchup defensivo'}
         pesos_ou_anteriores = json.loads(pesos_ou_prev_str)
         msg += "\n\n📊 *Precisión O/U por componente:*\n"
-        for k in ['h2h', 'reciente', 'tendencia', 'contraataque', 'deficit_def']:
+        for k in ['h2h', 'reciente', 'tendencia', 'contraataque', 'eficiencia', 'matchup_def']:
             n = n_ou.get(k, 0)
             if n < 10:
                 msg += f"⚪ {nombres_ou[k]}: sin datos ({n})\n"
@@ -2601,7 +2616,7 @@ async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             emoji = "🟢" if acc >= 55 else "🟡" if acc >= 50 else "🔴"
             msg += f"{emoji} {nombres_ou[k]}: {acc}% ({n} muestras)\n"
         msg += "\n⚖️ *Pesos O/U anteriores → Nuevos:*\n"
-        for k in ['h2h', 'reciente', 'tendencia', 'contraataque', 'deficit_def']:
+        for k in ['h2h', 'reciente', 'tendencia', 'contraataque', 'eficiencia', 'matchup_def']:
             ant = round(pesos_ou_anteriores.get(k, 0) * 100, 1)
             nuevo = round(pesos_ou[k] * 100, 1)
             cambio = "↑" if pesos_ou[k] > pesos_ou_anteriores.get(k, 0) else "↓" if pesos_ou[k] < pesos_ou_anteriores.get(k, 0) else "="
