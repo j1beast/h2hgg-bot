@@ -1470,6 +1470,8 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         mp_b_api = api_b.get("matchesPlayed") or 1
         contra_a_api = round(api_a["pointsAgainst"] / mp_a_api, 2) if api_a.get("pointsAgainst") else None
         contra_b_api = round(api_b["pointsAgainst"] / mp_b_api, 2) if api_b.get("pointsAgainst") else None
+        if contra_a_api and contra_b_api:
+            resultado["ou_deficit_def"] = round(contra_a_api + contra_b_api, 4)
         else:
             resultado["ou_deficit_def"] = None
 
