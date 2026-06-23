@@ -3001,23 +3001,23 @@ async def debug_lineas(update: Update, context: ContextTypes.DEFAULT_TYPE):
                  AND linea_betsson_ou IS NOT NULL''')
     rows = c.fetchall()
     conn.close()
-    rangos = {
-        '<200': [], '200-210': [], '210-220': [],
-        '220-230': [], '230-240': [], '>240': []
-    }
+    rangos_def = [
+        (77.5, 80.5), (81.5, 84.5), (85.5, 88.5), (89.5, 92.5),
+        (93.5, 96.5), (97.5, 100.5), (101.5, 104.5), (105.5, 108.5),
+        (109.5, 112.5), (113.5, 116.5), (117.5, 120.5), (121.5, 124.5),
+        (125.5, 128.5), (129.5, 132.5)
+    ]
+    rangos = {f"{lo}-{hi}": [] for lo, hi in rangos_def}
+    sin_rango = []
     for pred_ou, acierto, linea in rows:
-        if linea < 200:
-            rangos['<200'].append((pred_ou, acierto))
-        elif linea < 210:
-            rangos['200-210'].append((pred_ou, acierto))
-        elif linea < 220:
-            rangos['210-220'].append((pred_ou, acierto))
-        elif linea < 230:
-            rangos['220-230'].append((pred_ou, acierto))
-        elif linea < 240:
-            rangos['230-240'].append((pred_ou, acierto))
-        else:
-            rangos['>240'].append((pred_ou, acierto))
+        encontrado = False
+        for lo, hi in rangos_def:
+            if lo <= linea <= hi:
+                rangos[f"{lo}-{hi}"].append((pred_ou, acierto))
+                encontrado = True
+                break
+        if not encontrado:
+            sin_rango.append(linea)
     msg = "📊 *Acierto O/U por tramo de línea*\n\n"
     for rango, datos in rangos.items():
         if not datos:
@@ -3030,11 +3030,13 @@ async def debug_lineas(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ac_under = sum(1 for d in unders if d[1] == 1)
         acc = round(ac / n * 100, 1)
         emoji = "🟢" if acc >= 55 else "🟡" if acc >= 50 else "🔴"
-        msg += f"*{rango} pts:* {n} partidos | {emoji} {acc}% total\n"
+        msg += f"*{rango}:* {n} partidos | {emoji} {acc}%\n"
         if overs:
             msg += f"  Over: {round(ac_over/len(overs)*100,1)}% ({len(overs)})\n"
         if unders:
             msg += f"  Under: {round(ac_under/len(unders)*100,1)}% ({len(unders)})\n"
+    if sin_rango:
+        msg += f"\n⚪ Fuera de rango: {len(sin_rango)} partidos"
     await update.message.reply_text(msg, parse_mode="Markdown")
     
 # ─────────────────────────────────────────────
