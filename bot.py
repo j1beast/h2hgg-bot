@@ -2989,6 +2989,53 @@ async def debug_cuotas(update: Update, context: ContextTypes.DEFAULT_TYPE):
         emoji = "📈" if u >= 0 else "📉"
         msg += f"*{rango}:* {n} apuestas | {acc}% acierto | {emoji} {'+' if u >= 0 else ''}{u}u\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def debug_lineas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT prediccion_ou, acierto_ou, linea_betsson_ou
+                 FROM predicciones
+                 WHERE procesado=1 AND acierto_ou IS NOT NULL
+                 AND linea_betsson_ou IS NOT NULL''')
+    rows = c.fetchall()
+    conn.close()
+    rangos = {
+        '<200': [], '200-210': [], '210-220': [],
+        '220-230': [], '230-240': [], '>240': []
+    }
+    for pred_ou, acierto, linea in rows:
+        if linea < 200:
+            rangos['<200'].append((pred_ou, acierto))
+        elif linea < 210:
+            rangos['200-210'].append((pred_ou, acierto))
+        elif linea < 220:
+            rangos['210-220'].append((pred_ou, acierto))
+        elif linea < 230:
+            rangos['220-230'].append((pred_ou, acierto))
+        elif linea < 240:
+            rangos['230-240'].append((pred_ou, acierto))
+        else:
+            rangos['>240'].append((pred_ou, acierto))
+    msg = "📊 *Acierto O/U por tramo de línea*\n\n"
+    for rango, datos in rangos.items():
+        if not datos:
+            continue
+        n = len(datos)
+        ac = sum(1 for d in datos if d[1] == 1)
+        overs = [d for d in datos if d[0] == 'Over']
+        unders = [d for d in datos if d[0] == 'Under']
+        ac_over = sum(1 for d in overs if d[1] == 1)
+        ac_under = sum(1 for d in unders if d[1] == 1)
+        acc = round(ac / n * 100, 1)
+        emoji = "🟢" if acc >= 55 else "🟡" if acc >= 50 else "🔴"
+        msg += f"*{rango} pts:* {n} partidos | {emoji} {acc}% total\n"
+        if overs:
+            msg += f"  Over: {round(ac_over/len(overs)*100,1)}% ({len(overs)})\n"
+        if unders:
+            msg += f"  Under: {round(ac_under/len(unders)*100,1)}% ({len(unders)})\n"
+    await update.message.reply_text(msg, parse_mode="Markdown")
     
 # ─────────────────────────────────────────────
 # MAIN
@@ -3059,6 +3106,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("debughistou", debug_historial_ou))
     app.add_handler(CommandHandler("debugover", debug_over))
     app.add_handler(CommandHandler("debugcuotas", debug_cuotas))
+    app.add_handler(CommandHandler("debuglineas", debug_lineas))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
