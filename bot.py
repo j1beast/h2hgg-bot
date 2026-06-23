@@ -798,45 +798,51 @@ def calcular_pesos_optimos_ou():
     pesos = {k: round(v / total, 4) for k, v in pesos.items()}
     return pesos, accuracies, n_muestras
 
-def calcular_pesos_optimos_ou():
+def calcular_pesos_optimos():
     conn = get_db()
     c = conn.cursor()
-    c.execute('''SELECT ou_h2h_total, ou_reciente,
-                 ou_tendencia, ou_contraataque, ou_deficit_def, ou_consistencia, linea_betsson_ou, pts_real_a, pts_real_b
-                 FROM predicciones
-                 WHERE procesado=1 AND linea_betsson_ou IS NOT NULL
-                 AND pts_real_a IS NOT NULL AND ou_h2h_total IS NOT NULL''')
+    c.execute('''SELECT jugador_a, resultado_real,
+                 prob_h2h, prob_equipo, prob_forma, prob_h2h_rec, prob_matchup, prob_defensa, prob_api
+                 FROM predicciones 
+                 WHERE procesado=1 
+                 AND acierto_ganador IS NOT NULL
+                 AND resultado_real IS NOT NULL
+                 AND prob_h2h IS NOT NULL''')
     rows = c.fetchall()
     conn.close()
     if len(rows) < 30:
         return None, "Necesitas al menos 30 predicciones procesadas", {}
-    factores_data = {'h2h': [], 'reciente': [], 'tendencia': [], 'contraataque': [], 'deficit_def': []}
-    for ou_h2h, ou_rec, ou_tend, ou_contra, ou_def, ou_cons, linea_bs, pts_a, pts_b in rows:
-        total_real = pts_a + pts_b
-        real_over = total_real > linea_bs
-        for nombre, val in [('h2h', ou_h2h), ('reciente', ou_rec), ('tendencia', ou_tend),
-                             ('contraataque', ou_contra), ('deficit_def', ou_def)]:
-            if val is None:
+    factores_data = {'h2h': [], 'equipo': [], 'forma': [], 'h2h_rec': [], 'matchup': [], 'defensa': [], 'api': []}
+    for jugador_a, resultado_real, prob_h2h, prob_equipo, prob_forma, prob_h2h_rec, prob_matchup, prob_defensa, prob_api in rows:
+        if resultado_real is None:
+            continue
+        ganó_a = (resultado_real == jugador_a)
+        for nombre, prob in [('h2h', prob_h2h), ('equipo', prob_equipo), ('forma', prob_forma),
+                              ('h2h_rec', prob_h2h_rec), ('matchup', prob_matchup),
+                              ('defensa', prob_defensa), ('api', prob_api)]:
+            if prob is None:
                 continue
-            pred_over = val > linea_bs
-            factores_data[nombre].append(int(pred_over == real_over))
+            factores_data[nombre].append(int((prob > 0.5) == ganó_a))
     accuracies = {}
     n_muestras = {}
     for nombre, resultados in factores_data.items():
         n = len(resultados)
         n_muestras[nombre] = n
-        accuracies[nombre] = sum(resultados) / n if n >= 10 else 0.5
+        accuracies[nombre] = sum(resultados) / n if n >= 5 else 0.5
     edges = {k: max(0.0, v - 0.5) for k, v in accuracies.items()}
     total_edge = sum(edges.values())
+    min_w = 0.05
+    n_factores = len(edges)
     if total_edge == 0:
-        n_factores = len(edges)
-        pesos = {k: 1.0 / n_factores for k in edges}
+        w_base = 1.0 / n_factores
+        pesos = {k: w_base for k in edges}
     else:
-        pesos = {k: edges[k] / total_edge for k in edges}
+        extra = 1.0 - (min_w * n_factores)
+        pesos = {k: min_w + (edges[k] / total_edge) * extra for k in edges}
     total = sum(pesos.values())
     pesos = {k: round(v / total, 4) for k, v in pesos.items()}
     return pesos, accuracies, n_muestras
-
+    
 def calcular_linea_api(api_a, api_b):
     if not api_a or not api_b:
         return None
