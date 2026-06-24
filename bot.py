@@ -1857,7 +1857,7 @@ def generar_perfil_jugador(jugador, api, stats_liga):
             msg += f"• Peor franja: {peor} → {wr_peor}% victorias\n"
     except:
         pass
-        msg += "\n📝 *Resumen*\n"
+        msg += "\n\n📝 *Resumen*\n"
     try:
         import anthropic as _anthropic
         _client = _anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
