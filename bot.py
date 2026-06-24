@@ -625,7 +625,9 @@ async def tarea_predicciones_automaticas(app_ref):
                             conn_e.close()
                         except Exception as e:
                             print(f"Error enviando al canal: {e}")
+            print("[VERIFY] Iniciando verificación...")
             verificar_predicciones()
+            print("[VERIFY] Verificación completada")
         except Exception as e:
             import traceback
             print(f"Error en predicciones automáticas: {e}")
