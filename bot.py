@@ -1864,21 +1864,20 @@ def generar_perfil_jugador(jugador, api, stats_liga):
     try:
         import anthropic as _anthropic
         _client = _anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+        ultimos10_wins = sum(1 for p in partidos_db[:10] if p["gano"]) if partidos_db and len(partidos_db) >= 10 else None
         datos_jugador = f"""
 Jugador: {jugador}
-Win rate: {wp}%
-Puntos por partido: {round(pts,1) if pts else 'N/A'}
-Puntos recibidos: {pts_contra if pts_contra else 'N/A'}
-Eficiencia de tiro: {round(fg,1) if fg else 'N/A'}%
-Triples intentados: {round(t3a,1) if t3a else 'N/A'} ({round(t3p,1) if t3p else 'N/A'}%)
+Win rate histórico: {wp}% (media liga ~50%)
+Puntos anotados: {round(pts,1) if pts else 'N/A'} por partido (media liga: {round(bl_pts,1)})
+Puntos recibidos: {pts_contra if pts_contra else 'N/A'} por partido (media liga: {round(bl_contra,1) if bl_contra else 'N/A'}) — {'buena defensa' if pts_contra and bl_contra and pts_contra < bl_contra * 0.95 else 'defensa débil' if pts_contra and bl_contra and pts_contra > bl_contra * 1.05 else 'defensa normal'}
+Eficiencia tiro: {round(fg,1) if fg else 'N/A'}% (media liga: {round(bl_fg,1)}%)
+Triples: {round(t3a,1) if t3a else 'N/A'} intentos a {round(t3p,1) if t3p else 'N/A'}%
 Asistencias: {round(ast,1) if ast else 'N/A'} | Pérdidas: {round(to,1) if to else 'N/A'}
-Racha máxima ganadora: {max_win if 'max_win' in dir() else 'N/A'} partidos
-Racha máxima perdedora: {max_loss if 'max_loss' in dir() else 'N/A'} partidos
-Forma últimos 5: {sum(1 for p in partidos_db[:5] if p["gano"]) if partidos_db else 'N/A'}/5 victorias
-Mejor franja horaria: {mejor + ' (' + str(round(wr_mejor,1)) + '%)' if 'mejor' in dir() and franjas_validas else 'N/A'}
-Peor franja horaria: {peor + ' (' + str(round(wr_peor,1)) + '%)' if 'peor' in dir() and franjas_validas else 'N/A'}
-Media de la liga en puntos: {round(bl_pts,1)}
-Media de la liga en puntos recibidos: {round(bl_contra,1) if bl_contra else 'N/A'}
+Forma últimos 10 partidos: {f'{ultimos10_wins}/10 victorias' if ultimos10_wins is not None else 'N/A'}
+Racha máxima ganadora: {max_win} partidos seguidos
+Racha máxima perdedora: {max_loss} partidos seguidos
+Mejor franja horaria: {mejor + ' → ' + str(round(wr_mejor,1)) + '% victorias' if 'mejor' in dir() and franjas_validas else 'N/A'}
+Peor franja horaria: {peor + ' → ' + str(round(wr_peor,1)) + '% victorias' if 'peor' in dir() and franjas_validas else 'N/A'}
 """
         _resp = _client.messages.create(
             model="claude-haiku-4-5-20251001",
