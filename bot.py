@@ -3225,6 +3225,43 @@ async def debugpsico(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         msg += "Sin suficientes partidos ajustados\n"
 
+        # Factor 6: Local vs Visitante
+    def calcular_local_visitante(jugador):
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('''SELECT score_home, score_away, home_jugador
+                     FROM partidos
+                     WHERE UPPER(home_jugador)=? OR UPPER(away_jugador)=?''', (jugador, jugador))
+        rows = c.fetchall()
+        conn.close()
+        como_local = []
+        como_visitante = []
+        for sc_h, sc_a, home_j in rows:
+            if home_j.upper() == jugador:
+                como_local.append(sc_h > sc_a)
+            else:
+                como_visitante.append(sc_a > sc_h)
+        if len(como_local) < 10 or len(como_visitante) < 10:
+            return None
+        wr_local = sum(como_local) / len(como_local)
+        wr_visit = sum(como_visitante) / len(como_visitante)
+        delta = wr_local - wr_visit
+        if delta >= 0.10:
+            estado = "🏠 Mejor como local"
+        elif delta <= -0.10:
+            estado = "✈️ Mejor como visitante"
+        else:
+            estado = "➡️ Sin diferencia local/visitante"
+        return wr_local, wr_visit, len(como_local), len(como_visitante), delta, estado
+
+    msg += "\n6️⃣ *Local vs Visitante*\n"
+    for jugador, nombre in [(jugador_a, jugador_a), (jugador_b, jugador_b)]:
+        lv = calcular_local_visitante(jugador)
+        if lv:
+            msg += f"{nombre}: local {round(lv[0]*100,1)}% ({lv[2]}p) vs visitante {round(lv[1]*100,1)}% ({lv[3]}p) → {lv[5]}\n"
+        else:
+            msg += f"{nombre}: sin datos suficientes\n"
+
     await update.message.reply_text(msg, parse_mode="Markdown")
     
 # ─────────────────────────────────────────────
