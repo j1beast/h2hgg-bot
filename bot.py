@@ -513,9 +513,9 @@ async def tarea_predicciones_automaticas(app_ref):
                         def es_valor_ganador(cb, bot):
                             if not cb or not bot or bot <= 0:
                                 return False
-                            if cb <= 1.60:
-                                return cb / bot >= 1.12 and cb <= 2.00
-                            return cb / bot >= 1.20 and cb <= 2.00
+                            if cb <= 1.55:
+                                return cb / bot >= 1.10 and cb <= 2.00
+                            return cb / bot >= 1.14 and cb <= 2.00
                         hay_valor_ganador = es_valor_ganador(cb_a, bot_a) or es_valor_ganador(cb_b, bot_b)
                         hay_valor_ou = False
                         if linea_bot and bs_linea:
