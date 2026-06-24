@@ -1868,7 +1868,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• `/ranking` — top 20 jugadores por winrate\n"
         "• `/proximos` — próximos partidos\n"
         "• `/resultados` — últimos resultados\n"
-        "• `/actualizar` — actualizar datos manualmente\n\n"
+        "• `/perfil JUGADOR` — perfil detallado de un jugador\n\n"
         "Ejemplo: `/pronostico MYTH vs MALICE`"
     )
     await update.message.reply_text(msg, parse_mode="Markdown")
