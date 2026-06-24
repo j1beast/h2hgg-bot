@@ -3262,6 +3262,38 @@ async def debugpsico(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             msg += f"{nombre}: sin datos suficientes\n"
 
+        # Factor 7: Tendencia de puntos anotados
+    def calcular_tendencia_puntos(partidos):
+        if len(partidos) < 10:
+            return None
+        avg_historico = sum(p["pts_favor"] for p in partidos) / len(partidos)
+        ultimos5 = partidos[:5]
+        avg5 = sum(p["pts_favor"] for p in ultimos5) / 5
+        delta = avg5 - avg_historico
+        if delta >= 5:
+            estado = "🔥 Anotando muy por encima de su media"
+        elif delta >= 2:
+            estado = "📈 Anotando por encima de su media"
+        elif delta <= -5:
+            estado = "❄️ Anotando muy por debajo de su media"
+        elif delta <= -2:
+            estado = "📉 Anotando por debajo de su media"
+        else:
+            estado = "➡️ Anotación en su media"
+        return avg_historico, avg5, delta, estado
+
+    msg += "\n7️⃣ *Tendencia de puntos anotados (últimos 5)*\n"
+    tp_a = calcular_tendencia_puntos(partidos_a)
+    tp_b = calcular_tendencia_puntos(partidos_b)
+    if tp_a:
+        msg += f"{jugador_a}: {round(tp_a[1],1)} pts últimos 5 vs {round(tp_a[0],1)} histórico ({'+' if tp_a[2]>=0 else ''}{round(tp_a[2],1)} pts) → {tp_a[3]}\n"
+    else:
+        msg += f"{jugador_a}: sin datos suficientes\n"
+    if tp_b:
+        msg += f"{jugador_b}: {round(tp_b[1],1)} pts últimos 5 vs {round(tp_b[0],1)} histórico ({'+' if tp_b[2]>=0 else ''}{round(tp_b[2],1)} pts) → {tp_b[3]}\n"
+    else:
+        msg += f"{jugador_b}: sin datos suficientes\n"
+
     await update.message.reply_text(msg, parse_mode="Markdown")
     
 # ─────────────────────────────────────────────
