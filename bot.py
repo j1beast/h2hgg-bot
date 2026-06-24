@@ -96,6 +96,9 @@ def init_db():
         ("ou_eficiencia", "REAL"),
         ("ou_matchup_def", "REAL"),
         ("ou_tendencia_pts", "REAL"),
+        ("prob_racha", "REAL"),
+        ("prob_coco", "REAL"),
+        ("prob_horario", "REAL"),
     ]:
         try:
             c.execute(f"ALTER TABLE predicciones ADD COLUMN {col} {tipo}")
@@ -309,8 +312,8 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
             (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador,
             linea_total, cuota_over, cuota_under, prediccion_ou, fecha_prediccion, procesado,
             prob_h2h, prob_equipo, prob_h2h_eq, prob_forma, prob_h2h_rec,
-            cuota_betsson_a, cuota_betsson_b, linea_betsson_ou, cuota_betsson_over, cuota_betsson_under, es_valor, ratio_def_a, ratio_def_b, margen_avg_a, margen_avg_b, ou_h2h_total, ou_general, ou_franq, ou_reciente, ou_h2h_eq, ou_defensa_a, ou_defensa_b, prob_matchup, prob_defensa, prob_api, ou_historial, ou_tendencia, ou_ritmo, ou_contraataque, ou_deficit_def, ou_consistencia, ou_eficiencia, ou_matchup_def, ou_tendencia_pts)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            cuota_betsson_a, cuota_betsson_b, linea_betsson_ou, cuota_betsson_over, cuota_betsson_under, es_valor, ratio_def_a, ratio_def_b, margen_avg_a, margen_avg_b, ou_h2h_total, ou_general, ou_franq, ou_reciente, ou_h2h_eq, ou_defensa_a, ou_defensa_b, prob_matchup, prob_defensa, prob_api, ou_historial, ou_tendencia, ou_ritmo, ou_contraataque, ou_deficit_def, ou_consistencia, ou_eficiencia, ou_matchup_def, ou_tendencia_pts, prob_racha, prob_coco, prob_horario)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
             (jugador_a, jugador_b, franq_a, franq_b, ganador, cuota_ganador,
              analisis.get("linea_total"), analisis.get("over_total"), analisis.get("under_total"),
              prediccion_ou, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), 0,
@@ -334,7 +337,10 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
              analisis.get("ou_consistencia"),
              analisis.get("ou_eficiencia"),
              analisis.get("ou_matchup_def"),
-             analisis.get("ou_tendencia_pts")))
+             analisis.get("ou_tendencia_pts"),
+             analisis.get("prob_racha"),
+             analisis.get("prob_coco"),
+             analisis.get("prob_horario")))
         conn.commit()
     except Exception as e:
         print(f"[ERROR INSERT prediccion] {e}")
@@ -810,7 +816,7 @@ def calcular_pesos_optimos():
     conn = get_db()
     c = conn.cursor()
     c.execute('''SELECT jugador_a, resultado_real,
-                 prob_h2h, prob_equipo, prob_forma, prob_h2h_rec, prob_matchup, prob_defensa, prob_api
+                 prob_h2h, prob_forma, prob_h2h_rec, prob_defensa, prob_api, prob_racha, prob_coco, prob_horario
                  FROM predicciones 
                  WHERE procesado=1 
                  AND acierto_ganador IS NOT NULL
@@ -820,14 +826,14 @@ def calcular_pesos_optimos():
     conn.close()
     if len(rows) < 30:
         return None, "Necesitas al menos 30 predicciones procesadas", {}
-    factores_data = {'h2h': [], 'equipo': [], 'forma': [], 'h2h_rec': [], 'matchup': [], 'defensa': [], 'api': []}
-    for jugador_a, resultado_real, prob_h2h, prob_equipo, prob_forma, prob_h2h_rec, prob_matchup, prob_defensa, prob_api in rows:
+    factores_data = {'h2h': [], 'forma': [], 'h2h_rec': [], 'defensa': [], 'api': [], 'racha': [], 'coco': [], 'horario': []}
+    for jugador_a, resultado_real, prob_h2h, prob_forma, prob_h2h_rec, prob_defensa, prob_api, prob_racha, prob_coco, prob_horario in rows:
         if resultado_real is None:
             continue
         ganó_a = (resultado_real == jugador_a)
-        for nombre, prob in [('h2h', prob_h2h), ('equipo', prob_equipo), ('forma', prob_forma),
-                              ('h2h_rec', prob_h2h_rec), ('matchup', prob_matchup),
-                              ('defensa', prob_defensa), ('api', prob_api)]:
+        for nombre, prob in [('h2h', prob_h2h), ('forma', prob_forma), ('h2h_rec', prob_h2h_rec),
+                              ('defensa', prob_defensa), ('api', prob_api), ('racha', prob_racha),
+                              ('coco', prob_coco), ('horario', prob_horario)]:
             if prob is None:
                 continue
             factores_data[nombre].append(int((prob > 0.5) == ganó_a))
@@ -1328,32 +1334,63 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
     else:
         prob_h2h_rec = 0.5
 
+        # Prob racha
+    if len(partidos_a) >= 20 and len(partidos_b) >= 20:
+        wr_hist_a = sum(1 for p in partidos_a if p["gano"]) / len(partidos_a)
+        wr_hist_b = sum(1 for p in partidos_b if p["gano"]) / len(partidos_b)
+        wr20_a = sum(1 for p in partidos_a[:20] if p["gano"]) / 20
+        wr20_b = sum(1 for p in partidos_b[:20] if p["gano"]) / 20
+        prob_racha = wr20_a / (wr20_a + wr20_b) if (wr20_a + wr20_b) > 0 else 0.5
+    else:
+        prob_racha = 0.5
+    resultado["prob_racha"] = round(prob_racha, 4)
+
+    # Prob coco
+    if partidos_h2h and len(partidos_h2h) >= 5:
+        wins_a_h2h = sum(1 for p in partidos_h2h if p["gano_a"])
+        prob_coco = wins_a_h2h / len(partidos_h2h)
+    else:
+        prob_coco = 0.5
+    resultado["prob_coco"] = round(prob_coco, 4)
+
+    # Prob horario
+    try:
+        hora_actual = datetime.utcnow().hour
+        conn_h = get_db()
+        c_h = conn_h.cursor()
+        resultados_hora = []
+        for jugador, es_a in [(jugador_a, True), (jugador_b, False)]:
+            c_h.execute('''SELECT score_home, score_away, home_jugador, timestamp
+                         FROM partidos
+                         WHERE (UPPER(home_jugador)=? OR UPPER(away_jugador)=?)
+                         AND timestamp > 0''', (jugador.upper(), jugador.upper()))
+            ph = c_h.fetchall()
+            franja = [sc_h > sc_a if hj.upper() == jugador.upper() else sc_a > sc_h
+                      for sc_h, sc_a, hj, ts in ph if abs(datetime.utcfromtimestamp(ts).hour - hora_actual) <= 1]
+            if len(franja) >= 15:
+                wr_franja = sum(franja) / len(franja)
+            else:
+                wr_franja = sum(1 for p in (partidos_a if es_a else partidos_b) if p["gano"]) / max(len(partidos_a if es_a else partidos_b), 1)
+            resultados_hora.append(wr_franja)
+        conn_h.close()
+        wr_hora_a, wr_hora_b = resultados_hora
+        prob_horario = wr_hora_a / (wr_hora_a + wr_hora_b) if (wr_hora_a + wr_hora_b) > 0 else 0.5
+    except:
+        prob_horario = 0.5
+    resultado["prob_horario"] = round(prob_horario, 4)
+    
            # Probabilidad final ponderada
     pesos = cargar_pesos()
     w_h2h = pesos.get('h2h', 0.18)
-    w_equipo = pesos.get('equipo', 0.16)
     w_forma = pesos.get('forma', 0.15)
-    w_h2h_rec = pesos.get('h2h_rec', 0.11)
-    w_matchup = pesos.get('matchup', 0.12)
-    w_defensa = pesos.get('defensa', 0.18)
+    w_h2h_rec = pesos.get('h2h_rec', 0.14)
+    w_defensa = pesos.get('defensa', 0.14)
     w_api = pesos.get('api', 0.10)
+    w_racha = pesos.get('racha', 0.10)
+    w_coco = pesos.get('coco', 0.14)
+    w_horario = pesos.get('horario', 0.09)
 
-    pocos_partidos_franq = (resultado.get("partidos_a_franq") or 0) < 5 or (resultado.get("partidos_b_franq") or 0) < 5
-    if pocos_partidos_franq:
-        reduccion = w_equipo * 0.65
-        total_otros = w_h2h + w_forma + w_h2h_rec + w_matchup + w_defensa
-        if total_otros > 0:
-            w_h2h_f = w_h2h + reduccion * w_h2h / total_otros
-            w_forma_f = w_forma + reduccion * w_forma / total_otros
-            w_h2h_rec_f = w_h2h_rec + reduccion * w_h2h_rec / total_otros
-            w_matchup_f = w_matchup + reduccion * w_matchup / total_otros
-            w_defensa_f = w_defensa + reduccion * w_defensa / total_otros
-            w_equipo_f = w_equipo * 0.35
-        else:
-            w_h2h_f, w_forma_f, w_h2h_rec_f, w_matchup_f, w_defensa_f, w_equipo_f = w_h2h, w_forma, w_h2h_rec, w_matchup, w_defensa, w_equipo
-        prob_final_a = (prob_h2h * w_h2h_f) + (prob_equipo * w_equipo_f) + (prob_forma * w_forma_f) + (prob_h2h_rec * w_h2h_rec_f) + (prob_matchup * w_matchup_f) + (prob_defensa * w_defensa_f) + (prob_api_val * w_api)
-    else:
-        prob_final_a = (prob_h2h * w_h2h) + (prob_equipo * w_equipo) + (prob_forma * w_forma) + (prob_h2h_rec * w_h2h_rec) + (prob_matchup * w_matchup) + (prob_defensa * w_defensa) + (prob_api_val * w_api)
+    prob_final_a = (prob_h2h * w_h2h) + (prob_forma * w_forma) + (prob_h2h_rec * w_h2h_rec) + (prob_defensa * w_defensa) + (prob_api_val * w_api) + (prob_racha * w_racha) + (prob_coco * w_coco) + (prob_horario * w_horario)
     prob_final_b = 1 - prob_final_a
     resultado["prob_a"] = round(prob_final_a, 4)
     resultado["prob_b"] = round(prob_final_b, 4)
@@ -2574,16 +2611,18 @@ async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     _pesos_cache_ts = time.time()
     nombres = {
         'h2h': 'H2H general',
-        'equipo': 'Equipo actual',
         'forma': 'Forma reciente',
         'h2h_rec': 'H2H reciente',
-        'matchup': 'Matchup franquicias',
         'defensa': 'Defensa',
-        'api': 'Stats API liga'
+        'api': 'Stats API liga',
+        'racha': 'Racha actual',
+        'coco': 'Rival coco',
+        'horario': 'Patrón horario'
+    }
     }
     msg = "✅ *Optimización completada*\n\n"
     msg += "📊 *Precisión por factor:*\n"
-    for k in ['h2h', 'equipo', 'forma', 'h2h_rec', 'matchup', 'defensa', 'api']:
+    for k in ['h2h', 'forma', 'h2h_rec', 'defensa', 'api', 'racha', 'coco', 'horario']:
         n = n_muestras.get(k, 0)
         if n < 5:
             msg += f"⚪ {nombres[k]}: sin datos suficientes ({n} muestras)\n"
@@ -2592,7 +2631,7 @@ async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         emoji = "🟢" if acc >= 55 else "🟡" if acc >= 50 else "🔴"
         msg += f"{emoji} {nombres[k]}: {acc}% ({n} muestras)\n"
     msg += "\n⚖️ *Pesos anteriores → Nuevos:*\n"
-    for k in ['h2h', 'equipo', 'forma', 'h2h_rec', 'matchup', 'defensa', 'api']:
+    for k in ['h2h', 'forma', 'h2h_rec', 'defensa', 'api', 'racha', 'coco', 'horario']:
         ant = round(pesos_actuales.get(k, 0) * 100, 1)
         nuevo = round(nuevos_pesos[k] * 100, 1)
         cambio = "↑" if nuevos_pesos[k] > pesos_actuales.get(k, 0) else "↓" if nuevos_pesos[k] < pesos_actuales.get(k, 0) else "="
