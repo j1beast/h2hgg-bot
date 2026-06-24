@@ -3488,6 +3488,53 @@ async def validarpsico(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg += "\n*Factor 7 — Tendencia puntos:*\n"
     msg += mostrar(tendencia_alta, "Favorito anotando por encima")
     msg += mostrar(tendencia_baja, "Favorito anotando por debajo")
+    
+    await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def manualdeuso(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        await update.message.reply_text("No tienes acceso a este bot.")
+        return
+    msg = (
+        "🏀 *Manual del Bot H2H GG League*\n\n"
+        "━━━━━━━━━━━━━━━\n"
+        "📋 *COMANDOS PRINCIPALES*\n"
+        "━━━━━━━━━━━━━━━\n\n"
+        "🔮 `/pronostico JUGADORA vs JUGADORB`\n"
+        "Análisis completo con cuotas y O/U\n"
+        "_Ej: /pronostico MYTH vs MALICE_\n\n"
+        "📊 `/perfil JUGADOR`\n"
+        "Perfil detallado: estilo, rachas, franja horaria\n"
+        "_Ej: /perfil CHIEF_\n\n"
+        "⚔️ `/h2h JUGADORA vs JUGADORB`\n"
+        "Historial completo entre dos jugadores\n"
+        "_Ej: /h2h MYTH vs MALICE_\n\n"
+        "📈 `/stats JUGADOR`\n"
+        "Estadísticas numéricas completas\n"
+        "_Ej: /stats MYTH_\n\n"
+        "🔥 `/forma JUGADOR`\n"
+        "Últimos 10 resultados\n"
+        "_Ej: /forma MALICE_\n\n"
+        "📅 `/proximos`\n"
+        "Partidos de hoy con horario\n\n"
+        "🏆 `/ranking`\n"
+        "Top 20 jugadores por winrate\n\n"
+        "━━━━━━━━━━━━━━━\n"
+        "📊 *ESTADÍSTICAS DEL BOT*\n"
+        "━━━━━━━━━━━━━━━\n\n"
+        "✅ `/rendimiento` — % acierto del bot\n"
+        "💰 `/unidades` — simulación de rentabilidad\n"
+        "📋 `/pendientes` — predicciones de hoy sin resultado\n"
+        "🕐 `/resultados` — últimos resultados\n\n"
+        "━━━━━━━━━━━━━━━\n"
+        "💡 *CÓMO LEER EL PRONÓSTICO*\n"
+        "━━━━━━━━━━━━━━━\n\n"
+        "• *Cuota BOT* — cuota justa según el análisis\n"
+        "• *Cuota BETSSON* — cuota real disponible\n"
+        "• ✅ — valor detectado: Betsson paga más de lo que debería\n"
+        "• *Implicación de factores* — % de factores que apuntan al mismo ganador\n\n"
+        "📝 También puedes escribir directamente *MYTH vs MALICE* sin usar ningún comando."
+    )
     await update.message.reply_text(msg, parse_mode="Markdown")
     
 # ─────────────────────────────────────────────
@@ -3562,6 +3609,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("debuglineas", debug_lineas))
     app.add_handler(CommandHandler("debugpsico", debugpsico))
     app.add_handler(CommandHandler("validarpsico", validarpsico))
+    app.add_handler(CommandHandler("manualdeuso", manualdeuso))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
