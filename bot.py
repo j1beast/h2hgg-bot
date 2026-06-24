@@ -556,12 +556,14 @@ async def tarea_predicciones_automaticas(app_ref):
                                 msg += f"{franq_a} ({jugador_a}) vs {franq_b} ({jugador_b}) — {hora_utc}\n"
                                 msg += f"Betsson: {jugador_a} gana → `{cb_a}`\n"
                                 msg += f"Bot: `{bot_a}` (+{pct}% diferencia)\n"
+                                msg += f"💪 Fuerza de la predicción: {analisis.get('fuerza_ganador', '?')}%\n"
                             else:
                                 pct = round((cb_b / bot_b - 1) * 100, 1)
                                 msg += f"🎯 *VALUE BET - GANADOR*\n"
                                 msg += f"{franq_a} ({jugador_a}) vs {franq_b} ({jugador_b}) — {hora_utc}\n"
                                 msg += f"Betsson: {jugador_b} gana → `{cb_b}`\n"
                                 msg += f"Bot: `{bot_b}` (+{pct}% diferencia)\n"
+                                msg += f"💪 Fuerza de la predicción: {analisis.get('fuerza_ganador', '?')}%\n"
                         # Valor O/U
                         bs_over = betsson_pred.get("cuota_over")
                         bs_under = betsson_pred.get("cuota_under")
@@ -580,6 +582,16 @@ async def tarea_predicciones_automaticas(app_ref):
                                 msg += f"{franq_a} ({jugador_a}) vs {franq_b} ({jugador_b}) — {hora_utc}\n"
                                 msg += f"Betsson: {tipo_ou} `{bs_linea}` → `{bs_over if tipo_ou == 'OVER' else bs_under}`\n"
                                 msg += f"Línea bot: {linea_bot} pts ({diff_str})\n"
+                                try:
+                                    ou_factors = {'h2h': analisis.get('ou_h2h_total'), 'reciente': analisis.get('ou_reciente'), 'tendencia': analisis.get('ou_tendencia'), 'contraataque': analisis.get('ou_contraataque'), 'tendencia_pts': analisis.get('ou_tendencia_pts')}
+                                    pesos_ou = json.loads(get_meta("pesos_ou_optimizados") or "{}")
+                                    es_over_f = float(linea_bot) > float(bs_linea)
+                                    pf = sum(pesos_ou.get(k, 0.2) for k, v in ou_factors.items() if v is not None and (v > float(bs_linea)) == es_over_f)
+                                    pt = sum(pesos_ou.get(k, 0.2) for k, v in ou_factors.items() if v is not None)
+                                    if pt > 0:
+                                        msg += f"💪 Fuerza O/U: {round(pf/pt*100,1)}%\n"
+                                except:
+                                    pass
                             except:
                                 pass
                         conn_v = get_db()
@@ -1336,29 +1348,26 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
 
         # Prob racha
     if len(partidos_a) >= 20 and len(partidos_b) >= 20:
-        wr_hist_a = sum(1 for p in partidos_a if p["gano"]) / len(partidos_a)
-        wr_hist_b = sum(1 for p in partidos_b if p["gano"]) / len(partidos_b)
         wr20_a = sum(1 for p in partidos_a[:20] if p["gano"]) / 20
         wr20_b = sum(1 for p in partidos_b[:20] if p["gano"]) / 20
         prob_racha = wr20_a / (wr20_a + wr20_b) if (wr20_a + wr20_b) > 0 else 0.5
     else:
-        prob_racha = 0.5
-    resultado["prob_racha"] = round(prob_racha, 4)
+        prob_racha = None
+    resultado["prob_racha"] = round(prob_racha, 4) if prob_racha is not None else None
 
     # Prob coco
     if partidos_h2h and len(partidos_h2h) >= 5:
         wins_a_h2h = sum(1 for p in partidos_h2h if p["gano_a"])
         prob_coco = wins_a_h2h / len(partidos_h2h)
     else:
-        prob_coco = 0.5
-    resultado["prob_coco"] = round(prob_coco, 4)
-
+        prob_coco = None
+    resultado["prob_coco"] = round(prob_coco, 4) if prob_coco is not None else None
     # Prob horario
     try:
         hora_actual = datetime.utcnow().hour
         conn_h = get_db()
         c_h = conn_h.cursor()
-        resultados_hora = []
+        franjas_por_jugador = []
         for jugador, es_a in [(jugador_a, True), (jugador_b, False)]:
             c_h.execute('''SELECT score_home, score_away, home_jugador, timestamp
                          FROM partidos
@@ -1367,17 +1376,19 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
             ph = c_h.fetchall()
             franja = [sc_h > sc_a if hj.upper() == jugador.upper() else sc_a > sc_h
                       for sc_h, sc_a, hj, ts in ph if abs(datetime.utcfromtimestamp(ts).hour - hora_actual) <= 1]
-            if len(franja) >= 15:
-                wr_franja = sum(franja) / len(franja)
-            else:
-                wr_franja = sum(1 for p in (partidos_a if es_a else partidos_b) if p["gano"]) / max(len(partidos_a if es_a else partidos_b), 1)
-            resultados_hora.append(wr_franja)
+            franjas_por_jugador.append((franja, es_a))
         conn_h.close()
-        wr_hora_a, wr_hora_b = resultados_hora
-        prob_horario = wr_hora_a / (wr_hora_a + wr_hora_b) if (wr_hora_a + wr_hora_b) > 0 else 0.5
+        franja_a, _ = franjas_por_jugador[0]
+        franja_b, _ = franjas_por_jugador[1]
+        if len(franja_a) >= 15 or len(franja_b) >= 15:
+            wr_hora_a = sum(franja_a) / len(franja_a) if len(franja_a) >= 15 else sum(1 for p in partidos_a if p["gano"]) / max(len(partidos_a), 1)
+            wr_hora_b = sum(franja_b) / len(franja_b) if len(franja_b) >= 15 else sum(1 for p in partidos_b if p["gano"]) / max(len(partidos_b), 1)
+            prob_horario = wr_hora_a / (wr_hora_a + wr_hora_b) if (wr_hora_a + wr_hora_b) > 0 else 0.5
+        else:
+            prob_horario = None
     except:
-        prob_horario = 0.5
-    resultado["prob_horario"] = round(prob_horario, 4)
+        prob_horario = None
+    resultado["prob_horario"] = round(prob_horario, 4) if prob_horario is not None else None
     
            # Probabilidad final ponderada
     pesos = cargar_pesos()
@@ -1390,8 +1401,16 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
     w_coco = pesos.get('coco', 0.14)
     w_horario = pesos.get('horario', 0.09)
 
-    prob_final_a = (prob_h2h * w_h2h) + (prob_forma * w_forma) + (prob_h2h_rec * w_h2h_rec) + (prob_defensa * w_defensa) + (prob_api_val * w_api) + (prob_racha * w_racha) + (prob_coco * w_coco) + (prob_horario * w_horario)
+    factores_pond = [
+        (prob_h2h, w_h2h), (prob_forma, w_forma), (prob_h2h_rec, w_h2h_rec),
+        (prob_defensa, w_defensa), (prob_api, w_api), (prob_racha, w_racha),
+        (prob_coco, w_coco), (prob_horario, w_horario)
+    ]
+    factores_validos = [(p, w) for p, w in factores_pond if p is not None]
+    total_w = sum(w for _, w in factores_validos)
+    prob_final_a = sum(p * w for p, w in factores_validos) / total_w if total_w > 0 else 0.5
     prob_final_b = 1 - prob_final_a
+    resultado["fuerza_ganador"] = round(max(prob_final_a, prob_final_b) * 100, 1)
     resultado["prob_a"] = round(prob_final_a, 4)
     resultado["prob_b"] = round(prob_final_b, 4)
     resultado["cuota_a"] = prob_to_odds(prob_final_a)
@@ -1649,9 +1668,12 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
         msg += f"*{jugador_a} con {franq_a}:* {analisis['winrate_a_franq']}% ({analisis['partidos_a_franq']} partidos)\n"
         msg += f"*{jugador_b} con {franq_b}:* {analisis['winrate_b_franq']}% ({analisis['partidos_b_franq']} partidos)\n"
 
-    msg += f"\n━━━━━━━━━━━━━━━\n"
+    msg += f"━━━━━━━━━━━━━━━\n"
     msg += f"🎯 *GANADOR*\n"
     msg += f"━━━━━━━━━━━━━━━\n"
+    fuerza_g = analisis.get('fuerza_ganador')
+    if fuerza_g:
+        msg += f"💪 *Fuerza de la predicción:* {fuerza_g}%\n"
     espaciado = max(len(jugador_a), len(jugador_b)) + 2
     msg += f"{'':10}{jugador_a:<{espaciado}}{jugador_b}\n"
     msg += f"{'BOT:':10}{str(analisis['cuota_a']):<{espaciado}}{analisis['cuota_b']}\n"
@@ -1668,6 +1690,25 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
         msg += f"🔢 *TOTAL PUNTOS*\n"
         msg += f"━━━━━━━━━━━━━━━\n"
         msg += f"*BOT predice:* {analisis['linea_total']} pts\n"
+        try:
+            ou_factors = {
+                'h2h': analisis.get('ou_h2h_total'),
+                'reciente': analisis.get('ou_reciente'),
+                'tendencia': analisis.get('ou_tendencia'),
+                'contraataque': analisis.get('ou_contraataque'),
+                'tendencia_pts': analisis.get('ou_tendencia_pts')
+            }
+            pesos_ou = json.loads(get_meta("pesos_ou_optimizados") or "{}")
+            if betsson and betsson.get('linea_ou'):
+                bs_linea_f = float(betsson['linea_ou'])
+                es_over = float(analisis['linea_total']) > bs_linea_f
+                peso_favor = sum(pesos_ou.get(k, 0.2) for k, v in ou_factors.items() if v is not None and (v > bs_linea_f) == es_over)
+                peso_total = sum(pesos_ou.get(k, 0.2) for k, v in ou_factors.items() if v is not None)
+                if peso_total > 0:
+                    fuerza_ou = round(peso_favor / peso_total * 100, 1)
+                    msg += f"💪 *Fuerza O/U:* {fuerza_ou}%\n"
+        except:
+            pass
         if betsson and betsson.get('linea_ou') and betsson.get('cuota_over'):
             bs_linea = betsson['linea_ou']
             bs_over = betsson['cuota_over']
