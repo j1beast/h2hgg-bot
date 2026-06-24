@@ -1908,36 +1908,66 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         await update.message.reply_text("No tienes acceso a este bot.")
         return
+    idioma = get_idioma(update.effective_user.id)
     total = total_partidos_db()
     ultima = get_meta("ultima_actualizacion") or get_meta("ultima_carga") or "Nunca"
-    msg = (
-        "🏀 *Bot H2H GG League*\n\n"
-        f"📦 Partidos en base de datos: {total}\n"
-        f"🕐 Última actualización: {ultima}\n\n"
-        "Comandos disponibles:\n"
-        "• `/pronostico JUGADORA vs JUGADORB` — análisis completo\n"
-        "• `/h2h JUGADORA vs JUGADORB` — historial de enfrentamientos\n"
-        "• `/stats JUGADOR` — estadísticas de un jugador\n"
-        "• `/forma JUGADOR` — últimos 10 resultados\n"
-        "• `/ranking` — top 20 jugadores por winrate\n"
-        "• `/proximos` — próximos partidos\n"
-        "• `/resultados` — últimos resultados\n"
-        "• `/perfil JUGADOR` — perfil detallado de un jugador\n\n"
-        "Ejemplo: `/pronostico MYTH vs MALICE`"
-    )
+    if idioma == "en":
+        msg = (
+            "🏀 *H2H GG League Bot*\n\n"
+            f"📦 Matches in database: {total}\n"
+            f"🕐 Last update: {ultima}\n\n"
+            "Available commands:\n"
+            "• `/pronostico PLAYERA vs PLAYERB` — full analysis\n"
+            "• `/h2h PLAYERA vs PLAYERB` — head-to-head history\n"
+            "• `/stats PLAYER` — player statistics\n"
+            "• `/forma PLAYER` — last 10 results\n"
+            "• `/ranking` — top 20 players\n"
+            "• `/proximos` — upcoming matches\n"
+            "• `/resultados` — latest results\n"
+            "• `/perfil PLAYER` — detailed player profile\n"
+            "• `/language` — change language\n\n"
+            "Example: `/pronostico MYTH vs MALICE`"
+        )
+    else:
+        msg = (
+            "🏀 *Bot H2H GG League*\n\n"
+            f"📦 Partidos en base de datos: {total}\n"
+            f"🕐 Última actualización: {ultima}\n\n"
+            "Comandos disponibles:\n"
+            "• `/pronostico JUGADORA vs JUGADORB` — análisis completo\n"
+            "• `/h2h JUGADORA vs JUGADORB` — historial de enfrentamientos\n"
+            "• `/stats JUGADOR` — estadísticas de un jugador\n"
+            "• `/forma JUGADOR` — últimos 10 resultados\n"
+            "• `/ranking` — top 20 jugadores\n"
+            "• `/proximos` — próximos partidos\n"
+            "• `/resultados` — últimos resultados\n"
+            "• `/perfil JUGADOR` — perfil detallado de un jugador\n"
+            "• `/language` — cambiar idioma\n\n"
+            "Ejemplo: `/pronostico MYTH vs MALICE`"
+        )
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def proximos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         await update.message.reply_text("No tienes acceso a este bot.")
         return
-    await update.message.reply_text("🔄 Consultando próximos partidos...")
+    idioma = get_idioma(update.effective_user.id)
+    if idioma == "en":
+        await update.message.reply_text("🔄 Checking upcoming matches...")
+    else:
+        await update.message.reply_text("🔄 Consultando próximos partidos...")
     proximos_lista = get_upcoming_h2hggl()
     if not proximos_lista:
-        await update.message.reply_text("No hay próximos partidos disponibles ahora mismo.")
+        if idioma == "en":
+            await update.message.reply_text("No upcoming matches available right now.")
+        else:
+            await update.message.reply_text("No hay próximos partidos disponibles ahora mismo.")
         return
     cuotas = await get_cuotas_betsson()
-    msg = "🏀 *Próximos partidos H2H GG League:*\n\n"
+    if idioma == "en":
+        msg = "🏀 *Upcoming H2H GG League matches:*\n\n"
+    else:
+        msg = "🏀 *Próximos partidos H2H GG League:*\n\n"
     for p in proximos_lista[:20]:
         ja = p["participantAName"].upper()
         jb = p["participantBName"].upper()
@@ -1952,20 +1982,27 @@ async def proximos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cuota_icon = " 💰" if has_cuota else ""
         msg += f"• {ja} vs {jb}{franq_txt} — {hora}{cuota_icon}\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
-
+    
 async def resultados(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         await update.message.reply_text("No tienes acceso a este bot.")
         return
+    idioma = get_idioma(update.effective_user.id)
     conn = get_db()
     c = conn.cursor()
     c.execute("SELECT home_name, away_name, score_home, score_away FROM partidos ORDER BY timestamp DESC LIMIT 8")
     rows = c.fetchall()
     conn.close()
     if not rows:
-        await update.message.reply_text("No hay resultados en la base de datos.")
+        if idioma == "en":
+            await update.message.reply_text("No results in the database.")
+        else:
+            await update.message.reply_text("No hay resultados en la base de datos.")
         return
-    msg = "🏀 *Últimos resultados H2H GG League:*\n\n"
+    if idioma == "en":
+        msg = "🏀 *Latest H2H GG League results:*\n\n"
+    else:
+        msg = "🏀 *Últimos resultados H2H GG League:*\n\n"
     for row in rows:
         home, away, sc_h, sc_a = row
         msg += f"• {home} vs {away} — `{sc_h}-{sc_a}`\n"
@@ -2188,7 +2225,11 @@ async def ranking(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         await update.message.reply_text("No tienes acceso a este bot.")
         return
-    await update.message.reply_text("🔍 Calculando ranking...")
+    idioma = get_idioma(update.effective_user.id)
+    if idioma == "en":
+        await update.message.reply_text("🔍 Calculating ranking...")
+    else:
+        await update.message.reply_text("🔍 Calculando ranking...")
     conn = get_db()
     c = conn.cursor()
     c.execute('''SELECT home_jugador, COUNT(*) as total,
@@ -2214,9 +2255,12 @@ async def ranking(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     ranking_list.sort(key=lambda x: x[3], reverse=True)
     ranking_list = ranking_list[:20]
-    msg = "🏆 *Ranking H2H GG League*\n\n"
+    if idioma == "en":
+        msg = "🏆 *H2H GG League Ranking*\n\n"
+    else:
+        msg = "🏆 *Ranking H2H GG League*\n\n"
     for i, (jugador, victorias, total, winrate) in enumerate(ranking_list, 1):
-        msg += f"{i}. {jugador} — {winrate}%W ({total} partidos)\n"
+        msg += f"{i}. {jugador} — {winrate}%W ({total} games)\n" if idioma == "en" else f"{i}. {jugador} — {winrate}%W ({total} partidos)\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
     
 async def rendimiento(update: Update, context: ContextTypes.DEFAULT_TYPE):
