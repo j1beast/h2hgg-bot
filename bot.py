@@ -3195,6 +3195,36 @@ async def debugpsico(update: Update, context: ContextTypes.DEFAULT_TYPE):
             emoji = "🟢" if wr >= 55 else "🔴" if wr < 45 else "🟡"
             msg += f"  {emoji} {franja}: {wr}% ({len(resultados)} partidos)\n"
 
+        # Factor 5: Consistencia bajo presión
+    def calcular_presion(partidos_h2h, jugador, es_jugador_a):
+        if len(partidos_h2h) < 5:
+            return None
+        ajustados = [p for p in partidos_h2h if abs(p["pts_a"] - p["pts_b"]) <= 10]
+        no_ajustados = [p for p in partidos_h2h if abs(p["pts_a"] - p["pts_b"]) > 10]
+        if len(ajustados) < 3:
+            return None
+        wins_aj = sum(1 for p in ajustados if p["gano_a"] == es_jugador_a)
+        wins_no_aj = sum(1 for p in no_ajustados if p["gano_a"] == es_jugador_a) if no_ajustados else 0
+        wr_aj = wins_aj / len(ajustados)
+        wr_no_aj = wins_no_aj / len(no_ajustados) if no_ajustados else 0.5
+        delta = wr_aj - wr_no_aj
+        if delta >= 0.20:
+            estado = "💎 Se crece bajo presión"
+        elif delta <= -0.20:
+            estado = "😰 Se hunde bajo presión"
+        else:
+            estado = "➡️ Rendimiento estable"
+        return wr_aj, wr_no_aj, len(ajustados), delta, estado
+
+    cp_a = calcular_presion(partidos_h2h, jugador_a, True)
+    cp_b = calcular_presion(partidos_h2h, jugador_b, False)
+    msg += "\n5️⃣ *Consistencia bajo presión (partidos H2H ajustados ≤10 pts)*\n"
+    if cp_a and cp_b:
+        msg += f"{jugador_a}: {round(cp_a[0]*100)}% en ajustados vs {round(cp_a[1]*100)}% en no ajustados ({cp_a[2]} casos) → {cp_a[4]}\n"
+        msg += f"{jugador_b}: {round(cp_b[0]*100)}% en ajustados vs {round(cp_b[1]*100)}% en no ajustados ({cp_b[2]} casos) → {cp_b[4]}\n"
+    else:
+        msg += "Sin suficientes partidos ajustados\n"
+
     await update.message.reply_text(msg, parse_mode="Markdown")
     
 # ─────────────────────────────────────────────
