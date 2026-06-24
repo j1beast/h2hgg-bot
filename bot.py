@@ -1748,10 +1748,7 @@ def generar_perfil_jugador(jugador, api, stats_liga):
     if buena_defensa: tags.append("🛡️ Defensor")
     if buen_distribuidor: tags.append("🧠 Distribuidor")
     if gran_anotador: tags.append("💥 Anotador")
-    msg = f"🏀 *{jugador}*\n"
-    if tags:
-        msg += " | ".join(tags) + "\n"
-    msg += "\n"
+    msg = f"🏀 *{jugador}*\n\n"
     msg += "⚔️ *Ataque*\n"
     if pts:
         if gran_anotador:
@@ -1860,7 +1857,7 @@ def generar_perfil_jugador(jugador, api, stats_liga):
             msg += f"• Peor franja: {peor} → {wr_peor}% victorias\n"
     except:
         pass
-        msg += "\n💡 *Resumen:*\n"
+        msg += "\n📝 *Resumen*\n"
     try:
         import anthropic as _anthropic
         _client = _anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
