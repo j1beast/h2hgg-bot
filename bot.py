@@ -3058,33 +3058,35 @@ async def debugpsico(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     msg = f"🧠 *Análisis psicológico*\n{jugador_a} vs {jugador_b}\n\n"
     def calcular_racha(partidos):
-        if len(partidos) < 10:
+        if len(partidos) < 20:
             return None
         total = len(partidos)
         wr_historico = sum(1 for p in partidos if p["gano"]) / total
         ultimos5 = partidos[:5]
+        ultimos20 = partidos[:20]
         wr5 = sum(1 for p in ultimos5 if p["gano"]) / 5
-        delta = wr5 - wr_historico
-        if delta >= 0.20:
-            estado = "🔥 Racha caliente"
-        elif delta >= 0.10:
-            estado = "📈 Por encima de su media"
-        elif delta <= -0.20:
-            estado = "❄️ Racha fría"
-        elif delta <= -0.10:
-            estado = "📉 Por debajo de su media"
+        wr20 = sum(1 for p in ultimos20 if p["gano"]) / 20
+        if wr5 >= wr20 + 0.15:
+            estado = "🔥 Mejorando, hoy muy bien"
+        elif wr5 <= wr20 - 0.15:
+            estado = "📉 Empeorando, hoy mal"
+        elif wr20 >= wr_historico + 0.10:
+            estado = "📈 Buena racha sostenida"
+        elif wr20 <= wr_historico - 0.10:
+            estado = "❄️ Racha fría sostenida"
         else:
             estado = "➡️ En su media"
-        return wr_historico, wr5, delta, estado
+        return wr_historico, wr5, wr20, estado
+
     ra = calcular_racha(partidos_a)
     rb = calcular_racha(partidos_b)
-    msg += "1️⃣ *Racha actual (últimos 5 partidos)*\n"
+    msg += "1️⃣ *Racha actual*\n"
     if ra:
-        msg += f"{jugador_a}: {round(ra[1]*100)}% últimos 5 vs {round(ra[0]*100)}% histórico → {ra[3]}\n"
+        msg += f"{jugador_a}: hoy {round(ra[1]*100)}% (5p) | semana {round(ra[2]*100)}% (20p) | histórico {round(ra[0]*100)}% → {ra[3]}\n"
     else:
         msg += f"{jugador_a}: sin datos suficientes\n"
     if rb:
-        msg += f"{jugador_b}: {round(rb[1]*100)}% últimos 5 vs {round(rb[0]*100)}% histórico → {rb[3]}\n"
+        msg += f"{jugador_b}: hoy {round(rb[1]*100)}% (5p) | semana {round(rb[2]*100)}% (20p) | histórico {round(rb[0]*100)}% → {rb[3]}\n"
     else:
         msg += f"{jugador_b}: sin datos suficientes\n"
 
