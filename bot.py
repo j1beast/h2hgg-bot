@@ -2630,9 +2630,9 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
             emoji_dia_g = "📈" if gan > total_dia / 2 else "📉"
             emoji_dia_ou = "📈" if ou > total_dia / 2 else "📉"
             if idioma == "en":
-                msg += f"{dia}: {emoji_dia_g} W {gan}/{total_dia} ({round(gan/total_dia*100,1)}%) | {emoji_dia_ou} O/U {ou}/{total_dia} ({round(ou/total_dia*100,1)}%)\n"
+                msg += f"{dia}: {emoji_dia_g} W {gan}/{total_dia} | {emoji_dia_ou} O/U {ou}/{total_dia}\n"
             else:
-                msg += f"{dia}: {emoji_dia_g} G {gan}/{total_dia} ({round(gan/total_dia*100,1)}%) | {emoji_dia_ou} O/U {ou}/{total_dia} ({round(ou/total_dia*100,1)}%)\n"
+                msg += f"{dia}: {emoji_dia_g} G {gan}/{total_dia} | {emoji_dia_ou} O/U {ou}/{total_dia}\n"
     conn_v = get_db()
     c_v = conn_v.cursor()
     c_v.execute('''SELECT ganador_predicho, resultado_real, acierto_ganador,
