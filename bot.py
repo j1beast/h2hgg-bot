@@ -2012,55 +2012,85 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         await update.message.reply_text("No tienes acceso a este bot.")
         return
+    idioma = get_idioma(update.effective_user.id)
     if not context.args:
-        await update.message.reply_text("Uso: /stats NOMBREJUGADOR\nEjemplo: /stats MYTH")
+        if idioma == "en":
+            await update.message.reply_text("Usage: /stats PLAYER\nExample: /stats MYTH")
+        else:
+            await update.message.reply_text("Uso: /stats NOMBREJUGADOR\nEjemplo: /stats MYTH")
         return
     jugador = " ".join(context.args).upper()
-    await update.message.reply_text(f"🔍 Buscando estadísticas de {jugador}...")
-
+    if idioma == "en":
+        await update.message.reply_text(f"🔍 Looking for stats of {jugador}...")
+    else:
+        await update.message.reply_text(f"🔍 Buscando estadísticas de {jugador}...")
     partidos = buscar_partidos_jugador_db(jugador)
     stats_liga = get_stats_liga()
     api = stats_liga.get(jugador, {})
-
     if not partidos and not api:
-        await update.message.reply_text(f"No encontré datos de {jugador}.")
+        if idioma == "en":
+            await update.message.reply_text(f"No data found for {jugador}.")
+        else:
+            await update.message.reply_text(f"No encontré datos de {jugador}.")
         return
-
-    msg = f"📊 *Estadísticas de {jugador}*\n\n"
-
-    # Stats de la liga oficial (API)
+    if idioma == "en":
+        msg = f"📊 *Stats for {jugador}*\n\n"
+    else:
+        msg = f"📊 *Estadísticas de {jugador}*\n\n"
     if api:
         mp = api.get("matchesPlayed") or 1
         avg_contra_api = round(api["pointsAgainst"] / mp, 1) if api.get("pointsAgainst") else None
         form_raw = api.get("matchForm", [])
         form_str = " ".join(["W" if r.lower() == "w" else "L" for r in form_raw[:10]]) if form_raw else "—"
         wins_form = sum(1 for r in form_raw[:10] if r.lower() == "w")
-
-        msg += f"🌐 *Liga oficial ({mp} partidos totales)*\n"
-        msg += f"• Victorias: {api.get('matchesWon', '?')} ({api.get('matchesWinPct', '?')}%)\n"
-        msg += f"• Puntos: `{api.get('avgPoints', '?')}` avg"
-        if avg_contra_api:
-            msg += f" | Recibidos: `{avg_contra_api}` avg"
-        msg += f"\n"
-        if api.get("avgFieldGoalsPercent"):
-            msg += f"• Tiro campo: {api['avgFieldGoalsPercent']}% ({api.get('avgFieldGoalsScored','?')} anotados)\n"
-        if api.get("threePointersPercent"):
-            msg += f"• Triples: {api['threePointersPercent']}% ({api.get('avg3PointersScored','?')} avg)\n"
-        if api.get("freeThrowsPercent"):
-            msg += f"• Libres: {api['freeThrowsPercent']}%\n"
-        if api.get("avgAssists"):
-            msg += f"• Asistencias: {api['avgAssists']} | Pérdidas: {api.get('avgTurnovers','?')}\n"
-        if api.get("avgBlocks") or api.get("avgSteals"):
-            msg += f"• Tapones: {api.get('avgBlocks','?')} | Robos: {api.get('avgSteals','?')}\n"
-        if api.get("avgDefensiveRebounds") or api.get("avgOffensiveRebounds"):
-            msg += f"• Reb DEF: {api.get('avgDefensiveRebounds','?')} | Reb OF: {api.get('avgOffensiveRebounds','?')}\n"
-        if api.get("avgDunks"):
-            msg += f"• Mates: {api['avgDunks']} avg\n"
-        if api.get("avgBiggestLead"):
-            msg += f"• Mayor ventaja media: {api['avgBiggestLead']} pts\n"
-        msg += f"• Forma reciente: {form_str} ({wins_form}/10)\n"
-
-    # Stats locales (DB)
+        if idioma == "en":
+            msg += f"🌐 *Official league ({mp} total games)*\n"
+            msg += f"• Wins: {api.get('matchesWon', '?')} ({api.get('matchesWinPct', '?')}%)\n"
+            msg += f"• Points: `{api.get('avgPoints', '?')}` avg"
+            if avg_contra_api:
+                msg += f" | Conceded: `{avg_contra_api}` avg"
+            msg += f"\n"
+            if api.get("avgFieldGoalsPercent"):
+                msg += f"• Field goal: {api['avgFieldGoalsPercent']}% ({api.get('avgFieldGoalsScored','?')} scored)\n"
+            if api.get("threePointersPercent"):
+                msg += f"• 3-pointers: {api['threePointersPercent']}% ({api.get('avg3PointersScored','?')} avg)\n"
+            if api.get("freeThrowsPercent"):
+                msg += f"• Free throws: {api['freeThrowsPercent']}%\n"
+            if api.get("avgAssists"):
+                msg += f"• Assists: {api['avgAssists']} | Turnovers: {api.get('avgTurnovers','?')}\n"
+            if api.get("avgBlocks") or api.get("avgSteals"):
+                msg += f"• Blocks: {api.get('avgBlocks','?')} | Steals: {api.get('avgSteals','?')}\n"
+            if api.get("avgDefensiveRebounds") or api.get("avgOffensiveRebounds"):
+                msg += f"• DEF Reb: {api.get('avgDefensiveRebounds','?')} | OFF Reb: {api.get('avgOffensiveRebounds','?')}\n"
+            if api.get("avgDunks"):
+                msg += f"• Dunks: {api['avgDunks']} avg\n"
+            if api.get("avgBiggestLead"):
+                msg += f"• Biggest avg lead: {api['avgBiggestLead']} pts\n"
+            msg += f"• Recent form: {form_str} ({wins_form}/10)\n"
+        else:
+            msg += f"🌐 *Liga oficial ({mp} partidos totales)*\n"
+            msg += f"• Victorias: {api.get('matchesWon', '?')} ({api.get('matchesWinPct', '?')}%)\n"
+            msg += f"• Puntos: `{api.get('avgPoints', '?')}` avg"
+            if avg_contra_api:
+                msg += f" | Recibidos: `{avg_contra_api}` avg"
+            msg += f"\n"
+            if api.get("avgFieldGoalsPercent"):
+                msg += f"• Tiro campo: {api['avgFieldGoalsPercent']}% ({api.get('avgFieldGoalsScored','?')} anotados)\n"
+            if api.get("threePointersPercent"):
+                msg += f"• Triples: {api['threePointersPercent']}% ({api.get('avg3PointersScored','?')} avg)\n"
+            if api.get("freeThrowsPercent"):
+                msg += f"• Libres: {api['freeThrowsPercent']}%\n"
+            if api.get("avgAssists"):
+                msg += f"• Asistencias: {api['avgAssists']} | Pérdidas: {api.get('avgTurnovers','?')}\n"
+            if api.get("avgBlocks") or api.get("avgSteals"):
+                msg += f"• Tapones: {api.get('avgBlocks','?')} | Robos: {api.get('avgSteals','?')}\n"
+            if api.get("avgDefensiveRebounds") or api.get("avgOffensiveRebounds"):
+                msg += f"• Reb DEF: {api.get('avgDefensiveRebounds','?')} | Reb OF: {api.get('avgOffensiveRebounds','?')}\n"
+            if api.get("avgDunks"):
+                msg += f"• Mates: {api['avgDunks']} avg\n"
+            if api.get("avgBiggestLead"):
+                msg += f"• Mayor ventaja media: {api['avgBiggestLead']} pts\n"
+            msg += f"• Forma reciente: {form_str} ({wins_form}/10)\n"
     if partidos:
         total = len(partidos)
         victorias = sum(1 for p in partidos if p["gano"])
@@ -2069,47 +2099,71 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         std = calcular_std([p["pts_favor"] for p in partidos])
         recientes = partidos[:10]
         racha_str = " ".join(["W" if p["gano"] else "L" for p in recientes])
-        msg += f"\n🗄️ *Base de datos local ({total} partidos)*\n"
-        msg += f"• Victorias: {victorias} ({round(victorias/total*100,1)}%)\n"
-        msg += f"• Puntos: `{avg_pts}` avg | Recibidos: `{avg_contra}` avg\n"
-        msg += f"• Consistencia: ±{std} pts\n"
-        msg += f"• Últimos 10: {racha_str}\n"
-
+        if idioma == "en":
+            msg += f"\n🗄️ *Local database ({total} games)*\n"
+            msg += f"• Wins: {victorias} ({round(victorias/total*100,1)}%)\n"
+            msg += f"• Points: `{avg_pts}` avg | Conceded: `{avg_contra}` avg\n"
+            msg += f"• Consistency: ±{std} pts\n"
+            msg += f"• Last 10: {racha_str}\n"
+        else:
+            msg += f"\n🗄️ *Base de datos local ({total} partidos)*\n"
+            msg += f"• Victorias: {victorias} ({round(victorias/total*100,1)}%)\n"
+            msg += f"• Puntos: `{avg_pts}` avg | Recibidos: `{avg_contra}` avg\n"
+            msg += f"• Consistencia: ±{std} pts\n"
+            msg += f"• Últimos 10: {racha_str}\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def h2h(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         await update.message.reply_text("No tienes acceso a este bot.")
         return
+    idioma = get_idioma(update.effective_user.id)
     texto = " ".join(context.args).upper()
     if "VS" not in texto:
-        await update.message.reply_text("Uso: /h2h JUGADORA vs JUGADORB\nEjemplo: /h2h MYTH vs MALICE")
+        if idioma == "en":
+            await update.message.reply_text("Usage: /h2h PLAYERA vs PLAYERB\nExample: /h2h MYTH vs MALICE")
+        else:
+            await update.message.reply_text("Uso: /h2h JUGADORA vs JUGADORB\nEjemplo: /h2h MYTH vs MALICE")
         return
     partes = texto.split("VS")
     jugador_a = partes[0].strip()
     jugador_b = partes[1].strip()
-    await update.message.reply_text(f"🔍 Buscando historial {jugador_a} vs {jugador_b}...")
+    if idioma == "en":
+        await update.message.reply_text(f"🔍 Looking for history {jugador_a} vs {jugador_b}...")
+    else:
+        await update.message.reply_text(f"🔍 Buscando historial {jugador_a} vs {jugador_b}...")
     partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
     if not partidos_h2h:
-        await update.message.reply_text(f"No encontré enfrentamientos entre {jugador_a} y {jugador_b}.")
+        if idioma == "en":
+            await update.message.reply_text(f"No matches found between {jugador_a} and {jugador_b}.")
+        else:
+            await update.message.reply_text(f"No encontré enfrentamientos entre {jugador_a} y {jugador_b}.")
         return
     wins_a = sum(1 for p in partidos_h2h if p["gano_a"])
     wins_b = len(partidos_h2h) - wins_a
-    msg = f"🏀 *H2H {jugador_a} vs {jugador_b}*\n"
-    msg += f"Total: {len(partidos_h2h)} partidos\n"
-    msg += f"{jugador_a}: {wins_a}W/{wins_b}L\n"
-    msg += f"{jugador_b}: {wins_b}W/{wins_a}L\n"
     avg_a = round(sum(p["pts_a"] for p in partidos_h2h) / len(partidos_h2h), 1)
     avg_b = round(sum(p["pts_b"] for p in partidos_h2h) / len(partidos_h2h), 1)
     avg_total = round(sum(p["pts_a"] + p["pts_b"] for p in partidos_h2h) / len(partidos_h2h), 1)
-    msg += f"Promedio: {jugador_a} {avg_a} pts — {jugador_b} {avg_b} pts — Total {avg_total} pts\n\n"
-    msg += f"📋 *Resultados:*\n"
+    if idioma == "en":
+        msg = f"🏀 *H2H {jugador_a} vs {jugador_b}*\n"
+        msg += f"Total: {len(partidos_h2h)} games\n"
+        msg += f"{jugador_a}: {wins_a}W/{wins_b}L\n"
+        msg += f"{jugador_b}: {wins_b}W/{wins_a}L\n"
+        msg += f"Average: {jugador_a} {avg_a} pts — {jugador_b} {avg_b} pts — Total {avg_total} pts\n\n"
+        msg += f"📋 *Results:*\n"
+    else:
+        msg = f"🏀 *H2H {jugador_a} vs {jugador_b}*\n"
+        msg += f"Total: {len(partidos_h2h)} partidos\n"
+        msg += f"{jugador_a}: {wins_a}W/{wins_b}L\n"
+        msg += f"{jugador_b}: {wins_b}W/{wins_a}L\n"
+        msg += f"Promedio: {jugador_a} {avg_a} pts — {jugador_b} {avg_b} pts — Total {avg_total} pts\n\n"
+        msg += f"📋 *Resultados:*\n"
     for i, p in enumerate(partidos_h2h, 1):
         ganador = jugador_a if p["gano_a"] else jugador_b
         fecha = p.get("fecha", "")
         msg += f"{i}. {jugador_a} ({p.get('franq_a','?')}) {p['pts_a']}—{p['pts_b']} {jugador_b} ({p.get('franq_b','?')}) ✅{ganador} {fecha}\n"
         if len(msg) > 3500:
-            msg += "...(más partidos disponibles)\n"
+            msg += "...\n"
             break
     await update.message.reply_text(msg, parse_mode="Markdown")
 
@@ -2117,28 +2171,45 @@ async def forma(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         await update.message.reply_text("No tienes acceso a este bot.")
         return
+    idioma = get_idioma(update.effective_user.id)
     if not context.args:
-        await update.message.reply_text("Uso: /forma JUGADOR\nEjemplo: /forma MYTH")
+        if idioma == "en":
+            await update.message.reply_text("Usage: /forma PLAYER\nExample: /forma MYTH")
+        else:
+            await update.message.reply_text("Uso: /forma JUGADOR\nEjemplo: /forma MYTH")
         return
     jugador = " ".join(context.args).upper()
-    await update.message.reply_text(f"🔍 Buscando forma reciente de {jugador}...")
+    if idioma == "en":
+        await update.message.reply_text(f"🔍 Looking for recent form of {jugador}...")
+    else:
+        await update.message.reply_text(f"🔍 Buscando forma reciente de {jugador}...")
     partidos = buscar_partidos_jugador_db(jugador)
     if not partidos:
-        await update.message.reply_text(f"No encontré partidos de {jugador}.")
+        if idioma == "en":
+            await update.message.reply_text(f"No matches found for {jugador}.")
+        else:
+            await update.message.reply_text(f"No encontré partidos de {jugador}.")
         return
     recientes = partidos[:10]
     victorias = sum(1 for p in recientes if p["gano"])
     derrotas = len(recientes) - victorias
     avg_pts = round(sum(p["pts_favor"] for p in recientes) / len(recientes), 1)
     avg_total = round(sum(p["pts_favor"] + p["pts_contra"] for p in recientes) / len(recientes), 1)
-    msg = f"📊 *Forma reciente de {jugador}*\n\n"
-    msg += f"{victorias}W / {derrotas}L (últimos {len(recientes)})\n"
-    msg += f"Promedio {jugador}: {avg_pts} pts\n"
-    msg += f"Promedio total partido: {avg_total} pts\n\n"
+    if idioma == "en":
+        msg = f"📊 *Recent form of {jugador}*\n\n"
+        msg += f"{victorias}W / {derrotas}L (last {len(recientes)})\n"
+        msg += f"Average {jugador}: {avg_pts} pts\n"
+        msg += f"Average total per game: {avg_total} pts\n\n"
+    else:
+        msg = f"📊 *Forma reciente de {jugador}*\n\n"
+        msg += f"{victorias}W / {derrotas}L (últimos {len(recientes)})\n"
+        msg += f"Promedio {jugador}: {avg_pts} pts\n"
+        msg += f"Promedio total partido: {avg_total} pts\n\n"
     for i, p in enumerate(recientes, 1):
         icono = "✅" if p["gano"] else "❌"
         msg += f"{i}. {icono} {jugador} {p['pts_favor']} - {p['pts_contra']} ({p.get('fecha', '')})\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
+    
 async def actualizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         await update.message.reply_text("No tienes acceso a este bot.")
@@ -2267,12 +2338,16 @@ async def rendimiento(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         await update.message.reply_text("No tienes acceso a este bot.")
         return
+    idioma = get_idioma(update.effective_user.id)
     conn = get_db()
     c = conn.cursor()
     c.execute("SELECT COUNT(*) FROM predicciones WHERE procesado = 1")
     total = c.fetchone()[0]
     if total == 0:
-        await update.message.reply_text("No hay predicciones procesadas aún.")
+        if idioma == "en":
+            await update.message.reply_text("No processed predictions yet.")
+        else:
+            await update.message.reply_text("No hay predicciones procesadas aún.")
         conn.close()
         return
     c.execute("SELECT SUM(acierto_ganador), SUM(acierto_ou) FROM predicciones WHERE procesado = 1")
@@ -2283,31 +2358,40 @@ async def rendimiento(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ultimos = c.fetchall()
     conn.close()
     racha = "-".join(["✅" if r[0] == 1 else "❌" for r in ultimos])
-    msg = f"📊 *Rendimiento del bot*\n\n"
-    msg += f"Total predicciones: {total}\n"
-    msg += f"✅ Ganador acertado: {aciertos_ganador}/{total} → {round(aciertos_ganador/total*100, 1)}%\n"
-    msg += f"✅ Over/Under acertado: {aciertos_ou}/{total} → {round(aciertos_ou/total*100, 1)}%\n\n"
-    msg += f"Últimos 10: {racha}\n"
+    if idioma == "en":
+        msg = f"📊 *Bot performance*\n\n"
+        msg += f"Total predictions: {total}\n"
+        msg += f"✅ Winner correct: {aciertos_ganador}/{total} → {round(aciertos_ganador/total*100, 1)}%\n"
+        msg += f"✅ Over/Under correct: {aciertos_ou}/{total} → {round(aciertos_ou/total*100, 1)}%\n\n"
+        msg += f"Last 10: {racha}\n"
+    else:
+        msg = f"📊 *Rendimiento del bot*\n\n"
+        msg += f"Total predicciones: {total}\n"
+        msg += f"✅ Ganador acertado: {aciertos_ganador}/{total} → {round(aciertos_ganador/total*100, 1)}%\n"
+        msg += f"✅ Over/Under acertado: {aciertos_ou}/{total} → {round(aciertos_ou/total*100, 1)}%\n\n"
+        msg += f"Últimos 10: {racha}\n"
     conn2 = get_db()
     c2 = conn2.cursor()
-    c2.execute('''SELECT DATE(fecha_prediccion) as dia, 
+    c2.execute('''SELECT DATE(fecha_prediccion) as dia,
                  COUNT(*) as total,
                  SUM(acierto_ganador) as gan,
                  SUM(acierto_ou) as ou
-                 FROM predicciones 
+                 FROM predicciones
                  WHERE procesado = 1
-                 GROUP BY dia 
-                 ORDER BY dia DESC 
+                 GROUP BY dia
+                 ORDER BY dia DESC
                  LIMIT 10''')
     dias = c2.fetchall()
     conn2.close()
     if dias:
-        msg += f"\n📅 *Últimos 10 días:*\n"
+        if idioma == "en":
+            msg += f"\n📅 *Last 10 days:*\n"
+        else:
+            msg += f"\n📅 *Últimos 10 días:*\n"
         for dia, total, gan, ou in dias:
             gan = gan or 0
             ou = ou or 0
-            msg += f"{dia}: {gan}/{total} ganador ({round(gan/total*100,1)}%) | {ou}/{total} O/U ({round(ou/total*100,1)}%)\n"
-    # Stats de valor
+            msg += f"{dia}: {gan}/{total} ({round(gan/total*100,1)}%) | {ou}/{total} O/U ({round(ou/total*100,1)}%)\n"
     conn3 = get_db()
     c3 = conn3.cursor()
     c3.execute("SELECT COUNT(*), SUM(acierto_ganador), SUM(acierto_ou) FROM predicciones WHERE procesado=1 AND es_valor=1")
@@ -2317,10 +2401,16 @@ async def rendimiento(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if total_v > 0:
         ag_v = rv[1] or 0
         aou_v = rv[2] or 0
-        msg += f"\n🎯 *Predicciones con VALOR:*\n"
-        msg += f"Total: {total_v}\n"
-        msg += f"✅ Ganador: {ag_v}/{total_v} → {round(ag_v/total_v*100,1)}%\n"
-        msg += f"✅ O/U: {aou_v}/{total_v} → {round(aou_v/total_v*100,1)}%\n"
+        if idioma == "en":
+            msg += f"\n🎯 *Value predictions:*\n"
+            msg += f"Total: {total_v}\n"
+            msg += f"✅ Winner: {ag_v}/{total_v} → {round(ag_v/total_v*100,1)}%\n"
+            msg += f"✅ O/U: {aou_v}/{total_v} → {round(aou_v/total_v*100,1)}%\n"
+        else:
+            msg += f"\n🎯 *Predicciones con VALOR:*\n"
+            msg += f"Total: {total_v}\n"
+            msg += f"✅ Ganador: {ag_v}/{total_v} → {round(ag_v/total_v*100,1)}%\n"
+            msg += f"✅ O/U: {aou_v}/{total_v} → {round(aou_v/total_v*100,1)}%\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
