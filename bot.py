@@ -1860,69 +1860,37 @@ def generar_perfil_jugador(jugador, api, stats_liga):
             msg += f"• Peor franja: {peor} → {wr_peor}% victorias\n"
     except:
         pass
-    msg += "\n💡 *Resumen:*\n"
-    partes = []
-    # Win rate
-    if wp:
-        if wp >= 60:
-            partes.append(f"uno de los jugadores más ganadores de la liga ({wp}% victorias)")
-        elif wp >= 55:
-            partes.append(f"jugador por encima de la media ({wp}% victorias)")
-        elif wp <= 40:
-            partes.append(f"jugador con resultados por debajo de la media ({wp}% victorias)")
-        elif wp <= 45:
-            partes.append(f"jugador que lucha por mantenerse en la media ({wp}% victorias)")
-    # Racha actual
+        msg += "\n💡 *Resumen:*\n"
     try:
-        if partidos_db and len(partidos_db) >= 5:
-            ultimos5 = partidos_db[:5]
-            wins5 = sum(1 for p in ultimos5 if p["gano"])
-            if wins5 >= 4:
-                partes.append("en muy buena racha últimamente")
-            elif wins5 <= 1:
-                partes.append("atravesando un mal momento de forma")
-    except:
-        pass
-    # Racha máxima
-    try:
-        if max_win >= 10:
-            partes.append(f"capaz de rachas ganadoras largas (máx. {max_win} seguidos)")
-        if max_loss >= 8:
-            partes.append(f"propenso a rachas perdedoras largas (máx. {max_loss} seguidos)")
-    except:
-        pass
-    # Franja horaria
-    try:
-        if len(franjas_validas) >= 2:
-            wr_mejor_val = sum(franjas_validas[mejor]) / len(franjas_validas[mejor])
-            wr_peor_val = sum(franjas_validas[peor]) / len(franjas_validas[peor])
-            if wr_mejor_val - wr_peor_val >= 0.10:
-                partes.append(f"rinde claramente mejor en {mejor.split('(')[0].strip().lower()} que en {peor.split('(')[0].strip().lower()}")
-    except:
-        pass
-    # Estilo de juego
-    if gran_anotador and buena_defensa:
-        partes.append("completo en ataque y defensa")
-    elif gran_anotador:
-        partes.append("con perfil ofensivo destacado")
-    elif buena_defensa:
-        partes.append("con perfil defensivo destacado")
-    if es_tirador:
-        partes.append("amenaza constante desde el triple")
-    if buen_distribuidor:
-        partes.append("muy buen manejo del balón")
-    elif muchas_perdidas:
-        partes.append("con tendencia a perder el balón")
-    if mala_defensa:
-        partes.append("con defensa por debajo de la media")
-    if not partes:
-        partes.append("jugador sin características especialmente destacadas")
-    resumen = partes[0].capitalize()
-    if len(partes) > 1:
-        resumen += ", " + ", ".join(partes[1:-1])
-        if len(partes) > 1:
-            resumen += " y " + partes[-1] if len(partes) >= 2 else ""
-    msg += resumen + "."
+        import anthropic as _anthropic
+        _client = _anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+        datos_jugador = f"""
+Jugador: {jugador}
+Win rate: {wp}%
+Puntos por partido: {round(pts,1) if pts else 'N/A'}
+Puntos recibidos: {pts_contra if pts_contra else 'N/A'}
+Eficiencia de tiro: {round(fg,1) if fg else 'N/A'}%
+Triples intentados: {round(t3a,1) if t3a else 'N/A'} ({round(t3p,1) if t3p else 'N/A'}%)
+Asistencias: {round(ast,1) if ast else 'N/A'} | Pérdidas: {round(to,1) if to else 'N/A'}
+Racha máxima ganadora: {max_win if 'max_win' in dir() else 'N/A'} partidos
+Racha máxima perdedora: {max_loss if 'max_loss' in dir() else 'N/A'} partidos
+Forma últimos 5: {sum(1 for p in partidos_db[:5] if p["gano"]) if partidos_db else 'N/A'}/5 victorias
+Mejor franja horaria: {mejor + ' (' + str(round(wr_mejor,1)) + '%)' if 'mejor' in dir() and franjas_validas else 'N/A'}
+Peor franja horaria: {peor + ' (' + str(round(wr_peor,1)) + '%)' if 'peor' in dir() and franjas_validas else 'N/A'}
+Media de la liga en puntos: {round(bl_pts,1)}
+Media de la liga en puntos recibidos: {round(bl_contra,1) if bl_contra else 'N/A'}
+"""
+        _resp = _client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=120,
+            messages=[{
+                "role": "user",
+                "content": f"Eres un analista de eBasketball (videojuego NBA 2K). Escribe un resumen breve de 3 frases máximo sobre el jugador basándote en estos datos. Sé directo y específico, menciona lo más diferencial de este jugador concreto. No uses frases genéricas.\n\n{datos_jugador}"
+            }]
+        )
+        msg += _resp.content[0].text
+    except Exception as e:
+        msg += "No se pudo generar el resumen."
     return msg
     
 # ─────────────────────────────────────────────
