@@ -3128,6 +3128,35 @@ async def debugpsico(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         msg += f"{jugador_b}: sin casos suficientes\n"
 
+        # Factor 3: Rival coco
+    def calcular_rival_coco(partidos_h2h, jugador):
+        if len(partidos_h2h) < 5:
+            return None
+        wins = sum(1 for p in partidos_h2h if p["gano_a"] == (jugador == jugador_a))
+        total = len(partidos_h2h)
+        wr_h2h = wins / total
+        if wr_h2h <= 0.35:
+            estado = "😱 Rival coco (le cuesta mucho ganar)"
+        elif wr_h2h <= 0.45:
+            estado = "😬 Ligera desventaja histórica"
+        elif wr_h2h >= 0.65:
+            estado = "😎 Domina este enfrentamiento"
+        elif wr_h2h >= 0.55:
+            estado = "👍 Ligera ventaja histórica"
+        else:
+            estado = "➡️ Enfrentamiento equilibrado"
+        return wr_h2h, total, estado
+
+    partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
+    rc_a = calcular_rival_coco(partidos_h2h, jugador_a)
+    rc_b = calcular_rival_coco(partidos_h2h, jugador_b)
+    msg += "\n3️⃣ *Rival coco (historial directo)*\n"
+    if rc_a and rc_b:
+        msg += f"{jugador_a}: {round(rc_a[0]*100)}% victorias en {rc_a[1]} partidos → {rc_a[2]}\n"
+        msg += f"{jugador_b}: {round(rc_b[0]*100)}% victorias en {rc_b[1]} partidos → {rc_b[2]}\n"
+    else:
+        msg += "Sin suficientes enfrentamientos directos\n"
+
     await update.message.reply_text(msg, parse_mode="Markdown")
     
 # ─────────────────────────────────────────────
