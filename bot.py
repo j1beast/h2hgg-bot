@@ -3914,6 +3914,7 @@ if __name__ == "__main__":
             ("proximos", "📅 Partidos de hoy"),
             ("resultados", "🕐 Últimos resultados"),
             ("manualdeuso", "📖 Manual de uso del bot"),
+            ("language", "🌐 Change language / Cambiar idioma"),
         ])
         asyncio.create_task(tarea_actualizacion_diaria())
 
