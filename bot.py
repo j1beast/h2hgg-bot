@@ -3040,6 +3040,95 @@ async def debug_lineas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if sin_rango:
         msg += f"\n⚪ Fuera de rango: {len(sin_rango)} partidos"
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def debugpsico(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    texto = " ".join(context.args).upper()
+    if "VS" not in texto:
+        await update.message.reply_text("Uso: /debugpsico JUGADORA vs JUGADORB")
+        return
+    partes = texto.split("VS")
+    jugador_a = partes[0].strip()
+    jugador_b = partes[1].strip()
+    partidos_a = buscar_partidos_jugador_db(jugador_a)
+    partidos_b = buscar_partidos_jugador_db(jugador_b)
+    if not partidos_a or not partidos_b:
+        await update.message.reply_text("No hay suficientes datos.")
+        return
+    msg = f"🧠 *Análisis psicológico*\n{jugador_a} vs {jugador_b}\n\n"
+    def calcular_racha(partidos):
+        if len(partidos) < 10:
+            return None
+        total = len(partidos)
+        wr_historico = sum(1 for p in partidos if p["gano"]) / total
+        ultimos5 = partidos[:5]
+        wr5 = sum(1 for p in ultimos5 if p["gano"]) / 5
+        delta = wr5 - wr_historico
+        if delta >= 0.20:
+            estado = "🔥 Racha caliente"
+        elif delta >= 0.10:
+            estado = "📈 Por encima de su media"
+        elif delta <= -0.20:
+            estado = "❄️ Racha fría"
+        elif delta <= -0.10:
+            estado = "📉 Por debajo de su media"
+        else:
+            estado = "➡️ En su media"
+        return wr_historico, wr5, delta, estado
+    ra = calcular_racha(partidos_a)
+    rb = calcular_racha(partidos_b)
+    msg += "1️⃣ *Racha actual (últimos 5 partidos)*\n"
+    if ra:
+        msg += f"{jugador_a}: {round(ra[1]*100)}% últimos 5 vs {round(ra[0]*100)}% histórico → {ra[3]}\n"
+    else:
+        msg += f"{jugador_a}: sin datos suficientes\n"
+    if rb:
+        msg += f"{jugador_b}: {round(rb[1]*100)}% últimos 5 vs {round(rb[0]*100)}% histórico → {rb[3]}\n"
+    else:
+        msg += f"{jugador_b}: sin datos suficientes\n"
+
+    # Factor 2: Efecto rebote
+    def calcular_efecto_rebote(partidos):
+        if len(partidos) < 10:
+            return None
+        siguientes_normal = []
+        siguientes_tras_goleada = []
+        for i in range(len(partidos) - 1):
+            partido_actual = partidos[i]
+            partido_anterior = partidos[i + 1]
+            margen_anterior = abs(partido_anterior["pts_favor"] - partido_anterior["pts_contra"])
+            derrota_abultada = not partido_anterior["gano"] and margen_anterior >= 15
+            if derrota_abultada:
+                siguientes_tras_goleada.append(partido_actual["gano"])
+            else:
+                siguientes_normal.append(partido_actual["gano"])
+        if not siguientes_tras_goleada:
+            return None
+        wr_normal = sum(siguientes_normal) / len(siguientes_normal) if siguientes_normal else 0
+        wr_rebote = sum(siguientes_tras_goleada) / len(siguientes_tras_goleada)
+        delta = wr_rebote - wr_normal
+        n = len(siguientes_tras_goleada)
+        if delta >= 0.15:
+            estado = "💪 Se crece tras goleada"
+        elif delta <= -0.15:
+            estado = "😔 Se hunde tras goleada"
+        else:
+            estado = "➡️ No le afecta"
+        return wr_normal, wr_rebote, delta, n, estado
+    ra2 = calcular_efecto_rebote(partidos_a)
+    rb2 = calcular_efecto_rebote(partidos_b)
+    msg += "\n2️⃣ *Efecto rebote (tras derrota >15 pts)*\n"
+    if ra2:
+        msg += f"{jugador_a}: {round(ra2[1]*100)}% tras goleada vs {round(ra2[0]*100)}% normal ({ra2[3]} casos) → {ra2[4]}\n"
+    else:
+        msg += f"{jugador_a}: sin casos suficientes\n"
+    if rb2:
+        msg += f"{jugador_b}: {round(rb2[1]*100)}% tras goleada vs {round(rb2[0]*100)}% normal ({rb2[3]} casos) → {rb2[4]}\n"
+    else:
+        msg += f"{jugador_b}: sin casos suficientes\n"
+
+    await update.message.reply_text(msg, parse_mode="Markdown")
     
 # ─────────────────────────────────────────────
 # MAIN
@@ -3111,6 +3200,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("debugover", debug_over))
     app.add_handler(CommandHandler("debugcuotas", debug_cuotas))
     app.add_handler(CommandHandler("debuglineas", debug_lineas))
+    app.add_handler(CommandHandler("debugpsico", debugpsico))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
