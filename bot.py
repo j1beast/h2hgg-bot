@@ -2619,7 +2619,6 @@ async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'coco': 'Rival coco',
         'horario': 'Patrón horario'
     }
-    }
     msg = "✅ *Optimización completada*\n\n"
     msg += "📊 *Precisión por factor:*\n"
     for k in ['h2h', 'forma', 'h2h_rec', 'defensa', 'api', 'racha', 'coco', 'horario']:
