@@ -2417,6 +2417,7 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         await update.message.reply_text("No tienes acceso a este bot.")
         return
+    idioma = get_idioma(update.effective_user.id)
     conn = get_db()
     c = conn.cursor()
     reset_fecha = get_meta("reset_unidades") or "2000-01-01"
@@ -2433,7 +2434,10 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
     rows = c.fetchall()
     conn.close()
     if not rows:
-        await update.message.reply_text("Aún no hay predicciones con líneas Betsson procesadas.")
+        if idioma == "en":
+            await update.message.reply_text("No processed predictions with Betsson odds yet.")
+        else:
+            await update.message.reply_text("Aún no hay predicciones con líneas Betsson procesadas.")
         return
     unidades_ganador = 0.0
     unidades_ou = 0.0
@@ -2441,13 +2445,11 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
     aciertos_g = 0
     aciertos_ou = 0
     aciertos_contra = 0
-    total = len(rows)
     racha_g = []
     racha_ou = []
     racha_contra = []
     for row in rows:
         gan_pred, res_real, ac_g, pred_ou, ac_ou, cb_a, cb_b, cb_over, cb_under, jug_a, jug_b, fecha = row
-        # Ganador: cuota del jugador predicho
         if gan_pred == jug_a:
             cuota_g = cb_a or 0
         else:
@@ -2460,7 +2462,6 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 unidades_ganador -= 1
                 racha_g.append("❌")
-        # Over/Under
         if pred_ou == "Over":
             cuota_ou = cb_over or 0
         else:
@@ -2488,23 +2489,40 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
     emoji_ou = "📈" if unidades_ou >= 0 else "📉"
     ultimas_g = "".join(racha_g[-10:])
     ultimas_ou = "".join(racha_ou[-10:])
-    msg = f"💰 *Simulación de unidades (1u por apuesta)*\n"
-    msg += f"_(Solo predicciones con cuotas Betsson)_\n\n"
-    msg += f"🏆 *GANADOR*\n"
-    msg += f"Predicciones: {len(racha_g)} | Aciertos: {aciertos_g}\n"
-    msg += f"Últimas 10: {ultimas_g}\n"
-    msg += f"{emoji_g} Resultado: `{'+' if unidades_ganador >= 0 else ''}{unidades_ganador}u`\n\n"
-    msg += f"🔢 *OVER/UNDER*\n"
-    msg += f"Predicciones: {len(racha_ou)} | Aciertos: {aciertos_ou}\n"
-    msg += f"Últimas 10: {ultimas_ou}\n"
-    msg += f"{emoji_ou} Resultado: `{'+' if unidades_ou >= 0 else ''}{unidades_ou}u`\n\n"
-    emoji_contra = "📈" if unidades_contra >= 0 else "📉"
-    ultimas_contra = "".join(racha_contra[-10:])
-    msg += f"🔄 *O/U A LA CONTRA (bot invertido):*\n"
-    msg += f"Predicciones: {len(racha_contra)} | Aciertos: {aciertos_contra}\n"
-    msg += f"Últimas 10: {ultimas_contra}\n"
-    msg += f"{emoji_contra} Resultado: `{'+' if unidades_contra >= 0 else ''}{round(unidades_contra, 2)}u`\n"
-    # Unidades solo de valor
+    if idioma == "en":
+        msg = f"💰 *Units simulation (1u per bet)*\n"
+        msg += f"_(Only predictions with Betsson odds)_\n\n"
+        msg += f"🏆 *WINNER*\n"
+        msg += f"Predictions: {len(racha_g)} | Correct: {aciertos_g}\n"
+        msg += f"Last 10: {ultimas_g}\n"
+        msg += f"{emoji_g} Result: `{'+' if unidades_ganador >= 0 else ''}{unidades_ganador}u`\n\n"
+        msg += f"🔢 *OVER/UNDER*\n"
+        msg += f"Predictions: {len(racha_ou)} | Correct: {aciertos_ou}\n"
+        msg += f"Last 10: {ultimas_ou}\n"
+        msg += f"{emoji_ou} Result: `{'+' if unidades_ou >= 0 else ''}{unidades_ou}u`\n\n"
+        emoji_contra = "📈" if unidades_contra >= 0 else "📉"
+        ultimas_contra = "".join(racha_contra[-10:])
+        msg += f"🔄 *O/U REVERSED (bot inverted):*\n"
+        msg += f"Predictions: {len(racha_contra)} | Correct: {aciertos_contra}\n"
+        msg += f"Last 10: {ultimas_contra}\n"
+        msg += f"{emoji_contra} Result: `{'+' if unidades_contra >= 0 else ''}{round(unidades_contra, 2)}u`\n"
+    else:
+        msg = f"💰 *Simulación de unidades (1u por apuesta)*\n"
+        msg += f"_(Solo predicciones con cuotas Betsson)_\n\n"
+        msg += f"🏆 *GANADOR*\n"
+        msg += f"Predicciones: {len(racha_g)} | Aciertos: {aciertos_g}\n"
+        msg += f"Últimas 10: {ultimas_g}\n"
+        msg += f"{emoji_g} Resultado: `{'+' if unidades_ganador >= 0 else ''}{unidades_ganador}u`\n\n"
+        msg += f"🔢 *OVER/UNDER*\n"
+        msg += f"Predicciones: {len(racha_ou)} | Aciertos: {aciertos_ou}\n"
+        msg += f"Últimas 10: {ultimas_ou}\n"
+        msg += f"{emoji_ou} Resultado: `{'+' if unidades_ou >= 0 else ''}{unidades_ou}u`\n\n"
+        emoji_contra = "📈" if unidades_contra >= 0 else "📉"
+        ultimas_contra = "".join(racha_contra[-10:])
+        msg += f"🔄 *O/U A LA CONTRA (bot invertido):*\n"
+        msg += f"Predicciones: {len(racha_contra)} | Aciertos: {aciertos_contra}\n"
+        msg += f"Últimas 10: {ultimas_contra}\n"
+        msg += f"{emoji_contra} Resultado: `{'+' if unidades_contra >= 0 else ''}{round(unidades_contra, 2)}u`\n"
     conn_v = get_db()
     c_v = conn_v.cursor()
     c_v.execute('''SELECT ganador_predicho, resultado_real, acierto_ganador,
@@ -2535,9 +2553,14 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
         u_ou = round(u_ou, 2)
         n_g = sum(1 for r in rows_v if r[11])
         n_ou = sum(1 for r in rows_v if r[12])
-        msg += f"\n🎯 *Solo predicciones VALOR:*\n"
-        msg += f"🏆 Ganador: `{'+' if u_g >= 0 else ''}{round(u_g, 2)}u` ({n_g} apuestas)\n"
-        msg += f"🔢 O/U: `{'+' if u_ou >= 0 else ''}{round(u_ou, 2)}u` ({n_ou} apuestas)\n"
+        if idioma == "en":
+            msg += f"\n🎯 *Value predictions only:*\n"
+            msg += f"🏆 Winner: `{'+' if u_g >= 0 else ''}{round(u_g, 2)}u` ({n_g} bets)\n"
+            msg += f"🔢 O/U: `{'+' if u_ou >= 0 else ''}{round(u_ou, 2)}u` ({n_ou} bets)\n"
+        else:
+            msg += f"\n🎯 *Solo predicciones VALOR:*\n"
+            msg += f"🏆 Ganador: `{'+' if u_g >= 0 else ''}{round(u_g, 2)}u` ({n_g} apuestas)\n"
+            msg += f"🔢 O/U: `{'+' if u_ou >= 0 else ''}{round(u_ou, 2)}u` ({n_ou} apuestas)\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
     
 async def test_coolbet(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2929,23 +2952,34 @@ async def perfil(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         await update.message.reply_text("No tienes acceso a este bot.")
         return
+    idioma = get_idioma(update.effective_user.id)
     if not context.args:
-        await update.message.reply_text("Uso: /perfil JUGADOR\nEjemplo: /perfil CHIEF")
+        if idioma == "en":
+            await update.message.reply_text("Usage: /perfil PLAYER\nExample: /perfil CHIEF")
+        else:
+            await update.message.reply_text("Uso: /perfil JUGADOR\nEjemplo: /perfil CHIEF")
         return
     jugador = " ".join(context.args).upper()
-    await update.message.reply_text(f"🔍 Analizando perfil de {jugador}...")
+    if idioma == "en":
+        await update.message.reply_text(f"🔍 Analysing profile of {jugador}...")
+    else:
+        await update.message.reply_text(f"🔍 Analizando perfil de {jugador}...")
     stats_liga = get_stats_liga()
     api = stats_liga.get(jugador)
     if not api:
-        await update.message.reply_text(f"No encontré datos de {jugador} en la API de la liga.")
+        if idioma == "en":
+            await update.message.reply_text(f"No data found for {jugador} in the league API.")
+        else:
+            await update.message.reply_text(f"No encontré datos de {jugador} en la API de la liga.")
         return
     msg = generar_perfil_jugador(jugador, api, stats_liga)
     await update.message.reply_text(msg, parse_mode="Markdown")
-
+    
 async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         await update.message.reply_text("No tienes acceso a este bot.")
         return
+    idioma = get_idioma(update.effective_user.id)
     conn = get_db()
     c = conn.cursor()
     c.execute('''SELECT jugador_a, jugador_b, franq_a, franq_b,
@@ -2958,9 +2992,15 @@ async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     rows = c.fetchall()
     conn.close()
     if not rows:
-        await update.message.reply_text("No hay predicciones pendientes.")
+        if idioma == "en":
+            await update.message.reply_text("No pending predictions.")
+        else:
+            await update.message.reply_text("No hay predicciones pendientes.")
         return
-    msg = f"📋 *Predicciones pendientes ({len(rows)}):*\n\n"
+    if idioma == "en":
+        msg = f"📋 *Pending predictions ({len(rows)}):*\n\n"
+    else:
+        msg = f"📋 *Predicciones pendientes ({len(rows)}):*\n\n"
     for r in rows:
         jugador_a, jugador_b, franq_a, franq_b, linea, pred, \
         p_h2h, p_equipo, p_forma, p_h2h_rec, p_matchup, p_defensa, p_api, fecha = r
@@ -2984,12 +3024,12 @@ async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
             media = sum(probs) / 7
             factores_con_datos = sum(1 for p in probs if abs(p - 0.5) > 0.02)
             if media >= 0.60:
-                conf_icon = "🟢 Alta"
+                conf_icon = "🟢 Alta" if idioma == "es" else "🟢 High"
             elif media >= 0.55:
-                conf_icon = "🟡 Media"
+                conf_icon = "🟡 Media" if idioma == "es" else "🟡 Medium"
             else:
-                conf_icon = "⚪ Baja"
-            msg += f"{conf_icon} — {factores_con_datos}/7 factores con datos\n"
+                conf_icon = "⚪ Baja" if idioma == "es" else "⚪ Low"
+            msg += f"{conf_icon} — {factores_con_datos}/7 factores con datos\n" if idioma == "es" else f"{conf_icon} — {factores_con_datos}/7 factors with data\n"
         msg += "\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
