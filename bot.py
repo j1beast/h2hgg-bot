@@ -3947,10 +3947,10 @@ if __name__ == "__main__":
 
     async def post_init(application):
         await application.bot.set_my_commands([
-            ("start", "🏀 Menú principal"),
-            ("proximos", "📅 Partidos de hoy"),
-            ("resultados", "🕐 Últimos resultados"),
-            ("manualdeuso", "📖 Manual de uso del bot"),
+        ("start", "🏀 Menu / Menú"),
+            ("upcoming", "📅 Upcoming matches / Próximos partidos"),
+            ("results", "🕐 Latest results / Últimos resultados"),
+            ("guide", "📖 Guide / Manual de uso"),
             ("language", "🌐 Change language / Cambiar idioma"),
         ])
         asyncio.create_task(tarea_actualizacion_diaria())
@@ -3990,6 +3990,15 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("manualdeuso", manualdeuso))
     app.add_handler(CommandHandler("language", language))
     app.add_handler(CallbackQueryHandler(callback_language, pattern="^lang_"))
+    app.add_handler(CommandHandler("prediction", pronostico))
+    app.add_handler(CommandHandler("form", forma))
+    app.add_handler(CommandHandler("guide", manualdeuso))
+    app.add_handler(CommandHandler("profile", perfil))
+    app.add_handler(CommandHandler("upcoming", proximos))
+    app.add_handler(CommandHandler("results", resultados))
+    app.add_handler(CommandHandler("performance", rendimiento))
+    app.add_handler(CommandHandler("units", unidades))
+    app.add_handler(CommandHandler("pending", pendientes))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
