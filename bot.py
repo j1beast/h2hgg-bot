@@ -3573,9 +3573,15 @@ if __name__ == "__main__":
     else:
         print(f"Base de datos lista con {total_partidos_db()} partidos.")
 
-    async def post_init(application):
-        asyncio.create_task(tarea_actualizacion_diaria())
-        asyncio.create_task(tarea_predicciones_automaticas(application))
+async def post_init(application):
+    await application.bot.set_my_commands([
+        ("start", "🏀 Menú principal"),
+        ("proximos", "📅 Partidos de hoy"),
+        ("resultados", "🕐 Últimos resultados"),
+        ("manualdeuso", "📖 Manual de uso del bot"),
+    ])
+    asyncio.create_task(tarea_actualizacion_diaria())
+    asyncio.create_task(tarea_predicciones_automaticas(application))
 
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
     app.add_handler(CommandHandler("start", start))
