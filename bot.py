@@ -1860,27 +1860,69 @@ def generar_perfil_jugador(jugador, api, stats_liga):
             msg += f"• Peor franja: {peor} → {wr_peor}% victorias\n"
     except:
         pass
-    fortalezas = []
-    debilidades = []
-    if gran_anotador or eficiente: fortalezas.append("anotación")
-    if es_tirador: fortalezas.append("triple")
-    if buen_distribuidor: fortalezas.append("manejo del balón")
-    if buena_defensa: fortalezas.append("defensa")
-    if es_transicion: fortalezas.append("contraataque")
-    if es_interior: fortalezas.append("juego interior")
-    if ineficiente or poco_anotador: debilidades.append("eficiencia ofensiva")
-    if muchas_perdidas: debilidades.append("pérdidas de balón")
-    if mala_defensa: debilidades.append("defensa")
-    if poco_triple and not es_interior: debilidades.append("amenaza exterior")
     msg += "\n💡 *Resumen:*\n"
-    if fortalezas and debilidades:
-        msg += f"Destaca en {', '.join(fortalezas)}. Su punto débil es {', '.join(debilidades)}."
-    elif fortalezas:
-        msg += f"Jugador sólido. Destaca en {', '.join(fortalezas)}. Sin debilidades claras."
-    elif debilidades:
-        msg += f"Jugador con margen de mejora en {', '.join(debilidades)}."
-    else:
-        msg += "Jugador equilibrado, sin características especialmente destacadas ni debilidades claras."
+    partes = []
+    # Win rate
+    if wp:
+        if wp >= 60:
+            partes.append(f"uno de los jugadores más ganadores de la liga ({wp}% victorias)")
+        elif wp >= 55:
+            partes.append(f"jugador por encima de la media ({wp}% victorias)")
+        elif wp <= 40:
+            partes.append(f"jugador con resultados por debajo de la media ({wp}% victorias)")
+        elif wp <= 45:
+            partes.append(f"jugador que lucha por mantenerse en la media ({wp}% victorias)")
+    # Racha actual
+    try:
+        if partidos_db and len(partidos_db) >= 5:
+            ultimos5 = partidos_db[:5]
+            wins5 = sum(1 for p in ultimos5 if p["gano"])
+            if wins5 >= 4:
+                partes.append("en muy buena racha últimamente")
+            elif wins5 <= 1:
+                partes.append("atravesando un mal momento de forma")
+    except:
+        pass
+    # Racha máxima
+    try:
+        if max_win >= 10:
+            partes.append(f"capaz de rachas ganadoras largas (máx. {max_win} seguidos)")
+        if max_loss >= 8:
+            partes.append(f"propenso a rachas perdedoras largas (máx. {max_loss} seguidos)")
+    except:
+        pass
+    # Franja horaria
+    try:
+        if len(franjas_validas) >= 2:
+            wr_mejor_val = sum(franjas_validas[mejor]) / len(franjas_validas[mejor])
+            wr_peor_val = sum(franjas_validas[peor]) / len(franjas_validas[peor])
+            if wr_mejor_val - wr_peor_val >= 0.10:
+                partes.append(f"rinde claramente mejor en {mejor.split('(')[0].strip().lower()} que en {peor.split('(')[0].strip().lower()}")
+    except:
+        pass
+    # Estilo de juego
+    if gran_anotador and buena_defensa:
+        partes.append("completo en ataque y defensa")
+    elif gran_anotador:
+        partes.append("con perfil ofensivo destacado")
+    elif buena_defensa:
+        partes.append("con perfil defensivo destacado")
+    if es_tirador:
+        partes.append("amenaza constante desde el triple")
+    if buen_distribuidor:
+        partes.append("muy buen manejo del balón")
+    elif muchas_perdidas:
+        partes.append("con tendencia a perder el balón")
+    if mala_defensa:
+        partes.append("con defensa por debajo de la media")
+    if not partes:
+        partes.append("jugador sin características especialmente destacadas")
+    resumen = partes[0].capitalize()
+    if len(partes) > 1:
+        resumen += ", " + ", ".join(partes[1:-1])
+        if len(partes) > 1:
+            resumen += " y " + partes[-1] if len(partes) >= 2 else ""
+    msg += resumen + "."
     return msg
     
 # ─────────────────────────────────────────────
