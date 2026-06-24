@@ -1700,7 +1700,7 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
 
     return msg
 
-def generar_perfil_jugador(jugador, api, stats_liga):
+def generar_perfil_jugador(jugador, api, stats_liga, idioma="es"):
     jugadores = list(stats_liga.values())
     def liga_avg(key):
         vals = [p.get(key) for p in jugadores if p.get(key) is not None]
@@ -1750,74 +1750,126 @@ def generar_perfil_jugador(jugador, api, stats_liga):
     poco_anotador = pts and pts < bl_pts * 0.90
     eficiente     = fg and (fg - bl_fg) > 3
     ineficiente   = fg and (fg - bl_fg) < -3
-    tags = []
-    if es_rapido: tags.append("⚡ Ritmo rápido")
-    if es_lento:  tags.append("🐢 Ritmo lento")
-    if es_interior: tags.append("🎨 Interior")
-    if es_tirador:  tags.append("🎯 Tirador")
-    if es_transicion: tags.append("🏃 Transición")
-    if buena_defensa: tags.append("🛡️ Defensor")
-    if buen_distribuidor: tags.append("🧠 Distribuidor")
-    if gran_anotador: tags.append("💥 Anotador")
+
     msg = f"🏀 *{jugador}*\n\n"
-    msg += "⚔️ *Ataque*\n"
-    if pts:
-        if gran_anotador:
-            msg += f"• Gran anotador: {round(pts,1)} pts/partido (liga {round(bl_pts,1)})\n"
-        elif poco_anotador:
-            msg += f"• Anotación baja: {round(pts,1)} pts/partido (liga {round(bl_pts,1)})\n"
-        else:
-            msg += f"• {round(pts,1)} pts/partido (en línea con la liga)\n"
-    if paint:
-        if es_interior:
-            msg += f"• Domina en pintura: {round(paint,1)} pts (liga {round(bl_paint,1)})\n"
-        elif paint < bl_paint * 0.85:
-            msg += f"• Evita la zona, prefiere el exterior\n"
-    if t3a and t3p:
-        if es_tirador:
-            msg += f"• Tirador de triple: {round(t3p,1)}% en {round(t3a,1)} intentos/partido\n"
-        elif poco_triple:
-            msg += f"• Casi no usa el triple ({round(t3a,1)} intentos, {round(t3p,1)}%)\n"
-        else:
-            msg += f"• Uso normal del triple ({round(t3p,1)}% / {round(t3a,1)} intentos)\n"
-    if fb:
-        if es_transicion:
-            msg += f"• Muy activo en contraataque: {round(fb,1)} pts (liga {round(bl_fb,1)})\n"
-        elif fb < bl_fb * 0.75:
-            msg += f"• Poco juego en transición\n"
-    if ast and to:
-        if buen_distribuidor:
-            msg += f"• Excelente con el balón: {round(ast,1)} ast y solo {round(to,1)} pérdidas\n"
-        elif muchas_perdidas:
-            msg += f"• Pierde mucho el balón: {round(ast,1)} ast pero {round(to,1)} pérdidas\n"
-        else:
-            msg += f"• Control de balón correcto: {round(ast,1)} ast / {round(to,1)} pérdidas\n"
-    if fg:
-        diff = round(fg - bl_fg, 1)
-        if eficiente:
-            msg += f"• Muy eficiente anotando: {round(fg,1)}% tiro (+{diff}% vs liga)\n"
-        elif ineficiente:
-            msg += f"• Poco eficiente: {round(fg,1)}% tiro ({diff}% vs liga)\n"
-    msg += "\n🛡️ *Defensa*\n"
-    if pts_contra and bl_contra:
-        if buena_defensa:
-            msg += f"• Defensa sólida: recibe {pts_contra} pts de media (liga {round(bl_contra,1)})\n"
-        elif mala_defensa:
-            msg += f"• Defensa débil: recibe {pts_contra} pts de media (liga {round(bl_contra,1)})\n"
-        else:
-            msg += f"• Defensa normal: {pts_contra} pts recibidos (liga {round(bl_contra,1)})\n"
-    if stl and stl > 4.0:
-        msg += f"• Muy activo en robos: {round(stl,1)}/partido\n"
-    elif stl:
-        msg += f"• Robos: {round(stl,1)}/partido\n"
-    if blk and blk > 1.5:
-        msg += f"• Buen taponador: {round(blk,1)}/partido\n"
-    msg += "\n📊 *Rendimiento*\n"
-    if wp:
-        emoji_wp = "🟢" if wp > 55 else "🔴" if wp < 45 else "🟡"
-        wp_txt = "por encima de la media" if wp > 55 else "por debajo de la media" if wp < 45 else "en la media"
-        msg += f"• Win rate: {wp}% {emoji_wp} ({wp_txt})\n"
-    # Racha máxima
+
+    if idioma == "en":
+        msg += "⚔️ *Attack*\n"
+        if pts:
+            if gran_anotador:
+                msg += f"• Great scorer: {round(pts,1)} pts/game (league {round(bl_pts,1)})\n"
+            elif poco_anotador:
+                msg += f"• Low scoring: {round(pts,1)} pts/game (league {round(bl_pts,1)})\n"
+            else:
+                msg += f"• {round(pts,1)} pts/game (in line with league)\n"
+        if paint:
+            if es_interior:
+                msg += f"• Dominates in the paint: {round(paint,1)} pts (league {round(bl_paint,1)})\n"
+            elif paint < bl_paint * 0.85:
+                msg += f"• Avoids the paint, prefers outside\n"
+        if t3a and t3p:
+            if es_tirador:
+                msg += f"• Three-point shooter: {round(t3p,1)}% on {round(t3a,1)} attempts/game\n"
+            elif poco_triple:
+                msg += f"• Barely uses the three ({round(t3a,1)} attempts, {round(t3p,1)}%)\n"
+            else:
+                msg += f"• Normal three-point usage ({round(t3p,1)}% / {round(t3a,1)} attempts)\n"
+        if fb:
+            if es_transicion:
+                msg += f"• Very active in transition: {round(fb,1)} pts (league {round(bl_fb,1)})\n"
+            elif fb < bl_fb * 0.75:
+                msg += f"• Low transition game\n"
+        if ast and to:
+            if buen_distribuidor:
+                msg += f"• Excellent ball handler: {round(ast,1)} ast and only {round(to,1)} turnovers\n"
+            elif muchas_perdidas:
+                msg += f"• Loses the ball often: {round(ast,1)} ast but {round(to,1)} turnovers\n"
+            else:
+                msg += f"• Good ball control: {round(ast,1)} ast / {round(to,1)} turnovers\n"
+        if fg:
+            diff = round(fg - bl_fg, 1)
+            if eficiente:
+                msg += f"• Very efficient scorer: {round(fg,1)}% FG (+{diff}% vs league)\n"
+            elif ineficiente:
+                msg += f"• Low efficiency: {round(fg,1)}% FG ({diff}% vs league)\n"
+        msg += "\n🛡️ *Defense*\n"
+        if pts_contra and bl_contra:
+            if buena_defensa:
+                msg += f"• Solid defense: concedes {pts_contra} pts avg (league {round(bl_contra,1)})\n"
+            elif mala_defensa:
+                msg += f"• Weak defense: concedes {pts_contra} pts avg (league {round(bl_contra,1)})\n"
+            else:
+                msg += f"• Average defense: {pts_contra} pts conceded (league {round(bl_contra,1)})\n"
+        if stl and stl > 4.0:
+            msg += f"• Very active in steals: {round(stl,1)}/game\n"
+        elif stl:
+            msg += f"• Steals: {round(stl,1)}/game\n"
+        if blk and blk > 1.5:
+            msg += f"• Good shot blocker: {round(blk,1)}/game\n"
+        msg += "\n📊 *Performance*\n"
+        if wp:
+            emoji_wp = "🟢" if wp > 55 else "🔴" if wp < 45 else "🟡"
+            wp_txt = "above average" if wp > 55 else "below average" if wp < 45 else "average"
+            msg += f"• Win rate: {wp}% {emoji_wp} ({wp_txt})\n"
+    else:
+        msg += "⚔️ *Ataque*\n"
+        if pts:
+            if gran_anotador:
+                msg += f"• Gran anotador: {round(pts,1)} pts/partido (liga {round(bl_pts,1)})\n"
+            elif poco_anotador:
+                msg += f"• Anotación baja: {round(pts,1)} pts/partido (liga {round(bl_pts,1)})\n"
+            else:
+                msg += f"• {round(pts,1)} pts/partido (en línea con la liga)\n"
+        if paint:
+            if es_interior:
+                msg += f"• Domina en pintura: {round(paint,1)} pts (liga {round(bl_paint,1)})\n"
+            elif paint < bl_paint * 0.85:
+                msg += f"• Evita la zona, prefiere el exterior\n"
+        if t3a and t3p:
+            if es_tirador:
+                msg += f"• Tirador de triple: {round(t3p,1)}% en {round(t3a,1)} intentos/partido\n"
+            elif poco_triple:
+                msg += f"• Casi no usa el triple ({round(t3a,1)} intentos, {round(t3p,1)}%)\n"
+            else:
+                msg += f"• Uso normal del triple ({round(t3p,1)}% / {round(t3a,1)} intentos)\n"
+        if fb:
+            if es_transicion:
+                msg += f"• Muy activo en contraataque: {round(fb,1)} pts (liga {round(bl_fb,1)})\n"
+            elif fb < bl_fb * 0.75:
+                msg += f"• Poco juego en transición\n"
+        if ast and to:
+            if buen_distribuidor:
+                msg += f"• Excelente con el balón: {round(ast,1)} ast y solo {round(to,1)} pérdidas\n"
+            elif muchas_perdidas:
+                msg += f"• Pierde mucho el balón: {round(ast,1)} ast pero {round(to,1)} pérdidas\n"
+            else:
+                msg += f"• Control de balón correcto: {round(ast,1)} ast / {round(to,1)} pérdidas\n"
+        if fg:
+            diff = round(fg - bl_fg, 1)
+            if eficiente:
+                msg += f"• Muy eficiente anotando: {round(fg,1)}% tiro (+{diff}% vs liga)\n"
+            elif ineficiente:
+                msg += f"• Poco eficiente: {round(fg,1)}% tiro ({diff}% vs liga)\n"
+        msg += "\n🛡️ *Defensa*\n"
+        if pts_contra and bl_contra:
+            if buena_defensa:
+                msg += f"• Defensa sólida: recibe {pts_contra} pts de media (liga {round(bl_contra,1)})\n"
+            elif mala_defensa:
+                msg += f"• Defensa débil: recibe {pts_contra} pts de media (liga {round(bl_contra,1)})\n"
+            else:
+                msg += f"• Defensa normal: {pts_contra} pts recibidos (liga {round(bl_contra,1)})\n"
+        if stl and stl > 4.0:
+            msg += f"• Muy activo en robos: {round(stl,1)}/partido\n"
+        elif stl:
+            msg += f"• Robos: {round(stl,1)}/partido\n"
+        if blk and blk > 1.5:
+            msg += f"• Buen taponador: {round(blk,1)}/partido\n"
+        msg += "\n📊 *Rendimiento*\n"
+        if wp:
+            emoji_wp = "🟢" if wp > 55 else "🔴" if wp < 45 else "🟡"
+            wp_txt = "por encima de la media" if wp > 55 else "por debajo de la media" if wp < 45 else "en la media"
+            msg += f"• Win rate: {wp}% {emoji_wp} ({wp_txt})\n"
+        # Racha máxima
     try:
         partidos_db = buscar_partidos_jugador_db(jugador)
         if partidos_db:
@@ -1831,8 +1883,12 @@ def generar_perfil_jugador(jugador, api, stats_liga):
                     cur_win = 0
                 max_win = max(max_win, cur_win)
                 max_loss = max(max_loss, cur_loss)
-            msg += f"• Racha máxima ganadora: {max_win} partidos seguidos\n"
-            msg += f"• Racha máxima perdedora: {max_loss} partidos seguidos\n"
+            if idioma == "en":
+                msg += f"• Longest winning streak: {max_win} games in a row\n"
+                msg += f"• Longest losing streak: {max_loss} games in a row\n"
+            else:
+                msg += f"• Racha máxima ganadora: {max_win} partidos seguidos\n"
+                msg += f"• Racha máxima perdedora: {max_loss} partidos seguidos\n"
     except:
         pass
     # Mejor/peor franja horaria
@@ -1864,11 +1920,21 @@ def generar_perfil_jugador(jugador, api, stats_liga):
             peor = min(franjas_validas, key=lambda k: sum(franjas_validas[k]) / len(franjas_validas[k]))
             wr_mejor = round(sum(franjas_validas[mejor]) / len(franjas_validas[mejor]) * 100, 1)
             wr_peor = round(sum(franjas_validas[peor]) / len(franjas_validas[peor]) * 100, 1)
-            msg += f"• Mejor franja: {mejor} → {wr_mejor}% victorias\n"
-            msg += f"• Peor franja: {peor} → {wr_peor}% victorias\n"
+            if idioma == "en":
+                franjas_en = {
+                    'Mañana (6-12h)': 'Morning (6-12h)',
+                    'Tarde (12-18h)': 'Afternoon (12-18h)',
+                    'Noche (18-24h)': 'Evening (18-24h)',
+                    'Madrugada (0-6h)': 'Late night (0-6h)'
+                }
+                msg += f"• Best time slot: {franjas_en.get(mejor, mejor)} → {wr_mejor}% wins\n"
+                msg += f"• Worst time slot: {franjas_en.get(peor, peor)} → {wr_peor}% wins\n"
+            else:
+                msg += f"• Mejor franja: {mejor} → {wr_mejor}% victorias\n"
+                msg += f"• Peor franja: {peor} → {wr_peor}% victorias\n"
     except:
         pass
-    msg += "\n\n📝 *Resumen*\n"
+    msg += "\n\n📝 *Summary*\n" if idioma == "en" else "\n\n📝 *Resumen*\n"
     try:
         import anthropic as _anthropic
         _client = _anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
@@ -1887,17 +1953,18 @@ Racha máxima perdedora: {max_loss} partidos seguidos
 Mejor franja horaria: {mejor + ' → ' + str(round(wr_mejor,1)) + '% victorias' if 'mejor' in dir() and franjas_validas else 'N/A'}
 Peor franja horaria: {peor + ' → ' + str(round(wr_peor,1)) + '% victorias' if 'peor' in dir() and franjas_validas else 'N/A'}
 """
+        if idioma == "en":
+            prompt = f"eBasketball analyst. Summarize in maximum 2 short sentences the most notable aspects of this player. Plain text only, no formatting.\n\n{datos_jugador}"
+        else:
+            prompt = f"Analista eBasketball. Resume en máximo 2 frases cortas lo más destacado de este jugador. Solo texto plano, sin formato.\n\n{datos_jugador}"
         _resp = _client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=140,
-            messages=[{
-                "role": "user",
-                "content": f"Analista eBasketball. Resume en máximo 2 frases cortas lo más destacado de este jugador. Solo texto plano, sin formato.\n\n{datos_jugador}"
-            }]
+            messages=[{"role": "user", "content": prompt}]
         )
         msg += _resp.content[0].text
     except Exception as e:
-        msg += "No se pudo generar el resumen."
+        msg += "Summary not available." if idioma == "en" else "No se pudo generar el resumen."
     return msg
     
 # ─────────────────────────────────────────────
@@ -2972,7 +3039,7 @@ async def perfil(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await update.message.reply_text(f"No encontré datos de {jugador} en la API de la liga.")
         return
-    msg = generar_perfil_jugador(jugador, api, stats_liga)
+    msg = generar_perfil_jugador(jugador, api, stats_liga, idioma)
     await update.message.reply_text(msg, parse_mode="Markdown")
     
 async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
