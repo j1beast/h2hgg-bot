@@ -464,6 +464,7 @@ def verificar_predicciones():
 
 async def tarea_predicciones_automaticas(app_ref):
     while True:
+        print("[PRED] Iniciando ciclo predicciones...")
         try:
             proximos_liga = get_upcoming_h2hggl()
             cuotas_betsson = await get_cuotas_betsson()
