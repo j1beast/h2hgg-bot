@@ -2957,27 +2957,29 @@ async def debug_cuotas(update: Update, context: ContextTypes.DEFAULT_TYPE):
                  AND cuota_betsson_a IS NOT NULL''')
     rows = c.fetchall()
     conn.close()
-    rangos = {
-        '<1.40': [], '1.40-1.60': [], '1.60-1.80': [],
-        '1.80-2.00': [], '2.00-2.20': [], '>2.20': []
-    }
+    limites = [1.20, 1.30, 1.40, 1.50, 1.60, 1.70, 1.80, 1.90, 2.00,
+               2.10, 2.20, 2.30, 2.40, 2.50, 2.60, 2.70, 2.80, 2.90, 3.00]
+    rangos = {}
+    for i in range(len(limites)):
+        lo = limites[i-1] if i > 0 else 1.00
+        hi = limites[i]
+        rangos[f"{lo:.2f}-{hi:.2f}"] = []
+    rangos[f">{limites[-1]:.2f}"] = []
     for gan_pred, jug_a, jug_b, acierto, cb_a, cb_b in rows:
         cuota = cb_a if gan_pred == jug_a else cb_b
         if not cuota:
             continue
         u = round(cuota - 1, 4) if acierto == 1 else -1
-        if cuota < 1.40:
-            rangos['<1.40'].append((acierto, u))
-        elif cuota < 1.60:
-            rangos['1.40-1.60'].append((acierto, u))
-        elif cuota < 1.80:
-            rangos['1.60-1.80'].append((acierto, u))
-        elif cuota < 2.00:
-            rangos['1.80-2.00'].append((acierto, u))
-        elif cuota <= 2.20:
-            rangos['2.00-2.20'].append((acierto, u))
-        else:
-            rangos['>2.20'].append((acierto, u))
+        colocado = False
+        for i in range(len(limites)):
+            lo = limites[i-1] if i > 0 else 1.00
+            hi = limites[i]
+            if lo <= cuota < hi:
+                rangos[f"{lo:.2f}-{hi:.2f}"].append((acierto, u))
+                colocado = True
+                break
+        if not colocado:
+            rangos[f">{limites[-1]:.2f}"].append((acierto, u))
     msg = "📊 *Rendimiento por tramo de cuota (ganador)*\n\n"
     for rango, datos in rangos.items():
         if not datos:
@@ -2987,7 +2989,7 @@ async def debug_cuotas(update: Update, context: ContextTypes.DEFAULT_TYPE):
         u = round(sum(d[1] for d in datos), 2)
         acc = round(ac / n * 100, 1)
         emoji = "📈" if u >= 0 else "📉"
-        msg += f"*{rango}:* {n} apuestas | {acc}% acierto | {emoji} {'+' if u >= 0 else ''}{u}u\n"
+        msg += f"*{rango}:* {n} ap | {acc}% | {emoji} {'+' if u >= 0 else ''}{u}u\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def debug_lineas(update: Update, context: ContextTypes.DEFAULT_TYPE):
