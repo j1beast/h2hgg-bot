@@ -1882,7 +1882,7 @@ Media de la liga en puntos recibidos: {round(bl_contra,1) if bl_contra else 'N/A
 """
         _resp = _client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=80,
+            max_tokens=120,
             messages=[{
                 "role": "user",
                 "content": f"Analista eBasketball. Resume en máximo 2 frases cortas lo más destacado de este jugador. Solo texto plano, sin formato.\n\n{datos_jugador}"
