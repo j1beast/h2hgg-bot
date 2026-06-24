@@ -1954,7 +1954,21 @@ Mejor franja horaria: {mejor + ' → ' + str(round(wr_mejor,1)) + '% victorias' 
 Peor franja horaria: {peor + ' → ' + str(round(wr_peor,1)) + '% victorias' if 'peor' in dir() and franjas_validas else 'N/A'}
 """
         if idioma == "en":
-            prompt = f"eBasketball analyst. Summarize in maximum 2 short sentences the most notable aspects of this player. Plain text only, no formatting.\n\n{datos_jugador}"
+            datos_jugador_en = f"""
+Player: {jugador}
+Historical win rate: {wp}% (league average ~50%)
+Points scored: {round(pts,1) if pts else 'N/A'} per game (league avg: {round(bl_pts,1)})
+Points conceded: {pts_contra if pts_contra else 'N/A'} per game (league avg: {round(bl_contra,1) if bl_contra else 'N/A'}) — {'good defense' if pts_contra and bl_contra and pts_contra < bl_contra * 0.95 else 'weak defense' if pts_contra and bl_contra and pts_contra > bl_contra * 1.05 else 'average defense'}
+Shooting efficiency: {round(fg,1) if fg else 'N/A'}% (league avg: {round(bl_fg,1)}%)
+Three-pointers: {round(t3a,1) if t3a else 'N/A'} attempts at {round(t3p,1) if t3p else 'N/A'}%
+Assists: {round(ast,1) if ast else 'N/A'} | Turnovers: {round(to,1) if to else 'N/A'}
+Last 10 games: {f'{ultimos10_wins}/10 wins' if ultimos10_wins is not None else 'N/A'}
+Longest winning streak: {max_win} games in a row
+Longest losing streak: {max_loss} games in a row
+Best time slot: {mejor + ' → ' + str(round(wr_mejor,1)) + '% wins' if 'mejor' in dir() and franjas_validas else 'N/A'}
+Worst time slot: {peor + ' → ' + str(round(wr_peor,1)) + '% wins' if 'peor' in dir() and franjas_validas else 'N/A'}
+"""
+            prompt = f"eBasketball analyst. Summarize in maximum 2 short sentences the most notable aspects of this player. Plain text only, no formatting.\n\n{datos_jugador_en}"
         else:
             prompt = f"Analista eBasketball. Resume en máximo 2 frases cortas lo más destacado de este jugador. Solo texto plano, sin formato.\n\n{datos_jugador}"
         _resp = _client.messages.create(
