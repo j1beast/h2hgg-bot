@@ -1725,7 +1725,6 @@ def generar_perfil_jugador(jugador, api, stats_liga):
     bl_triple_score = bl_3pa * bl_3pp / 100
     triple_score = (t3a * t3p / 100) if t3a and t3p else None
     ratio_astto = round(ast / to, 2) if ast and to and to > 0 else None
-    # Clasificaciones
     es_rapido   = pos and pos < bl_pos * 0.88
     es_lento    = pos and pos > bl_pos * 1.12
     es_interior = paint and paint > bl_paint * 1.15
@@ -1740,7 +1739,6 @@ def generar_perfil_jugador(jugador, api, stats_liga):
     poco_anotador = pts and pts < bl_pts * 0.90
     eficiente     = fg and (fg - bl_fg) > 3
     ineficiente   = fg and (fg - bl_fg) < -3
-    # Tags rápidos
     tags = []
     if es_rapido: tags.append("⚡ Ritmo rápido")
     if es_lento:  tags.append("🐢 Ritmo lento")
@@ -1754,16 +1752,7 @@ def generar_perfil_jugador(jugador, api, stats_liga):
     if tags:
         msg += " | ".join(tags) + "\n"
     msg += "\n"
-    # Ataque
     msg += "⚔️ *Ataque*\n"
-    if pos:
-        if es_rapido:
-            ritmo_txt = f"⚡ Rápido ({pos} seg posesión, liga {round(bl_pos,1)} seg)"
-        elif es_lento:
-            ritmo_txt = f"🐢 Lento ({pos} seg posesión, liga {round(bl_pos,1)} seg)"
-        else:
-            ritmo_txt = f"➡️ Medio ({pos} seg posesión, liga {round(bl_pos,1)} seg)"
-        msg += f"• Posesión: {ritmo_txt}\n"
     if pts:
         if gran_anotador:
             msg += f"• Gran anotador: {round(pts,1)} pts/partido (liga {round(bl_pts,1)})\n"
@@ -1801,7 +1790,6 @@ def generar_perfil_jugador(jugador, api, stats_liga):
             msg += f"• Muy eficiente anotando: {round(fg,1)}% tiro (+{diff}% vs liga)\n"
         elif ineficiente:
             msg += f"• Poco eficiente: {round(fg,1)}% tiro ({diff}% vs liga)\n"
-    # Defensa
     msg += "\n🛡️ *Defensa*\n"
     if pts_contra and bl_contra:
         if buena_defensa:
@@ -1816,13 +1804,62 @@ def generar_perfil_jugador(jugador, api, stats_liga):
         msg += f"• Robos: {round(stl,1)}/partido\n"
     if blk and blk > 1.5:
         msg += f"• Buen taponador: {round(blk,1)}/partido\n"
-    # Rendimiento
     msg += "\n📊 *Rendimiento*\n"
     if wp:
         emoji_wp = "🟢" if wp > 55 else "🔴" if wp < 45 else "🟡"
         wp_txt = "por encima de la media" if wp > 55 else "por debajo de la media" if wp < 45 else "en la media"
         msg += f"• Win rate: {wp}% {emoji_wp} ({wp_txt})\n"
-    # Resumen narrativo
+    # Racha máxima
+    try:
+        partidos_db = buscar_partidos_jugador_db(jugador)
+        if partidos_db:
+            max_win = max_loss = cur_win = cur_loss = 0
+            for p in reversed(partidos_db):
+                if p["gano"]:
+                    cur_win += 1
+                    cur_loss = 0
+                else:
+                    cur_loss += 1
+                    cur_win = 0
+                max_win = max(max_win, cur_win)
+                max_loss = max(max_loss, cur_loss)
+            msg += f"• Racha máxima ganadora: {max_win} partidos seguidos\n"
+            msg += f"• Racha máxima perdedora: {max_loss} partidos seguidos\n"
+    except:
+        pass
+    # Mejor/peor franja horaria
+    try:
+        franjas = {'Mañana (6-12h)': [], 'Tarde (12-18h)': [], 'Noche (18-24h)': [], 'Madrugada (0-6h)': []}
+        conn_f = get_db()
+        c_f = conn_f.cursor()
+        c_f.execute('''SELECT score_home, score_away, home_jugador, timestamp
+                     FROM partidos
+                     WHERE (UPPER(home_jugador)=? OR UPPER(away_jugador)=?)
+                     AND timestamp > 0''', (jugador.upper(), jugador.upper()))
+        rows_f = c_f.fetchall()
+        conn_f.close()
+        for sc_h, sc_a, home_j, ts in rows_f:
+            hora = datetime.utcfromtimestamp(ts).hour
+            es_home = home_j.upper() == jugador.upper()
+            gano = sc_h > sc_a if es_home else sc_a > sc_h
+            if 6 <= hora < 12:
+                franjas['Mañana (6-12h)'].append(gano)
+            elif 12 <= hora < 18:
+                franjas['Tarde (12-18h)'].append(gano)
+            elif 18 <= hora < 24:
+                franjas['Noche (18-24h)'].append(gano)
+            else:
+                franjas['Madrugada (0-6h)'].append(gano)
+        franjas_validas = {k: v for k, v in franjas.items() if len(v) >= 10}
+        if len(franjas_validas) >= 2:
+            mejor = max(franjas_validas, key=lambda k: sum(franjas_validas[k]) / len(franjas_validas[k]))
+            peor = min(franjas_validas, key=lambda k: sum(franjas_validas[k]) / len(franjas_validas[k]))
+            wr_mejor = round(sum(franjas_validas[mejor]) / len(franjas_validas[mejor]) * 100, 1)
+            wr_peor = round(sum(franjas_validas[peor]) / len(franjas_validas[peor]) * 100, 1)
+            msg += f"• Mejor franja: {mejor} → {wr_mejor}% victorias\n"
+            msg += f"• Peor franja: {peor} → {wr_peor}% victorias\n"
+    except:
+        pass
     fortalezas = []
     debilidades = []
     if gran_anotador or eficiente: fortalezas.append("anotación")
