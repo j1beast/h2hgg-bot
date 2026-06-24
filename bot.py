@@ -3957,6 +3957,7 @@ async def post_init(application):
         ("language", "🌐 Change language / Cambiar idioma"),
     ])
     asyncio.create_task(tarea_actualizacion_diaria())
+    
 asyncio.create_task(tarea_predicciones_automaticas(application))
 
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
