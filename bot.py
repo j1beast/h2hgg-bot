@@ -3297,6 +3297,126 @@ async def debugpsico(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg += f"{jugador_b}: sin datos suficientes\n"
 
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def validarpsico(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    await update.message.reply_text("🔍 Analizando factores psicológicos...")
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT jugador_a, jugador_b, ganador_predicho, resultado_real,
+                 acierto_ganador, fecha_prediccion
+                 FROM predicciones
+                 WHERE procesado=1 AND acierto_ganador IS NOT NULL
+                 AND resultado_real IS NOT NULL''')
+    rows = c.fetchall()
+    conn.close()
+    racha_fria = []
+    racha_caliente = []
+    coco = []
+    no_coco = []
+    presion_positiva = []
+    presion_negativa = []
+    tendencia_alta = []
+    tendencia_baja = []
+    horario_bueno = []
+    horario_malo = []
+    for jugador_a, jugador_b, gan_pred, res_real, acierto, fecha in rows:
+        partidos_a = buscar_partidos_jugador_db(jugador_a)
+        partidos_b = buscar_partidos_jugador_db(jugador_b)
+        partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
+        if len(partidos_a) < 20 or len(partidos_b) < 20:
+            continue
+        # Factor 1: racha del ganador predicho
+        partidos_pred = partidos_a if gan_pred == jugador_a else partidos_b
+        wr_hist = sum(1 for p in partidos_pred if p["gano"]) / len(partidos_pred)
+        wr20 = sum(1 for p in partidos_pred[:20] if p["gano"]) / 20
+        if wr20 <= wr_hist - 0.10:
+            racha_fria.append(acierto)
+        elif wr20 >= wr_hist + 0.10:
+            racha_caliente.append(acierto)
+        # Factor 3: rival coco del ganador predicho
+        if len(partidos_h2h) >= 5:
+            es_a = gan_pred == jugador_a
+            wins_h2h = sum(1 for p in partidos_h2h if p["gano_a"] == es_a)
+            wr_h2h = wins_h2h / len(partidos_h2h)
+            if wr_h2h <= 0.40:
+                coco.append(acierto)
+            elif wr_h2h >= 0.60:
+                no_coco.append(acierto)
+        # Factor 4: patrón horario
+        try:
+            hora = datetime.strptime(fecha, "%Y-%m-%d %H:%M:%S").hour
+            partidos_pred_local = buscar_partidos_jugador_db(gan_pred)
+            if len(partidos_pred_local) >= 20:
+                conn_h = get_db()
+                c_h = conn_h.cursor()
+                c_h.execute('''SELECT score_home, score_away, home_jugador, timestamp
+                             FROM partidos
+                             WHERE (UPPER(home_jugador)=? OR UPPER(away_jugador)=?)
+                             AND timestamp > 0''', (gan_pred.upper(), gan_pred.upper()))
+                partidos_hora = c_h.fetchall()
+                conn_h.close()
+                misma_franja = []
+                for sc_h, sc_a, home_j, ts in partidos_hora:
+                    h = datetime.utcfromtimestamp(ts).hour
+                    if abs(h - hora) <= 1:
+                        es_home = home_j.upper() == gan_pred.upper()
+                        misma_franja.append(sc_h > sc_a if es_home else sc_a > sc_h)
+                if len(misma_franja) >= 15:
+                    wr_franja = sum(misma_franja) / len(misma_franja)
+                    wr_global = sum(1 for p in partidos_pred_local if p["gano"]) / len(partidos_pred_local)
+                    if wr_franja >= wr_global + 0.08:
+                        horario_bueno.append(acierto)
+                    elif wr_franja <= wr_global - 0.08:
+                        horario_malo.append(acierto)
+        except:
+            pass
+        # Factor 5: presión
+        if len(partidos_h2h) >= 5:
+            ajustados = [p for p in partidos_h2h if abs(p["pts_a"] - p["pts_b"]) <= 10]
+            no_ajustados = [p for p in partidos_h2h if abs(p["pts_a"] - p["pts_b"]) > 10]
+            if len(ajustados) >= 3 and len(no_ajustados) >= 3:
+                es_a = gan_pred == jugador_a
+                wr_aj = sum(1 for p in ajustados if p["gano_a"] == es_a) / len(ajustados)
+                wr_no_aj = sum(1 for p in no_ajustados if p["gano_a"] == es_a) / len(no_ajustados)
+                if wr_aj >= wr_no_aj + 0.20:
+                    presion_positiva.append(acierto)
+                elif wr_aj <= wr_no_aj - 0.20:
+                    presion_negativa.append(acierto)
+        # Factor 7: tendencia puntos
+        if len(partidos_pred) >= 10:
+            avg_hist = sum(p["pts_favor"] for p in partidos_pred) / len(partidos_pred)
+            avg5 = sum(p["pts_favor"] for p in partidos_pred[:5]) / 5
+            if avg5 >= avg_hist + 3:
+                tendencia_alta.append(acierto)
+            elif avg5 <= avg_hist - 3:
+                tendencia_baja.append(acierto)
+    def mostrar(lista, nombre):
+        if not lista:
+            return f"⚪ {nombre}: sin datos\n"
+        n = len(lista)
+        ac = sum(lista)
+        acc = round(ac / n * 100, 1)
+        emoji = "🟢" if acc >= 55 else "🟡" if acc >= 50 else "🔴"
+        return f"{emoji} {nombre}: {acc}% acierto ({n} casos)\n"
+    msg = "🧠 *Validación factores psicológicos*\n\n"
+    msg += "*Factor 1 — Racha:*\n"
+    msg += mostrar(racha_caliente, "Favorito en racha caliente")
+    msg += mostrar(racha_fria, "Favorito en racha fría")
+    msg += "\n*Factor 3 — Rival coco:*\n"
+    msg += mostrar(no_coco, "Favorito domina H2H")
+    msg += mostrar(coco, "Favorito es el coco del rival")
+    msg += "\n*Factor 4 — Patrón horario:*\n"
+    msg += mostrar(horario_bueno, "Favorito en su buena franja horaria")
+    msg += mostrar(horario_malo, "Favorito en su mala franja horaria")
+    msg += "\n*Factor 5 — Presión:*\n"
+    msg += mostrar(presion_positiva, "Favorito se crece bajo presión")
+    msg += mostrar(presion_negativa, "Favorito se hunde bajo presión")
+    msg += "\n*Factor 7 — Tendencia puntos:*\n"
+    msg += mostrar(tendencia_alta, "Favorito anotando por encima")
+    msg += mostrar(tendencia_baja, "Favorito anotando por debajo")
+    await update.message.reply_text(msg, parse_mode="Markdown")
     
 # ─────────────────────────────────────────────
 # MAIN
@@ -3369,6 +3489,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("debugcuotas", debug_cuotas))
     app.add_handler(CommandHandler("debuglineas", debug_lineas))
     app.add_handler(CommandHandler("debugpsico", debugpsico))
+    app.add_handler(CommandHandler("validarpsico", validarpsico))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
