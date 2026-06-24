@@ -3956,8 +3956,9 @@ if __name__ == "__main__":
             ("guide", "📖 Guide / Manual de uso"),
             ("language", "🌐 Change language / Cambiar idioma"),
         ])
-                asyncio.create_task(tarea_actualizacion_diaria())
-        asyncio.create_task(tarea_predicciones_automaticas(application))
+        asyncio.create_task(tarea_actualizacion_diaria())
+        
+    asyncio.create_task(tarea_predicciones_automaticas(application))
 
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
     app.add_handler(CommandHandler("start", start))
