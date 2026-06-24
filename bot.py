@@ -1655,8 +1655,8 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
         cb_a = betsson.get('cuota_a')
         cb_b = betsson.get('cuota_b')
         if cb_a and cb_b:
-            valor_a = " ✅" if cb_a > 0 and analisis['cuota_a'] > 0 and cb_a / analisis['cuota_a'] >= 1.25 and cb_a <= 2.50 else ""
-            valor_b = " ✅" if cb_b > 0 and analisis['cuota_b'] > 0 and cb_b / analisis['cuota_b'] >= 1.25 and cb_b <= 2.50 else ""
+            valor_a = " ✅" if cb_a > 0 and analisis['cuota_a'] > 0 and cb_a / analisis['cuota_a'] >= 1.25 and cb_a <= 2.00 else ""
+            valor_b = " ✅" if cb_b > 0 and analisis['cuota_b'] > 0 and cb_b / analisis['cuota_b'] >= 1.25 and cb_b <= 2.00 else ""
             msg += f"{'BETSSON:':10}{str(cb_a) + valor_a:<{espaciado}}{cb_b}{valor_b}\n"
 
     if analisis.get('linea_total'):
