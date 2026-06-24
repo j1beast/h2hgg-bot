@@ -1632,48 +1632,11 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
     msg = f"🏀 *{jugador_a} vs {jugador_b}*\n"
     msg += f"{franq_a} — {franq_b}\n\n"
     msg += f"━━━━━━━━━━━━━━━\n"
-    msg += f"📈 *ANÁLISIS*\n"
-    msg += f"━━━━━━━━━━━━━━━\n"
-
-    total_h2h = analisis.get('h2h_total', 0)
-    if total_h2h > 0:
-        wins_a_real = analisis.get('h2h_wins_a_real', round(analisis.get('h2h_wins_a', 0)))
-        wins_b_real = total_h2h - wins_a_real
-        msg += f"*H2H:* {total_h2h} partidos → {jugador_a} {wins_a_real}W / {wins_b_real}L\n"
-    else:
-        msg += f"*H2H:* 0 partidos\n"
-
-    h2h_equipos = analisis.get('h2h_equipos', 0)
-    if h2h_equipos > 0:
-        wins_eq_a = analisis.get('h2h_wins_eq_a', 0)
-        wins_eq_b = h2h_equipos - wins_eq_a
-        msg += f"*H2H mismos equipos:* {h2h_equipos} partidos → {wins_eq_a}-{wins_eq_b}\n"
-    else:
-        msg += f"*H2H mismos equipos:* 0 partidos\n"
-
-    if analisis.get('matchup_total') is not None:
-        matchup_pct = round(analisis['matchup_total'] * 100, 1)
-        msg += f"*Matchup franquicias:* {franq_a} {matchup_pct}%\n"
-
-    if analisis.get('racha_a') and analisis.get('racha_b'):
-        racha_a = "-".join(analisis['racha_a'].split())
-        racha_b = "-".join(analisis['racha_b'].split())
-        msg += f"*Forma {jugador_a}:* {racha_a}\n"
-        msg += f"*Forma {jugador_b}:* {racha_b}\n"
-    elif analisis.get('forma_a') is not None:
-        msg += f"*Forma {jugador_a}:* {analisis['forma_a']}%\n"
-        msg += f"*Forma {jugador_b}:* {analisis['forma_b']}%\n"
-
-    if analisis.get('winrate_a_franq') is not None:
-        msg += f"*{jugador_a} con {franq_a}:* {analisis['winrate_a_franq']}% ({analisis['partidos_a_franq']} partidos)\n"
-        msg += f"*{jugador_b} con {franq_b}:* {analisis['winrate_b_franq']}% ({analisis['partidos_b_franq']} partidos)\n"
-
-    msg += f"━━━━━━━━━━━━━━━\n"
     msg += f"🎯 *GANADOR*\n"
     msg += f"━━━━━━━━━━━━━━━\n"
     fuerza_g = analisis.get('fuerza_ganador')
     if fuerza_g:
-        msg += f"💪 *Fuerza de la predicción:* {fuerza_g}%\n"
+        msg += f"Implicación de factores: {fuerza_g}%\n"
     espaciado = max(len(jugador_a), len(jugador_b)) + 2
     msg += f"{'':10}{jugador_a:<{espaciado}}{jugador_b}\n"
     msg += f"{'BOT:':10}{str(analisis['cuota_a']):<{espaciado}}{analisis['cuota_b']}\n"
@@ -1689,7 +1652,6 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
         msg += f"\n━━━━━━━━━━━━━━━\n"
         msg += f"🔢 *TOTAL PUNTOS*\n"
         msg += f"━━━━━━━━━━━━━━━\n"
-        msg += f"*BOT predice:* {analisis['linea_total']} pts\n"
         try:
             ou_factors = {
                 'h2h': analisis.get('ou_h2h_total'),
@@ -1706,9 +1668,10 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
                 peso_total = sum(pesos_ou.get(k, 0.2) for k, v in ou_factors.items() if v is not None)
                 if peso_total > 0:
                     fuerza_ou = round(peso_favor / peso_total * 100, 1)
-                    msg += f"💪 *Fuerza O/U:* {fuerza_ou}%\n"
+                    msg += f"Implicación de factores: {fuerza_ou}%\n"
         except:
             pass
+        msg += f"BOT predice: {analisis['linea_total']} pts\n"
         if betsson and betsson.get('linea_ou') and betsson.get('cuota_over'):
             bs_linea = betsson['linea_ou']
             bs_over = betsson['cuota_over']
@@ -1721,7 +1684,7 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
                         valor_ou = " ✅ VALOR OVER" if float(linea_bot) > float(bs_linea) else " ✅ VALOR UNDER"
                 except:
                     pass
-            msg += f"*BETSSON línea:* {bs_linea} pts\n"
+            msg += f"BETSSON línea: {bs_linea} pts\n"
             msg += f"Over `{bs_over}` / Under `{bs_under}`{valor_ou}\n"
 
     return msg
