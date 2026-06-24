@@ -3958,9 +3958,9 @@ async def post_init(application):
     ])
     asyncio.create_task(tarea_actualizacion_diaria())
     
-asyncio.create_task(tarea_predicciones_automaticas(application))
+    asyncio.create_task(tarea_predicciones_automaticas(application))
 
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
+app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("proximos", proximos))
     app.add_handler(CommandHandler("resultados", resultados))
