@@ -3098,7 +3098,7 @@ async def debugpsico(update: Update, context: ContextTypes.DEFAULT_TYPE):
             partido_actual = partidos[i]
             partido_anterior = partidos[i + 1]
             margen_anterior = abs(partido_anterior["pts_favor"] - partido_anterior["pts_contra"])
-            derrota_abultada = not partido_anterior["gano"] and margen_anterior >= 15
+            derrota_abultada = not partido_anterior["gano"] and margen_anterior >= 10
             if derrota_abultada:
                 siguientes_tras_goleada.append(partido_actual["gano"])
             else:
