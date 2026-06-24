@@ -168,6 +168,17 @@ def set_meta(clave, valor):
     conn.commit()
     conn.close()
 
+def get_idioma(user_id):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT valor FROM meta WHERE clave=?", (f"idioma_{user_id}",))
+    row = c.fetchone()
+    conn.close()
+    return row[0] if row else "es"
+
+def set_idioma(user_id, idioma):
+    set_meta(f"idioma_{user_id}", idioma)
+
 # ─────────────────────────────────────────────
 # API BETSAPI
 # ─────────────────────────────────────────────
@@ -3536,6 +3547,30 @@ async def manualdeuso(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📝 También puedes escribir directamente *MYTH vs MALICE* sin usar ningún comando."
     )
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def language(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    keyboard = [
+        [
+            InlineKeyboardButton("🇪🇸 Español", callback_data="lang_es"),
+            InlineKeyboardButton("🇬🇧 English", callback_data="lang_en"),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Selecciona tu idioma / Choose your language:", reply_markup=reply_markup)
+
+async def callback_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    if query.data == "lang_es":
+        set_idioma(user_id, "es")
+        await query.edit_message_text("✅ Idioma cambiado a *Español*", parse_mode="Markdown")
+    elif query.data == "lang_en":
+        set_idioma(user_id, "en")
+        await query.edit_message_text("✅ Language set to *English*", parse_mode="Markdown")
     
 # ─────────────────────────────────────────────
 # MAIN
@@ -3615,6 +3650,8 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("debugpsico", debugpsico))
     app.add_handler(CommandHandler("validarpsico", validarpsico))
     app.add_handler(CommandHandler("manualdeuso", manualdeuso))
+    app.add_handler(CommandHandler("language", language))
+    app.add_handler(CallbackQueryHandler(callback_language, pattern="^lang_"))
     app.add_handler(CommandHandler("testoapi", test_odds_api))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
