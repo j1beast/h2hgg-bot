@@ -2607,32 +2607,40 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn_dias = get_db()
     c_dias = conn_dias.cursor()
     c_dias.execute('''SELECT DATE(fecha_prediccion) as dia,
-                 COUNT(*) as total,
-                 SUM(acierto_ganador) as gan,
-                 SUM(acierto_ou) as ou
+                 ganador_predicho, jugador_a, jugador_b,
+                 acierto_ganador, acierto_ou, prediccion_ou,
+                 cuota_betsson_a, cuota_betsson_b,
+                 cuota_betsson_over, cuota_betsson_under
                  FROM predicciones
                  WHERE procesado = 1
                  AND cuota_betsson_a IS NOT NULL
                  AND fecha_prediccion >= ?
-                 GROUP BY dia
-                 ORDER BY dia DESC
-                 LIMIT 10''', (reset_fecha,))
-    dias = c_dias.fetchall()
+                 ORDER BY dia DESC''', (reset_fecha,))
+    rows_dias = c_dias.fetchall()
     conn_dias.close()
-    if dias:
+    dias_dict = {}
+    for row in rows_dias:
+        dia, gan_pred, jug_a, jug_b, ac_g, ac_ou, pred_ou, cb_a, cb_b, cb_over, cb_under = row
+        if dia not in dias_dict:
+            dias_dict[dia] = {"u_g": 0.0, "u_ou": 0.0}
+        cuota_g = cb_a if gan_pred == jug_a else cb_b
+        if cuota_g and cuota_g > 1:
+            dias_dict[dia]["u_g"] += round(cuota_g - 1, 4) if ac_g == 1 else -1
+        cuota_ou = cb_over if pred_ou == "Over" else cb_under
+        if cuota_ou and cuota_ou > 1:
+            dias_dict[dia]["u_ou"] += round(cuota_ou - 1, 4) if ac_ou == 1 else -1
+    ultimos_dias = sorted(dias_dict.keys(), reverse=True)[:10]
+    if ultimos_dias:
         if idioma == "en":
             msg += f"\n📅 *Last 10 days:*\n"
         else:
             msg += f"\n📅 *Últimos 10 días:*\n"
-        for dia, total_dia, gan, ou in dias:
-            gan = gan or 0
-            ou = ou or 0
-            emoji_dia_g = "📈" if gan > total_dia / 2 else "📉"
-            emoji_dia_ou = "📈" if ou > total_dia / 2 else "📉"
-            if idioma == "en":
-                msg += f"{dia}: {emoji_dia_g} W {gan}/{total_dia} | {emoji_dia_ou} O/U {ou}/{total_dia}\n"
-            else:
-                msg += f"{dia}: {emoji_dia_g} G {gan}/{total_dia} | {emoji_dia_ou} O/U {ou}/{total_dia}\n"
+        for dia in ultimos_dias:
+            u_g = round(dias_dict[dia]["u_g"], 2)
+            u_ou = round(dias_dict[dia]["u_ou"], 2)
+            emoji_g = "📈" if u_g >= 0 else "📉"
+            emoji_ou = "📈" if u_ou >= 0 else "📉"
+            msg += f"{dia}: {emoji_g} G {'+' if u_g >= 0 else ''}{u_g}u | {emoji_ou} O/U {'+' if u_ou >= 0 else ''}{u_ou}u\n"
     conn_v = get_db()
     c_v = conn_v.cursor()
     c_v.execute('''SELECT ganador_predicho, resultado_real, acierto_ganador,
