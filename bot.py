@@ -2604,6 +2604,35 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg += f"Predicciones: {len(racha_contra)} | Aciertos: {aciertos_contra}\n"
         msg += f"Últimas 10: {ultimas_contra}\n"
         msg += f"{emoji_contra} Resultado: `{'+' if unidades_contra >= 0 else ''}{round(unidades_contra, 2)}u`\n"
+    conn_dias = get_db()
+    c_dias = conn_dias.cursor()
+    c_dias.execute('''SELECT DATE(fecha_prediccion) as dia,
+                 COUNT(*) as total,
+                 SUM(acierto_ganador) as gan,
+                 SUM(acierto_ou) as ou
+                 FROM predicciones
+                 WHERE procesado = 1
+                 AND cuota_betsson_a IS NOT NULL
+                 AND fecha_prediccion >= ?
+                 GROUP BY dia
+                 ORDER BY dia DESC
+                 LIMIT 10''', (reset_fecha,))
+    dias = c_dias.fetchall()
+    conn_dias.close()
+    if dias:
+        if idioma == "en":
+            msg += f"\n📅 *Last 10 days:*\n"
+        else:
+            msg += f"\n📅 *Últimos 10 días:*\n"
+        for dia, total_dia, gan, ou in dias:
+            gan = gan or 0
+            ou = ou or 0
+            emoji_dia_g = "📈" if gan > total_dia / 2 else "📉"
+            emoji_dia_ou = "📈" if ou > total_dia / 2 else "📉"
+            if idioma == "en":
+                msg += f"{dia}: {emoji_dia_g} W {gan}/{total_dia} ({round(gan/total_dia*100,1)}%) | {emoji_dia_ou} O/U {ou}/{total_dia} ({round(ou/total_dia*100,1)}%)\n"
+            else:
+                msg += f"{dia}: {emoji_dia_g} G {gan}/{total_dia} ({round(gan/total_dia*100,1)}%) | {emoji_dia_ou} O/U {ou}/{total_dia} ({round(ou/total_dia*100,1)}%)\n"
     conn_v = get_db()
     c_v = conn_v.cursor()
     c_v.execute('''SELECT ganador_predicho, resultado_real, acierto_ganador,
