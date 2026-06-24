@@ -3157,6 +3157,44 @@ async def debugpsico(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         msg += "Sin suficientes enfrentamientos directos\n"
 
+        # Factor 4: Patrón horario
+    def calcular_patron_horario(jugador):
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('''SELECT score_home, score_away, home_jugador, timestamp
+                     FROM partidos
+                     WHERE UPPER(home_jugador)=? OR UPPER(away_jugador)=?
+                     AND timestamp > 0''', (jugador, jugador))
+        rows = c.fetchall()
+        conn.close()
+        franjas = {'mañana (6-12h)': [], 'tarde (12-18h)': [], 'noche (18-24h)': [], 'madrugada (0-6h)': []}
+        for sc_h, sc_a, home_j, ts in rows:
+            if not ts:
+                continue
+            hora = datetime.utcfromtimestamp(ts).hour
+            es_home = home_j.upper() == jugador
+            gano = sc_h > sc_a if es_home else sc_a > sc_h
+            if 6 <= hora < 12:
+                franjas['mañana (6-12h)'].append(gano)
+            elif 12 <= hora < 18:
+                franjas['tarde (12-18h)'].append(gano)
+            elif 18 <= hora < 24:
+                franjas['noche (18-24h)'].append(gano)
+            else:
+                franjas['madrugada (0-6h)'].append(gano)
+        return franjas
+
+    msg += "\n4️⃣ *Patrón horario*\n"
+    for jugador, nombre in [(jugador_a, jugador_a), (jugador_b, jugador_b)]:
+        franjas = calcular_patron_horario(jugador)
+        msg += f"*{nombre}:*\n"
+        for franja, resultados in franjas.items():
+            if len(resultados) < 10:
+                continue
+            wr = round(sum(resultados) / len(resultados) * 100, 1)
+            emoji = "🟢" if wr >= 55 else "🔴" if wr < 45 else "🟡"
+            msg += f"  {emoji} {franja}: {wr}% ({len(resultados)} partidos)\n"
+
     await update.message.reply_text(msg, parse_mode="Markdown")
     
 # ─────────────────────────────────────────────
