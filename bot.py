@@ -2962,12 +2962,10 @@ async def obtener_cuotas_fanduel():
 
                 try:
                     # 1. Obtener market IDs del evento
-                    ep = await page.request.get(
-                        f"https://api.sportsbook.fanduel.com/sbapi/event-page"
-                        f"?_ak={AK}&eventId={event_id}&tab=popular"
-                        f"&useCombinedTouchdownsVirtualMarket=true&useQuickBets=true"
-                    )
-                    ep_data = await ep.json()
+                    ep_data = await page.evaluate(f'''async () => {{
+                        const r = await fetch("https://api.sportsbook.fanduel.com/sbapi/event-page?_ak={AK}&eventId={event_id}&tab=popular&useCombinedTouchdownsVirtualMarket=true&useQuickBets=true");
+                        return await r.json();
+                    }}''')
                     att = ep_data.get('attachments', {})
                     event_att = att.get('events', {}).get(str(event_id), {})
                     market_ids = event_att.get('marketIds', [])
@@ -2982,12 +2980,15 @@ async def obtener_cuotas_fanduel():
                         continue
 
                     # 2. Obtener precios
-                    gmp = await page.request.post(
-                        "https://smp.nj.sportsbook.fanduel.com/api/sports/fixedodds/readonly/v1/getMarketPrices?priceHistory=0",
-                        data=json.dumps({"marketIds": [str(mid) for mid in market_ids]}),
-                        headers={"Content-Type": "application/json"}
-                    )
-                    gmp_data = await gmp.json()
+                    market_ids_json = json.dumps([str(mid) for mid in market_ids])
+                    gmp_data = await page.evaluate(f'''async () => {{
+                        const r = await fetch("https://smp.nj.sportsbook.fanduel.com/api/sports/fixedodds/readonly/v1/getMarketPrices?priceHistory=0", {{
+                            method: "POST",
+                            headers: {{"Content-Type": "application/json"}},
+                            body: JSON.stringify({{marketIds: {market_ids_json}}})
+                        }});
+                        return await r.json();
+                    }}''')
 
                     cuota_a = cuota_b = cuota_over = cuota_under = linea_ou = None
 
