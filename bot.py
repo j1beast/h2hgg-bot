@@ -2920,6 +2920,24 @@ async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = "❌ No se pudieron obtener cuotas"
     await update.message.reply_text(msg[:4000])
 
+async def test_fanduel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("🔄 Probando FanDuel...")
+    try:
+        cuotas = await obtener_cuotas_fanduel()
+        if not cuotas:
+            await update.message.reply_text("❌ Sin resultados. Revisa los logs.")
+            return
+        msg = f"✅ FanDuel: {len(cuotas)} partidos\n\n"
+        for key, data in list(cuotas.items())[:5]:
+            msg += f"*{data['home']} vs {data['away']}*\n"
+            msg += f"Cuotas: {data['cuota_a']} / {data['cuota_b']}\n"
+            if data.get('linea_ou'):
+                msg += f"O/U: {data['linea_ou']} ({data.get('cuota_over')} / {data.get('cuota_under')})\n"
+            msg += "\n"
+        await update.message.reply_text(msg, parse_mode="Markdown")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {e}")
+
 async def renovar_cookies_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         return
@@ -4005,6 +4023,7 @@ app.add_handler(CommandHandler("performance", rendimiento))
 app.add_handler(CommandHandler("units", unidades))
 app.add_handler(CommandHandler("pending", pendientes))
 app.add_handler(CommandHandler("testoapi", test_odds_api))
+app.add_handler(CommandHandler("testfanduel", test_fanduel))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
 print("Bot iniciado...")
