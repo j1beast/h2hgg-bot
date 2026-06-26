@@ -2298,8 +2298,9 @@ async def forma(update: Update, context: ContextTypes.DEFAULT_TYPE):
     recientes = partidos[:10]
     victorias = sum(1 for p in recientes if p["gano"])
     derrotas = len(recientes) - victorias
-    avg_pts = round(sum(p["pts_favor"] for p in recientes) / len(recientes), 1)
-    avg_total = round(sum(p["pts_favor"] + p["pts_contra"] for p in recientes) / len(recientes), 1)
+    recientes_validos = [p for p in recientes if p["pts_favor"] + p["pts_contra"] >= 40]
+    avg_pts = round(sum(p["pts_favor"] for p in recientes_validos) / len(recientes_validos), 1) if recientes_validos else 0
+    avg_total = round(sum(p["pts_favor"] + p["pts_contra"] for p in recientes_validos) / len(recientes_validos), 1) if recientes_validos else 0
     if idioma == "en":
         msg = f"📊 *Recent form of {jugador}*\n\n"
         msg += f"{victorias}W / {derrotas}L (last {len(recientes)})\n"
