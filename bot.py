@@ -2907,6 +2907,7 @@ async def get_cuotas_betsson():
 
 async def obtener_cuotas_fanduel():
     from playwright.async_api import async_playwright
+    import re
 
     cuotas = {}
 
@@ -2921,13 +2922,41 @@ async def obtener_cuotas_fanduel():
             )
             page = await context.new_page()
 
+            event_market_map = {}  # eventId -> [marketIds]
+            market_odds = {}       # marketId -> {type, runners}
+
             async def on_response(response):
                 try:
-                    ct = response.headers.get('content-type', '')
-                    if 'json' in ct:
-                        text = await response.text()
-                        if len(text) > 300:
-                            print(f"[FD] {response.url[:80]} {len(text)}b: {text[:150]}")
+                    url = response.url
+                    if 'content-managed-page' in url:
+                        data = await response.json()
+                        coupons = data.get('layout', {}).get('coupons', {})
+                        for coupon in coupons.values():
+                            for display in coupon.get('display', []):
+                                for row in display.get('rows', []):
+                                    eid = str(row.get('eventId', ''))
+                                    mids = row.get('marketIds', row.get('marketId', []))
+                                    if isinstance(mids, str):
+                                        mids = [mids]
+                                    if eid and mids:
+                                        event_market_map.setdefault(eid, []).extend([str(m) for m in mids])
+
+                    elif 'getMarketPrices' in url:
+                        data = await response.json()
+                        for market in data:
+                            if market.get('marketStatus') != 'OPEN':
+                                continue
+                            mid = str(market['marketId'])
+                            runners = {}
+                            for r in market.get('runnerDetails', []):
+                                if r.get('runnerStatus') != 'ACTIVE':
+                                    continue
+                                order = r.get('runnerOrder', 0)
+                                runners[order] = {
+                                    'odds': round(r['winRunnerOdds']['decimalDisplayOdds']['decimalOdds'], 2),
+                                    'handicap': r.get('handicap', 0)
+                                }
+                            market_odds[mid] = {'type': market.get('bettingType', ''), 'runners': runners}
                 except:
                     pass
 
@@ -2937,16 +2966,76 @@ async def obtener_cuotas_fanduel():
                             wait_until='networkidle', timeout=30000)
             await page.wait_for_timeout(5000)
 
-            page_text = await page.inner_text('body')
-            print(f"[FANDUEL PAGE] {page_text[:400]}")
+            links = await page.evaluate('''() => {
+                return Array.from(document.querySelectorAll('a[href]'))
+                    .map(a => a.href)
+                    .filter(h => h.includes('basketball') && h.match(/\\d{7,}/))
+                    .filter((v, i, a) => a.indexOf(v) === i);
+            }''')
 
             await browser.close()
 
+            link_re = re.compile(r'/([\w-]+)-\(([a-z0-9]+)\)-@-([\w-]+)-\(([a-z0-9]+)\)-(\d{7,})', re.I)
+            event_players = {}
+            for link in links:
+                m = link_re.search(link.split('fanduel.com')[-1])
+                if m:
+                    event_players[m.group(5)] = (
+                        m.group(2).upper(), m.group(4).upper(),
+                        m.group(1).replace('-', ' ').title(),
+                        m.group(3).replace('-', ' ').title()
+                    )
+
+            print(f"[FANDUEL] DOM eventos: {len(event_players)} | content-managed: {len(event_market_map)} | markets: {len(market_odds)}")
+
+            for event_id, market_ids in event_market_map.items():
+                players = event_players.get(event_id)
+                if not players:
+                    continue
+                player_a, player_b, franq_a, franq_b = players
+                cuota_a = cuota_b = cuota_over = cuota_under = linea_ou = None
+
+                for mid in market_ids:
+                    mdata = market_odds.get(mid)
+                    if not mdata:
+                        continue
+                    btype = mdata['type']
+                    runners = mdata['runners']
+
+                    if btype == 'FIXED_ODDS':
+                        zero = {o: r for o, r in runners.items() if r['handicap'] == 0.0}
+                        if len(zero) >= 2:
+                            orders = sorted(zero.keys())
+                            cuota_a = zero[orders[0]]['odds']
+                            cuota_b = zero[orders[1]]['odds']
+
+                    elif btype == 'MOVING_HANDICAP' and not linea_ou:
+                        for r in runners.values():
+                            if abs(r['handicap']) > 50:
+                                linea_ou = abs(r['handicap'])
+                                break
+                        if linea_ou:
+                            orders = sorted(runners.keys())
+                            cuota_over = runners[orders[0]]['odds'] if orders else None
+                            cuota_under = runners[orders[1]]['odds'] if len(orders) > 1 else None
+
+                if cuota_a and cuota_b:
+                    cuotas[f"{player_a}_vs_{player_b}"] = {
+                        'cuota_a': cuota_a, 'cuota_b': cuota_b,
+                        'cuota_over': cuota_over, 'cuota_under': cuota_under,
+                        'linea_ou': linea_ou, 'home': player_a, 'away': player_b,
+                        'hora_utc': None, 'franq_a': franq_a, 'franq_b': franq_b
+                    }
+
+        print(f"[FANDUEL] Cuotas obtenidas: {len(cuotas)} partidos")
+
     except Exception as e:
+        import traceback
         print(f"[FANDUEL] Error: {e}")
+        traceback.print_exc()
 
     return cuotas
-
+    
 async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         return
