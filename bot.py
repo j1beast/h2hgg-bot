@@ -595,7 +595,7 @@ async def tarea_predicciones_automaticas(app_ref):
                                 msg += f"Betsson: {tipo_ou} `{bs_linea}` → `{bs_over if tipo_ou == 'OVER' else bs_under}`\n"
                                 msg += f"Línea bot: {linea_bot} pts ({diff_str})\n"
                                 try:
-                                    ou_factors = {'h2h': analisis.get('ou_h2h_total'), 'reciente': analisis.get('ou_reciente'), 'tendencia': analisis.get('ou_tendencia'), 'contraataque': analisis.get('ou_contraataque'), 'tendencia_pts': analisis.get('ou_tendencia_pts')}
+                                    ou_factors = {'h2h': analisis.get('ou_h2h_total'), 'reciente': analisis.get('ou_reciente'), 'contraataque': analisis.get('ou_contraataque'), 'tendencia_pts': analisis.get('ou_tendencia_pts')}
                                     pesos_ou = json.loads(get_meta("pesos_ou_optimizados") or "{}")
                                     es_over_f = float(linea_bot) > float(bs_linea)
                                     pf = sum(pesos_ou.get(k, 0.2) for k, v in ou_factors.items() if v is not None and (v > float(bs_linea)) == es_over_f)
@@ -810,7 +810,7 @@ def calcular_pesos_optimos_ou():
     conn = get_db()
     c = conn.cursor()
     c.execute('''SELECT ou_h2h_total, ou_reciente,
-                 ou_tendencia, ou_contraataque, ou_tendencia_pts, linea_betsson_ou, pts_real_a, pts_real_b
+                 ou_contraataque, ou_tendencia_pts, linea_betsson_ou, pts_real_a, pts_real_b
                  FROM predicciones
                  WHERE procesado=1 AND linea_betsson_ou IS NOT NULL
                  AND pts_real_a IS NOT NULL AND ou_h2h_total IS NOT NULL''')
@@ -818,11 +818,11 @@ def calcular_pesos_optimos_ou():
     conn.close()
     if len(rows) < 30:
         return None, "Necesitas al menos 30 predicciones procesadas", {}
-    factores_data = {'h2h': [], 'reciente': [], 'tendencia': [], 'contraataque': [], 'tendencia_pts': []}
-    for ou_h2h, ou_rec, ou_tend, ou_contra, ou_tend_pts, linea_bs, pts_a, pts_b in rows:
+    factores_data = {'h2h': [], 'reciente': [], 'contraataque': [], 'tendencia_pts': []}
+    for ou_h2h, ou_rec, ou_contra, ou_tend_pts, linea_bs, pts_a, pts_b in rows:
         total_real = pts_a + pts_b
         real_over = total_real > linea_bs
-        for nombre, val in [('h2h', ou_h2h), ('reciente', ou_rec), ('tendencia', ou_tend),
+        for nombre, val in [('h2h', ou_h2h), ('reciente', ou_rec),
                              ('contraataque', ou_contra), ('tendencia_pts', ou_tend_pts)]:
             if val is None:
                 continue
@@ -1530,7 +1530,11 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         resultado["ou_h2h_total"] = avg_total_h2h if pts_totales_h2h else None
         resultado["ou_general"] = round(resultado["avg_pts_a"] + resultado["avg_pts_b"], 1)
         resultado["ou_franq"] = round(adj_a + adj_b, 1)
-        resultado["ou_reciente"] = round(avg_reciente_a + avg_reciente_b, 1)
+        recientes_total_a = [p["pts_favor"] + p["pts_contra"] for p in partidos_a_ou[:5]]
+        recientes_total_b = [p["pts_favor"] + p["pts_contra"] for p in partidos_b_ou[:5]]
+        avg_total_rec_a = round(sum(recientes_total_a) / len(recientes_total_a), 1) if recientes_total_a else None
+        avg_total_rec_b = round(sum(recientes_total_b) / len(recientes_total_b), 1) if recientes_total_b else None
+        resultado["ou_reciente"] = round((avg_total_rec_a + avg_total_rec_b) / 2, 1) if avg_total_rec_a and avg_total_rec_b else None
         resultado["ou_h2h_eq"] = round(avg_h2h_eq_a + avg_h2h_eq_b, 1) if pts_a_h2h_eq and pts_b_h2h_eq else None
 
         if todos_pts_a and resultado.get("avg_pts_a"):
@@ -1691,7 +1695,6 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
             ou_factors = {
                 'h2h': analisis.get('ou_h2h_total'),
                 'reciente': analisis.get('ou_reciente'),
-                'tendencia': analisis.get('ou_tendencia'),
                 'contraataque': analisis.get('ou_contraataque'),
                 'tendencia_pts': analisis.get('ou_tendencia_pts')
             }
