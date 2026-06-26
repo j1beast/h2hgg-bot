@@ -2906,18 +2906,10 @@ async def get_cuotas_betsson():
         return {}
 
 async def obtener_cuotas_fanduel():
-    """Obtiene cuotas de FanDuel para eBasketball H2H GG League"""
     from playwright.async_api import async_playwright
     import re
 
     cuotas = {}
-    AK = "FhMFpcPWXMeyZxOx"
-
-    def get_decimal(odds_data):
-        try:
-            return round(float(odds_data['winRunnerOdds']['decimalDisplayOdds']['decimalOdds']), 2)
-        except:
-            return None
 
     try:
         async with async_playwright() as p:
@@ -2926,117 +2918,34 @@ async def obtener_cuotas_fanduel():
                 args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
             )
             context = await browser.new_context(
-                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
-                viewport={'width': 1280, 'height': 900}
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
             )
             page = await context.new_page()
 
+            async def on_response(response):
+                try:
+                    url = response.url
+                    if any(s in url for s in ['sentry', 'analytics', 'px', '.js', '.css', '.png', '.jpg']):
+                        return
+                    ct = response.headers.get('content-type', '')
+                    if 'json' not in ct:
+                        return
+                    text = await response.text()
+                    if len(text) > 200 and any(k in text.upper() for k in ['AIRFORCE', 'KNIGHT', 'HORROR', 'H2H GG', 'PARTICIPANT']):
+                        print(f"[FANDUEL FOUND] {url[:120]}")
+                        print(f"[FANDUEL BODY] {text[:600]}")
+                except:
+                    pass
+
+            page.on('response', on_response)
+
             await page.goto('https://sportsbook.fanduel.com/navigation/esports',
                             wait_until='networkidle', timeout=30000)
-            await page.wait_for_timeout(4000)
-
-            # Extraer links de eventos H2H del DOM
-            links = await page.evaluate('''() => {
-                return Array.from(document.querySelectorAll('a[href]'))
-                    .map(a => a.href)
-                    .filter(h => h.includes('basketball') && h.match(/\\d{7,}/))
-                    .filter((v, i, a) => a.indexOf(v) === i);
-            }''')
-
-            # Parsear jugadores y event ID del link
-            # Formato: /basketball/team-a-(PLAYER_A)-@-team-b-(PLAYER_B)-EVENTID
-            link_re = re.compile(
-                r'/([\w-]+)-\(([a-z0-9]+)\)-@-([\w-]+)-\(([a-z0-9]+)\)-(\d{7,})',
-                re.IGNORECASE
-            )
-
-            for link in links:
-                m = link_re.search(link)
-                if not m:
-                    continue
-                franq_a = m.group(1).replace('-', ' ').title()
-                player_a = m.group(2).upper()
-                franq_b = m.group(3).replace('-', ' ').title()
-                player_b = m.group(4).upper()
-                event_id = m.group(5)
-
-                try:
-                    # 1. Obtener market IDs del evento
-                    debug = await page.evaluate(f'''async () => {{
-                        const r = await fetch("https://api.sportsbook.fanduel.com/sbapi/event-page?_ak={AK}&eventId={event_id}&tab=popular&useCombinedTouchdownsVirtualMarket=true&useQuickBets=true");
-                        const text = await r.text();
-                        return {{status: r.status, body: text.substring(0, 300)}};
-                    }}''')
-                    print(f"[FANDUEL DEBUG] evento {event_id}: status={debug.get('status')} body={debug.get('body','')[:200]}")
-                    if not debug.get('body'):
-                        continue
-                    ep_data = json.loads(debug['body'])
-                    att = ep_data.get('attachments', {})
-                    event_att = att.get('events', {}).get(str(event_id), {})
-                    market_ids = event_att.get('marketIds', [])
-
-                    open_date = event_att.get('openDate', '')
-                    try:
-                        hora_utc = datetime.strptime(open_date, "%Y-%m-%dT%H:%M:%S.000Z").strftime("%H:%M UTC")
-                    except:
-                        hora_utc = None
-
-                    if not market_ids:
-                        continue
-
-                    # 2. Obtener precios
-                    market_ids_json = json.dumps([str(mid) for mid in market_ids])
-                    gmp_data = await page.evaluate(f'''async () => {{
-                        const r = await fetch("https://smp.nj.sportsbook.fanduel.com/api/sports/fixedodds/readonly/v1/getMarketPrices?priceHistory=0", {{
-                            method: "POST",
-                            headers: {{"Content-Type": "application/json"}},
-                            body: JSON.stringify({{marketIds: {market_ids_json}}})
-                        }});
-                        return await r.json();
-                    }}''')
-
-                    cuota_a = cuota_b = cuota_over = cuota_under = linea_ou = None
-
-                    for market in gmp_data:
-                        if market.get('marketStatus') != 'OPEN':
-                            continue
-                        btype = market.get('bettingType', '')
-                        runners = [r for r in market.get('runnerDetails', []) if r.get('runnerStatus') == 'ACTIVE']
-
-                        if btype == 'FIXED_ODDS':
-                            ml = [r for r in runners if r.get('handicap', -1) == 0.0]
-                            if len(ml) == 2:
-                                ml.sort(key=lambda r: r.get('runnerOrder', 0))
-                                cuota_a = get_decimal(ml[0])
-                                cuota_b = get_decimal(ml[1])
-
-                        elif btype == 'MOVING_HANDICAP' and not linea_ou:
-                            line = abs(runners[0].get('handicap', 0)) if runners else 0
-                            if line > 50:
-                                runners.sort(key=lambda r: r.get('runnerOrder', 0))
-                                linea_ou = line
-                                cuota_over = get_decimal(runners[0])
-                                cuota_under = get_decimal(runners[1]) if len(runners) > 1 else None
-
-                    if cuota_a and cuota_b:
-                        cuotas[f"{player_a}_vs_{player_b}"] = {
-                            'cuota_a': cuota_a, 'cuota_b': cuota_b,
-                            'cuota_over': cuota_over, 'cuota_under': cuota_under,
-                            'linea_ou': linea_ou, 'home': player_a, 'away': player_b,
-                            'hora_utc': hora_utc, 'franq_a': franq_a, 'franq_b': franq_b
-                        }
-
-                except Exception as e:
-                    print(f"[FANDUEL] Error evento {event_id}: {e}")
-                    continue
-
+            await page.wait_for_timeout(5000)
             await browser.close()
-            print(f"[FANDUEL] Cuotas obtenidas: {len(cuotas)} partidos")
 
     except Exception as e:
-        import traceback
         print(f"[FANDUEL] Error: {e}")
-        traceback.print_exc()
 
     return cuotas
 
