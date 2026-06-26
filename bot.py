@@ -841,6 +841,16 @@ def calcular_pesos_optimos_ou():
         pesos = {k: 1.0 / n_factores for k in edges}
     else:
         pesos = {k: edges[k] / total_edge for k in edges}
+    max_w = 0.35
+    capped = True
+    while capped:
+        capped = False
+        total = sum(pesos.values())
+        pesos = {k: v/total for k, v in pesos.items()}
+        for k in pesos:
+            if pesos[k] > max_w:
+                pesos[k] = max_w
+                capped = True
     total = sum(pesos.values())
     pesos = {k: round(v / total, 4) for k, v in pesos.items()}
     return pesos, accuracies, n_muestras
