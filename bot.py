@@ -2907,7 +2907,6 @@ async def get_cuotas_betsson():
 
 async def obtener_cuotas_fanduel():
     from playwright.async_api import async_playwright
-    import re
 
     cuotas = {}
 
@@ -2924,16 +2923,11 @@ async def obtener_cuotas_fanduel():
 
             async def on_response(response):
                 try:
-                    url = response.url
-                    if any(s in url for s in ['sentry', 'analytics', 'px', '.js', '.css', '.png', '.jpg']):
-                        return
                     ct = response.headers.get('content-type', '')
-                    if 'json' not in ct:
-                        return
-                    text = await response.text()
-                    if len(text) > 200 and any(k in text.upper() for k in ['AIRFORCE', 'KNIGHT', 'HORROR', 'H2H GG', 'PARTICIPANT']):
-                        print(f"[FANDUEL FOUND] {url[:120]}")
-                        print(f"[FANDUEL BODY] {text[:600]}")
+                    if 'json' in ct:
+                        text = await response.text()
+                        if len(text) > 300:
+                            print(f"[FD] {response.url[:80]} {len(text)}b: {text[:150]}")
                 except:
                     pass
 
@@ -2942,6 +2936,10 @@ async def obtener_cuotas_fanduel():
             await page.goto('https://sportsbook.fanduel.com/navigation/esports',
                             wait_until='networkidle', timeout=30000)
             await page.wait_for_timeout(5000)
+
+            page_text = await page.inner_text('body')
+            print(f"[FANDUEL PAGE] {page_text[:400]}")
+
             await browser.close()
 
     except Exception as e:
