@@ -799,6 +799,13 @@ def cargar_pesos():
     _pesos_cache_ts = ahora
     return _pesos_cache
 
+def edge_con_confianza(accuracy, n, z=1.96):
+    if n < 50:
+        return 0.0
+    p = accuracy
+    lower = (p + z**2/(2*n) - z*((p*(1-p)/n + z**2/(4*n**2))**0.5)) / (1 + z**2/n)
+    return max(0.0, lower - 0.5)
+
 def calcular_pesos_optimos_ou():
     conn = get_db()
     c = conn.cursor()
@@ -827,7 +834,7 @@ def calcular_pesos_optimos_ou():
         n = len(resultados)
         n_muestras[nombre] = n
         accuracies[nombre] = sum(resultados) / n if n >= 10 else 0.5
-    edges = {k: max(0.0, v - 0.5) for k, v in accuracies.items()}
+    edges = {k: edge_con_confianza(v, n_muestras[k]) for k, v in accuracies.items()}
     total_edge = sum(edges.values())
     if total_edge == 0:
         n_factores = len(edges)
@@ -869,7 +876,7 @@ def calcular_pesos_optimos():
         n = len(resultados)
         n_muestras[nombre] = n
         accuracies[nombre] = sum(resultados) / n if n >= 5 else 0.5
-    edges = {k: max(0.0, v - 0.5) for k, v in accuracies.items()}
+    edges = {k: edge_con_confianza(v, n_muestras[k]) for k, v in accuracies.items()}
     total_edge = sum(edges.values())
     min_w = 0.05
     n_factores = len(edges)
