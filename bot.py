@@ -595,7 +595,7 @@ async def tarea_predicciones_automaticas(app_ref):
                                 msg += f"Betsson: {tipo_ou} `{bs_linea}` → `{bs_over if tipo_ou == 'OVER' else bs_under}`\n"
                                 msg += f"Línea bot: {linea_bot} pts ({diff_str})\n"
                                 try:
-                                    ou_factors = {'h2h': analisis.get('ou_h2h_total'), 'reciente': analisis.get('ou_reciente'), 'contraataque': analisis.get('ou_contraataque'), 'tendencia_pts': analisis.get('ou_tendencia_pts')}
+                                    ou_factors = {'h2h': analisis.get('ou_h2h_total'), 'reciente': analisis.get('ou_reciente'), 'contraataque': analisis.get('ou_contraataque'), 'tendencia_pts': analisis.get('ou_tendencia_pts'), 'defensa': ((analisis.get('ou_defensa_a') or 0) + (analisis.get('ou_defensa_b') or 0)) or None}
                                     pesos_ou = json.loads(get_meta("pesos_ou_optimizados") or "{}")
                                     es_over_f = float(linea_bot) > float(bs_linea)
                                     pf = sum(pesos_ou.get(k, 0.2) for k, v in ou_factors.items() if v is not None and (v > float(bs_linea)) == es_over_f)
@@ -810,7 +810,7 @@ def calcular_pesos_optimos_ou():
     conn = get_db()
     c = conn.cursor()
     c.execute('''SELECT ou_h2h_total, ou_reciente,
-                 ou_contraataque, ou_tendencia_pts, linea_betsson_ou, pts_real_a, pts_real_b
+                 ou_contraataque, ou_tendencia_pts, ou_defensa_a, ou_defensa_b, linea_betsson_ou, pts_real_a, pts_real_b
                  FROM predicciones
                  WHERE procesado=1 AND linea_betsson_ou IS NOT NULL
                  AND pts_real_a IS NOT NULL AND ou_h2h_total IS NOT NULL''')
@@ -818,12 +818,13 @@ def calcular_pesos_optimos_ou():
     conn.close()
     if len(rows) < 30:
         return None, "Necesitas al menos 30 predicciones procesadas", {}
-    factores_data = {'h2h': [], 'reciente': [], 'contraataque': [], 'tendencia_pts': []}
-    for ou_h2h, ou_rec, ou_contra, ou_tend_pts, linea_bs, pts_a, pts_b in rows:
+    factores_data = {'h2h': [], 'reciente': [], 'contraataque': [], 'tendencia_pts': [], 'defensa': []}
+    for ou_h2h, ou_rec, ou_contra, ou_tend_pts, def_a, def_b, linea_bs, pts_a, pts_b in rows:
         total_real = pts_a + pts_b
         real_over = total_real > linea_bs
+        ou_defensa = (def_a + def_b) if def_a and def_b else None
         for nombre, val in [('h2h', ou_h2h), ('reciente', ou_rec),
-                             ('contraataque', ou_contra), ('tendencia_pts', ou_tend_pts)]:
+                             ('contraataque', ou_contra), ('tendencia_pts', ou_tend_pts), ('defensa', ou_defensa)]:
             if val is None:
                 continue
             pred_over = val > linea_bs
@@ -1696,7 +1697,8 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
                 'h2h': analisis.get('ou_h2h_total'),
                 'reciente': analisis.get('ou_reciente'),
                 'contraataque': analisis.get('ou_contraataque'),
-                'tendencia_pts': analisis.get('ou_tendencia_pts')
+                'tendencia_pts': analisis.get('ou_tendencia_pts'),
+                'defensa': ((analisis.get('ou_defensa_a') or 0) + (analisis.get('ou_defensa_b') or 0)) or None
             }
             pesos_ou = json.loads(get_meta("pesos_ou_optimizados") or "{}")
             if betsson and betsson.get('linea_ou'):
@@ -3162,8 +3164,8 @@ async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if pesos_ou:
         pesos_ou_prev_str = get_meta("pesos_ou_optimizados") or "{}"
         set_meta("pesos_ou_optimizados", json.dumps(pesos_ou))
-        nombres_ou = {'h2h': 'H2H total', 'reciente': 'Forma reciente', 'tendencia': 'Tendencia reciente',
-                      'contraataque': 'Contraataque', 'tendencia_pts': 'Tendencia de puntos'}
+        nombres_ou = {'h2h': 'H2H total', 'reciente': 'Forma reciente',
+                      'contraataque': 'Contraataque', 'tendencia_pts': 'Tendencia de puntos', 'defensa': 'Factor defensivo'}
         pesos_ou_anteriores = json.loads(pesos_ou_prev_str)
         msg += "\n\n📊 *Precisión O/U por componente:*\n"
         for k in ['h2h', 'reciente', 'tendencia', 'contraataque', 'tendencia_pts']:
