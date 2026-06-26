@@ -2926,6 +2926,7 @@ async def obtener_cuotas_fanduel():
             market_odds = {}       # marketId -> {type, runners}
 
             async def on_response(response):
+                print(f"[FD RAW] {response.url[:60]}")
                 try:
                     url = response.url
                     if 'content-managed-page' in url:
