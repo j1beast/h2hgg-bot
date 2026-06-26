@@ -1448,12 +1448,16 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
     resultado["cuota_b"] = prob_to_odds(prob_final_b)
 
     # Over/Under
-    todos_pts_a = [p["pts_favor"] for p in partidos_a]
-    todos_pts_b = [p["pts_favor"] for p in partidos_b]
-    pts_totales_h2h = [p["pts_a"] + p["pts_b"] for p in partidos_h2h] if partidos_h2h else []
-
-    recientes_pts_a = [p["pts_favor"] for p in partidos_a[:7]]
-    recientes_pts_b = [p["pts_favor"] for p in partidos_b[:7]]
+    MIN_PTS_OU = 40
+    partidos_a_ou = [p for p in partidos_a if p["pts_favor"] + p["pts_contra"] >= MIN_PTS_OU]
+    partidos_b_ou = [p for p in partidos_b if p["pts_favor"] + p["pts_contra"] >= MIN_PTS_OU]
+    partidos_h2h_ou = [p for p in partidos_h2h if p["pts_a"] + p["pts_b"] >= MIN_PTS_OU] if partidos_h2h else []
+    todos_pts_a = [p["pts_favor"] for p in partidos_a_ou]
+    todos_pts_b = [p["pts_favor"] for p in partidos_b_ou]
+    pts_totales_h2h = [p["pts_a"] + p["pts_b"] for p in partidos_h2h_ou]
+    
+    recientes_pts_a = [p["pts_favor"] for p in partidos_a_ou[:7]]
+    recientes_pts_b = [p["pts_favor"] for p in partidos_b_ou[:7]]
 
     pts_a_h2h_eq = [p["pts_a"] for p in h2h_equipos]
     pts_b_h2h_eq = [p["pts_b"] for p in h2h_equipos]
@@ -1564,8 +1568,8 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
 
         avg_a_tp = resultado.get("avg_pts_a") or api_a.get("avgPoints") or 0
         avg_b_tp = resultado.get("avg_pts_b") or api_b.get("avgPoints") or 0
-        rec_a_tp = [p["pts_favor"] for p in partidos_a[:5]]
-        rec_b_tp = [p["pts_favor"] for p in partidos_b[:5]]
+        rec_a_tp = [p["pts_favor"] for p in partidos_a_ou[:5]]
+        rec_b_tp = [p["pts_favor"] for p in partidos_b_ou[:5]]
         if rec_a_tp and rec_b_tp and avg_a_tp and avg_b_tp:
             avg5_a_tp = sum(rec_a_tp) / len(rec_a_tp)
             avg5_b_tp = sum(rec_b_tp) / len(rec_b_tp)
