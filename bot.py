@@ -2929,8 +2929,12 @@ async def obtener_cuotas_fanduel():
                 try:
                     url = response.url
                     if 'content-managed-page' in url:
-                        data = await response.json()
+                        print(f"[FD INTERCEPT] content-managed-page encontrado")
+                        text = await response.text()
+                        print(f"[FD INTERCEPT] texto: {len(text)} chars: {text[:200]}")
+                        data = json.loads(text)
                         coupons = data.get('layout', {}).get('coupons', {})
+                        print(f"[FD INTERCEPT] coupons: {list(coupons.keys())[:5]}")
                         for coupon in coupons.values():
                             for display in coupon.get('display', []):
                                 for row in display.get('rows', []):
@@ -2942,6 +2946,7 @@ async def obtener_cuotas_fanduel():
                                         event_market_map.setdefault(eid, []).extend([str(m) for m in mids])
 
                     elif 'getMarketPrices' in url:
+                        print(f"[FD INTERCEPT] getMarketPrices encontrado")
                         data = await response.json()
                         for market in data:
                             if market.get('marketStatus') != 'OPEN':
@@ -2957,8 +2962,8 @@ async def obtener_cuotas_fanduel():
                                     'handicap': r.get('handicap', 0)
                                 }
                             market_odds[mid] = {'type': market.get('bettingType', ''), 'runners': runners}
-                except:
-                    pass
+                except Exception as e:
+                    print(f"[FD INTERCEPT ERROR] {response.url[:60]}: {e}")
 
             page.on('response', on_response)
 
