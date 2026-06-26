@@ -2962,10 +2962,15 @@ async def obtener_cuotas_fanduel():
 
                 try:
                     # 1. Obtener market IDs del evento
-                    ep_data = await page.evaluate(f'''async () => {{
+                    debug = await page.evaluate(f'''async () => {{
                         const r = await fetch("https://api.sportsbook.fanduel.com/sbapi/event-page?_ak={AK}&eventId={event_id}&tab=popular&useCombinedTouchdownsVirtualMarket=true&useQuickBets=true");
-                        return await r.json();
+                        const text = await r.text();
+                        return {{status: r.status, body: text.substring(0, 300)}};
                     }}''')
+                    print(f"[FANDUEL DEBUG] evento {event_id}: status={debug.get('status')} body={debug.get('body','')[:200]}")
+                    if not debug.get('body'):
+                        continue
+                    ep_data = json.loads(debug['body'])
                     att = ep_data.get('attachments', {})
                     event_att = att.get('events', {}).get(str(event_id), {})
                     market_ids = event_att.get('marketIds', [])
