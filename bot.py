@@ -102,7 +102,6 @@ def init_db():
         ("ou_total_hist", "REAL"),
         ("ou_ritmo_franq", "REAL"),
     ]:
-    ]:
         try:
             c.execute(f"ALTER TABLE predicciones ADD COLUMN {col} {tipo}")
         except:
