@@ -2456,7 +2456,7 @@ async def forma(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
     
 async def actualizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         await update.message.reply_text("No tienes acceso a este bot.")
         return
     await update.message.reply_text("🔄 Actualizando datos... esto puede tardar unos segundos.")
@@ -2773,7 +2773,7 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
     
 async def test_coolbet(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     await update.message.reply_text("🔍 Probando scraping Coolbet...")
     cuotas = await get_cuotas_coolbet()
@@ -2786,7 +2786,7 @@ async def test_coolbet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg)
 
 async def test_odds_api(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     await update.message.reply_text("🔍 Buscando H2H GG en todas las ligas...")
     try:
@@ -2854,7 +2854,7 @@ async def renovar_cookies_betsson():
         return None
 
 async def reset_unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     set_meta("reset_unidades", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
     await update.message.reply_text("✅ Contador de unidades reseteado desde ahora.")
@@ -3138,7 +3138,7 @@ async def obtener_cuotas_fanduel():
     return cuotas
     
 async def test_betsson(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     await update.message.reply_text("🔍 Obteniendo cuotas Betsson...")
     cuotas = await get_cuotas_betsson()
@@ -3170,7 +3170,7 @@ async def test_fanduel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Error: {e}")
 
 async def renovar_cookies_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     await update.message.reply_text("🔄 Renovando cookies de Betsson...")
     cookies_str = await renovar_cookies_betsson()
@@ -3181,7 +3181,7 @@ async def renovar_cookies_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global _pesos_cache, _pesos_cache_ts
-    if not es_permitido(update):
+    if not es_admin(update):
         await update.message.reply_text("No tienes acceso a este bot.")
         return
     await update.message.reply_text("🔍 Analizando predicciones pasadas...")
@@ -3248,7 +3248,7 @@ async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
     
 async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     conn = get_db()
     c = conn.cursor()
@@ -3286,7 +3286,7 @@ async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def debugvalor(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     conn = get_db()
     c = conn.cursor()
@@ -3300,7 +3300,7 @@ async def debugvalor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Procesadas sin valor: {sin_valor}\nProcesadas con valor: {con_valor}\nProcesadas valor NULL: {valor_null}")
 
 async def debug_contra(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     conn = get_db()
     c = conn.cursor()
@@ -3357,7 +3357,7 @@ async def debug_contra(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def debug_error_ou(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     conn = get_db()
     c = conn.cursor()
@@ -3400,7 +3400,7 @@ async def debug_error_ou(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def debug_sesgo_linea(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     conn = get_db()
     c = conn.cursor()
@@ -3428,7 +3428,7 @@ async def debug_sesgo_linea(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def debug_jugadores(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     conn = get_db()
     c = conn.cursor()
@@ -3488,7 +3488,7 @@ async def debug_jugadores(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
         
 async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         await update.message.reply_text("No tienes acceso a este bot.")
         return
     texto = update.message.text.upper()
@@ -3594,7 +3594,7 @@ async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def schema(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     conn = get_db()
     c = conn.cursor()
@@ -3604,7 +3604,7 @@ async def schema(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("\n".join(cols))
 
 async def debug_ou(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     conn = get_db()
     c = conn.cursor()
@@ -3634,7 +3634,7 @@ async def debug_ou(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def reset_valor(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     conn = get_db()
     conn.execute('''UPDATE predicciones SET es_valor=0, es_valor_ganador=0, es_valor_ou=0
@@ -3645,7 +3645,7 @@ async def reset_valor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ Reset completado: {n} predicciones limpiadas.")
 
 async def debug_ou2(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     conn = get_db()
     c = conn.cursor()
@@ -3657,7 +3657,7 @@ async def debug_ou2(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Predicciones válidas para optimizar O/U: {n}")
 
 async def debug_ou3(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     conn = get_db()
     c = conn.cursor()
@@ -3689,7 +3689,7 @@ async def debug_ou3(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def debug_historial_ou(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     conn = get_db()
     c = conn.cursor()
@@ -3707,7 +3707,7 @@ async def debug_historial_ou(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def debug_over(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     conn = get_db()
     c = conn.cursor()
@@ -3763,7 +3763,7 @@ async def debug_over(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def debug_cuotas(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     conn = get_db()
     c = conn.cursor()
@@ -3810,7 +3810,7 @@ async def debug_cuotas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def debug_lineas(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     conn = get_db()
     c = conn.cursor()
@@ -3859,7 +3859,7 @@ async def debug_lineas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def debugpsico(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     texto = " ".join(context.args).upper()
     if "VS" not in texto:
@@ -4116,7 +4116,7 @@ async def debugpsico(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def validarpsico(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not es_permitido(update):
+    if not es_admin(update):
         return
     await update.message.reply_text("🔍 Analizando factores psicológicos...")
     conn = get_db()
