@@ -358,7 +358,7 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
              analisis.get("prob_horario"),
              analisis.get("ou_total_hist"),
              analisis.get("ou_ritmo_franq"),
-             analisis.get("ou_tendencia_h2h),
+             analisis.get("ou_tendencia_h2h"),
              analisis.get("ou_contraataque_rel")))
         conn.commit()
     except Exception as e:
