@@ -2675,14 +2675,8 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Aún no hay predicciones con líneas Betsson procesadas.")
         return
     unidades_ganador = 0.0
-    unidades_ou = 0.0
-    unidades_contra = 0.0
     aciertos_g = 0
-    aciertos_ou = 0
-    aciertos_contra = 0
     racha_g = []
-    racha_ou = []
-    racha_contra = []
     for row in rows:
         gan_pred, res_real, ac_g, pred_ou, ac_ou, cb_a, cb_b, cb_over, cb_under, jug_a, jug_b, fecha = row
         if gan_pred == jug_a:
@@ -2697,67 +2691,23 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 unidades_ganador -= 1
                 racha_g.append("❌")
-        if pred_ou == "Over":
-            cuota_ou = cb_over or 0
-        else:
-            cuota_ou = cb_under or 0
-        if cuota_ou and cuota_ou > 1:
-            if ac_ou == 1:
-                unidades_ou += round(cuota_ou - 1, 4)
-                aciertos_ou += 1
-                racha_ou.append("✅")
-            else:
-                unidades_ou -= 1
-                racha_ou.append("❌")
-        cuota_contra = cb_under if pred_ou == "Over" else cb_over
-        if cuota_contra and cuota_contra > 1:
-            if ac_ou == 0:
-                unidades_contra += round(cuota_contra - 1, 4)
-                aciertos_contra += 1
-                racha_contra.append("✅")
-            elif ac_ou == 1:
-                unidades_contra -= 1
-                racha_contra.append("❌")
     unidades_ganador = round(unidades_ganador, 2)
-    unidades_ou = round(unidades_ou, 2)
     emoji_g = "📈" if unidades_ganador >= 0 else "📉"
-    emoji_ou = "📈" if unidades_ou >= 0 else "📉"
     ultimas_g = "".join(racha_g[-10:])
-    ultimas_ou = "".join(racha_ou[-10:])
     if idioma == "en":
         msg = f"💰 *Units simulation (1u per bet)*\n"
         msg += f"_(Only predictions with Betsson odds)_\n\n"
         msg += f"🏆 *WINNER*\n"
         msg += f"Predictions: {len(racha_g)} | Correct: {aciertos_g}\n"
         msg += f"Last 10: {ultimas_g}\n"
-        msg += f"{emoji_g} Result: `{'+' if unidades_ganador >= 0 else ''}{unidades_ganador}u`\n\n"
-        msg += f"🔢 *OVER/UNDER*\n"
-        msg += f"Predictions: {len(racha_ou)} | Correct: {aciertos_ou}\n"
-        msg += f"Last 10: {ultimas_ou}\n"
-        msg += f"{emoji_ou} Result: `{'+' if unidades_ou >= 0 else ''}{unidades_ou}u`\n\n"
-        emoji_contra = "📈" if unidades_contra >= 0 else "📉"
-        ultimas_contra = "".join(racha_contra[-10:])
-        msg += f"🔄 *O/U REVERSED (bot inverted):*\n"
-        msg += f"Predictions: {len(racha_contra)} | Correct: {aciertos_contra}\n"
-        msg += f"Last 10: {ultimas_contra}\n"
-        msg += f"{emoji_contra} Result: `{'+' if unidades_contra >= 0 else ''}{round(unidades_contra, 2)}u`\n"
+        msg += f"{emoji_g} Result: `{'+' if unidades_ganador >= 0 else ''}{unidades_ganador}u`\n"
     else:
         msg = f"💰 *Simulación de unidades (1u por apuesta)*\n"
         msg += f"_(Solo predicciones con cuotas Betsson)_\n\n"
         msg += f"🏆 *GANADOR*\n"
         msg += f"Predicciones: {len(racha_g)} | Aciertos: {aciertos_g}\n"
         msg += f"Últimas 10: {ultimas_g}\n"
-        msg += f"{emoji_g} Resultado: `{'+' if unidades_ganador >= 0 else ''}{unidades_ganador}u`\n\n"
-        msg += f"🔢 *OVER/UNDER*\n"
-        msg += f"Predicciones: {len(racha_ou)} | Aciertos: {aciertos_ou}\n"
-        msg += f"Últimas 10: {ultimas_ou}\n"
-        msg += f"{emoji_ou} Resultado: `{'+' if unidades_ou >= 0 else ''}{unidades_ou}u`\n\n"
-        emoji_contra = "📈" if unidades_contra >= 0 else "📉"
-        ultimas_contra = "".join(racha_contra[-10:])
-        msg += f"🔄 *O/U A LA CONTRA (bot invertido):*\n"
-        msg += f"Predicciones: {len(racha_contra)} | Aciertos: {aciertos_contra}\n"
-        msg += f"Últimas 10: {ultimas_contra}\n"
-        msg += f"{emoji_contra} Resultado: `{'+' if unidades_contra >= 0 else ''}{round(unidades_contra, 2)}u`\n"
+        msg += f"{emoji_g} Resultado: `{'+' if unidades_ganador >= 0 else ''}{unidades_ganador}u`\n"
     conn_dias = get_db()
     c_dias = conn_dias.cursor()
     c_dias.execute('''SELECT DATE(fecha_prediccion) as dia,
@@ -2776,13 +2726,10 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for row in rows_dias:
         dia, gan_pred, jug_a, jug_b, ac_g, ac_ou, pred_ou, cb_a, cb_b, cb_over, cb_under = row
         if dia not in dias_dict:
-            dias_dict[dia] = {"u_g": 0.0, "u_ou": 0.0}
+            dias_dict[dia] = {"u_g": 0.0}
         cuota_g = cb_a if gan_pred == jug_a else cb_b
         if cuota_g and cuota_g > 1:
             dias_dict[dia]["u_g"] += round(cuota_g - 1, 4) if ac_g == 1 else -1
-        cuota_ou = cb_over if pred_ou == "Over" else cb_under
-        if cuota_ou and cuota_ou > 1:
-            dias_dict[dia]["u_ou"] += round(cuota_ou - 1, 4) if ac_ou == 1 else -1
     ultimos_dias = sorted(dias_dict.keys(), reverse=True)[:10]
     if ultimos_dias:
         if idioma == "en":
@@ -2791,17 +2738,13 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg += f"\n📅 *Últimos 10 días:*\n"
         for dia in ultimos_dias:
             u_g = round(dias_dict[dia]["u_g"], 2)
-            u_ou = round(dias_dict[dia]["u_ou"], 2)
             emoji_g = "📈" if u_g >= 0 else "📉"
-            emoji_ou = "📈" if u_ou >= 0 else "📉"
-            msg += f"{dia}: {emoji_g} G {'+' if u_g >= 0 else ''}{u_g}u | {emoji_ou} O/U {'+' if u_ou >= 0 else ''}{u_ou}u\n"
+            msg += f"{dia}: {emoji_g} {'+' if u_g >= 0 else ''}{u_g}u\n"
     conn_v = get_db()
     c_v = conn_v.cursor()
     c_v.execute('''SELECT ganador_predicho, resultado_real, acierto_ganador,
-                 prediccion_ou, acierto_ou,
                  cuota_betsson_a, cuota_betsson_b,
-                 cuota_betsson_over, cuota_betsson_under,
-                 jugador_a, jugador_b, es_valor_ganador, es_valor_ou
+                 jugador_a, jugador_b, es_valor_ganador
                  FROM predicciones
                  WHERE procesado=1 AND es_valor=1 AND cuota_betsson_a IS NOT NULL
                  AND fecha_prediccion >= ?
@@ -2810,29 +2753,20 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn_v.close()
     if rows_v:
         u_g = 0.0
-        u_ou = 0.0
         for row in rows_v:
-            gan_pred, res_real, ac_g, pred_ou, ac_ou, cb_a, cb_b, cb_over, cb_under, jug_a, jug_b, ev_g, ev_ou = row
+            gan_pred, res_real, ac_g, cb_a, cb_b, jug_a, jug_b, ev_g = row
             if ev_g:
                 cuota_g = cb_a if gan_pred == jug_a else cb_b
                 if cuota_g and cuota_g > 1:
                     u_g += round(cuota_g - 1, 4) if ac_g == 1 else -1
-            if ev_ou:
-                cuota_ou = cb_over if pred_ou == "Over" else cb_under
-                if cuota_ou and cuota_ou > 1:
-                    u_ou += round(cuota_ou - 1, 4) if ac_ou == 1 else -1
         u_g = round(u_g, 2)
-        u_ou = round(u_ou, 2)
-        n_g = sum(1 for r in rows_v if r[11])
-        n_ou = sum(1 for r in rows_v if r[12])
+        n_g = sum(1 for r in rows_v if r[7])
         if idioma == "en":
             msg += f"\n🎯 *Value predictions only:*\n"
-            msg += f"🏆 Winner: `{'+' if u_g >= 0 else ''}{round(u_g, 2)}u` ({n_g} bets)\n"
-            msg += f"🔢 O/U: `{'+' if u_ou >= 0 else ''}{round(u_ou, 2)}u` ({n_ou} bets)\n"
+            msg += f"🏆 Winner: `{'+' if u_g >= 0 else ''}{u_g}u` ({n_g} bets)\n"
         else:
             msg += f"\n🎯 *Solo predicciones VALOR:*\n"
-            msg += f"🏆 Ganador: `{'+' if u_g >= 0 else ''}{round(u_g, 2)}u` ({n_g} apuestas)\n"
-            msg += f"🔢 O/U: `{'+' if u_ou >= 0 else ''}{round(u_ou, 2)}u` ({n_ou} apuestas)\n"
+            msg += f"🏆 Ganador: `{'+' if u_g >= 0 else ''}{u_g}u` ({n_g} apuestas)\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
     
 async def test_coolbet(update: Update, context: ContextTypes.DEFAULT_TYPE):
