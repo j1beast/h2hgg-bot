@@ -1745,6 +1745,8 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
             valor_a = " ✅" if cb_a > 0 and analisis['cuota_a'] > 0 and (cb_a / analisis['cuota_a'] >= 1.10 if cb_a <= 1.55 else cb_a / analisis['cuota_a'] >= 1.14) and cb_a <= 2.00 else ""
             valor_b = " ✅" if cb_b > 0 and analisis['cuota_b'] > 0 and (cb_b / analisis['cuota_b'] >= 1.10 if cb_b <= 1.55 else cb_b / analisis['cuota_b'] >= 1.14) and cb_b <= 2.00 else ""
             msg += f"{'BETSSON:':10}{str(cb_a) + valor_a:<{espaciado}}{cb_b}{valor_b}\n"
+            ganador = jugador_a if analisis.get('prob_a', 0) > analisis.get('prob_b', 0) else jugador_b
+            msg += f"💰 Apuesta: {ganador}\n"
 
     if analisis.get('linea_total'):
         msg += f"\n━━━━━━━━━━━━━━━\n"
@@ -1782,6 +1784,12 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
         ou_inv = ou_invertido
         if ou_inv:
             msg += f"🔄 Predicción invertida por historial {ou_inv[0]} ({ou_inv[1]}% O/U)\n"
+        if betsson and betsson.get('linea_ou'):
+            if ou_invertido:
+                apuesta_ou = "Under" if float(analisis['linea_total']) > float(betsson['linea_ou']) else "Over"
+            else:
+                apuesta_ou = "Over" if float(analisis['linea_total']) > float(betsson['linea_ou']) else "Under"
+            msg += f"💰 Apuesta: {apuesta_ou}\n"
         if betsson and betsson.get('linea_ou') and betsson.get('cuota_over'):
             bs_linea = betsson['linea_ou']
             bs_over = betsson['cuota_over']
