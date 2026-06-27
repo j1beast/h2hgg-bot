@@ -21,6 +21,9 @@ CANAL_ID = -1003990501738
 TWITTER_ENABLED = False
 def es_permitido(update):
     return update.effective_user.id in USUARIOS_PERMITIDOS
+ADMIN_ID = 7339330267
+def es_admin(update):
+    return update.effective_user.id == ADMIN_ID
     
 # ─────────────────────────────────────────────
 # BASE DE DATOS
