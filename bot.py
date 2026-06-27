@@ -1600,8 +1600,6 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         else:
             resultado["ou_contraataque"] = None
             resultado['ou_contraataque_rel'] = None
-        else:
-            resultado["ou_contraataque"] = None
 
         avg_a_tp = resultado.get("avg_pts_a") or api_a.get("avgPoints") or 0
         avg_b_tp = resultado.get("avg_pts_b") or api_b.get("avgPoints") or 0
