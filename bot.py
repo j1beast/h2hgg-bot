@@ -18,7 +18,7 @@ BASE_URL = "https://api.b365api.com"
 DB_PATH = "/app/data/cache.db"
 USUARIOS_PERMITIDOS = [7339330267, 1021947497, 409760550, 1316315194, 1478076850, 7515654372]
 CANAL_ID = -1003990501738
-TWITTER_ENABLED = False
+TWITTER_ENABLED = True
 def es_permitido(update):
     return update.effective_user.id in USUARIOS_PERMITIDOS
 ADMIN_ID = 7339330267
