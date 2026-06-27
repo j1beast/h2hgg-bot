@@ -3400,6 +3400,52 @@ async def debug_sesgo_linea(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg += f"Predicciones Under: {len(unders)} | Acierto: {round(aciertos_under, 1)}%\n"
     msg += f"\nMuestras totales: {len(rows)}"
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def debug_jugadores(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT jugador_a, jugador_b, ganador_predicho, ganador_real,
+                 prediccion_ou, pts_real_a + pts_real_b, linea_betsson_ou
+                 FROM predicciones
+                 WHERE procesado=1 AND ganador_real IS NOT NULL''')
+    rows = c.fetchall()
+    conn.close()
+    if len(rows) < 30:
+        await update.message.reply_text("Sin datos suficientes.")
+        return
+    jugadores = {}
+    for jug_a, jug_b, gan_pred, gan_real, pred_ou, total_real, linea_bs in rows:
+        for jug in [jug_a, jug_b]:
+            if jug not in jugadores:
+                jugadores[jug] = {'gan_ok': 0, 'gan_total': 0, 'ou_ok': 0, 'ou_total': 0}
+            jugadores[jug]['gan_total'] += 1
+            if gan_pred == gan_real:
+                jugadores[jug]['gan_ok'] += 1
+            if pred_ou and total_real and linea_bs:
+                jugadores[jug]['ou_total'] += 1
+                real_over = total_real > linea_bs
+                if (pred_ou == 'Over' and real_over) or (pred_ou == 'Under' and not real_over):
+                    jugadores[jug]['ou_ok'] += 1
+    # Filtrar mínimo 20 partidos
+    jugadores = {k: v for k, v in jugadores.items() if v['gan_total'] >= 20}
+    # Ordenar por acierto ganador
+    sorted_gan = sorted(jugadores.items(), key=lambda x: x[1]['gan_ok']/x[1]['gan_total'], reverse=True)
+    sorted_ou = sorted(jugadores.items(), key=lambda x: x[1]['ou_ok']/x[1]['ou_total'] if x[1]['ou_total'] > 0 else 0, reverse=True)
+    msg = "🏆 *Top jugadores por acierto GANADOR*\n"
+    for jug, d in sorted_gan[:10]:
+        pct = round(d['gan_ok']/d['gan_total']*100, 1)
+        emoji = "🟢" if pct >= 65 else "🟡" if pct >= 55 else "🔴"
+        msg += f"{emoji} {jug}: {pct}% ({d['gan_total']} partidos)\n"
+    msg += "\n📊 *Top jugadores por acierto O/U*\n"
+    for jug, d in sorted_ou[:10]:
+        if d['ou_total'] == 0:
+            continue
+        pct = round(d['ou_ok']/d['ou_total']*100, 1)
+        emoji = "🟢" if pct >= 60 else "🟡" if pct >= 53 else "🔴"
+        msg += f"{emoji} {jug}: {pct}% ({d['ou_total']} partidos)\n"
+    await update.message.reply_text(msg, parse_mode="Markdown")
         
 async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
@@ -4361,6 +4407,7 @@ app.add_handler(CommandHandler("testoapi", test_odds_api))
 app.add_handler(CommandHandler("debugcontra", debug_contra))
 app.add_handler(CommandHandler("debugerror", debug_error_ou))
 app.add_handler(CommandHandler("debugsesgo", debug_sesgo_linea))
+app.add_handler(CommandHandler("debugjugadores", debug_jugadores))
 app.add_handler(CommandHandler("testfanduel", test_fanduel))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
