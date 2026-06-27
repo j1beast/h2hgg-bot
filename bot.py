@@ -1637,30 +1637,22 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
 
         linea_api = calcular_linea_api(api_a, api_b)
         resultado["linea_api"] = linea_api
+        ou_factors_calc = {
+            'h2h': resultado.get('ou_h2h_total'),
+            'reciente': resultado.get('ou_reciente'),
+            'contraataque': resultado.get('ou_contraataque'),
+            'tendencia_pts': resultado.get('ou_tendencia_pts'),
+            'total_hist': resultado.get('ou_total_hist'),
+            'ritmo_franq': resultado.get('ou_ritmo_franq'),
+            'tendencia_h2h': resultado.get('ou_tendencia_h2h'),
+        }
         pesos_ou = json.loads(get_meta("pesos_ou_optimizados") or "{}")
-        w_h2h_ou = pesos_ou.get('h2h', 0.20)
-        w_gen_ou = pesos_ou.get('general', 0.18)
-        w_franq_ou = pesos_ou.get('franq', 0.15)
-        w_rec_ou = pesos_ou.get('reciente', 0.18)
-        w_def_ou = pesos_ou.get('defensa', 0.17)
-        w_total = w_h2h_ou + w_gen_ou + w_franq_ou + w_rec_ou + w_def_ou
-        if linea_api:
-            w_api_ou = 0.12
-            factor = 1.0 - w_api_ou
-            linea_total = round(
-                avg_total_h2h * (w_h2h_ou / w_total * factor) +
-                (resultado["avg_pts_a"] + resultado["avg_pts_b"]) * (w_gen_ou / w_total * factor) +
-                (adj_a + adj_b) * (w_franq_ou / w_total * factor) +
-                (avg_reciente_a + avg_reciente_b) * (w_rec_ou / w_total * factor) +
-                linea_def * (w_def_ou / w_total * factor) +
-                linea_api * w_api_ou, 1)
+        vals_pond = [(v, pesos_ou.get(k, 0.2)) for k, v in ou_factors_calc.items() if v is not None]
+        if vals_pond:
+            peso_total_ou = sum(w for _, w in vals_pond)
+            linea_total = round(sum(v * w for v, w in vals_pond) / peso_total_ou, 1) if peso_total_ou > 0 else round(avg_total_h2h or (resultado["avg_pts_a"] + resultado["avg_pts_b"]), 1)
         else:
-            linea_total = round(
-                avg_total_h2h * (w_h2h_ou / w_total) +
-                (resultado["avg_pts_a"] + resultado["avg_pts_b"]) * (w_gen_ou / w_total) +
-                (adj_a + adj_b) * (w_franq_ou / w_total) +
-                (avg_reciente_a + avg_reciente_b) * (w_rec_ou / w_total) +
-                linea_def * (w_def_ou / w_total), 1)
+            linea_total = round(avg_total_h2h or (resultado["avg_pts_a"] + resultado["avg_pts_b"]), 1)
 
         confianza_over_a = 0.5 + (1 / (1 + std_a / 10)) * 0.20 if linea_a <= resultado["avg_pts_a"] else 0.5 - (1 / (1 + std_a / 10)) * 0.20
         confianza_a = max(0.40, min(0.75, confianza_over_a))
