@@ -1637,17 +1637,15 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
 
         linea_api = calcular_linea_api(api_a, api_b)
         resultado["linea_api"] = linea_api
-        ou_factors_calc = {
+        pesos_ou = json.loads(get_meta("pesos_ou_optimizados") or "{}")
+        factores_linea = {
             'h2h': resultado.get('ou_h2h_total'),
             'reciente': resultado.get('ou_reciente'),
-            'contraataque': resultado.get('ou_contraataque'),
             'tendencia_pts': resultado.get('ou_tendencia_pts'),
             'total_hist': resultado.get('ou_total_hist'),
-            'ritmo_franq': resultado.get('ou_ritmo_franq'),
             'tendencia_h2h': resultado.get('ou_tendencia_h2h'),
         }
-        pesos_ou = json.loads(get_meta("pesos_ou_optimizados") or "{}")
-        vals_pond = [(v, pesos_ou.get(k, 0.2)) for k, v in ou_factors_calc.items() if v is not None]
+        vals_pond = [(v, pesos_ou.get(k, 0.2)) for k, v in factores_linea.items() if v is not None]
         if vals_pond:
             peso_total_ou = sum(w for _, w in vals_pond)
             linea_total = round(sum(v * w for v, w in vals_pond) / peso_total_ou, 1) if peso_total_ou > 0 else round(avg_total_h2h or (resultado["avg_pts_a"] + resultado["avg_pts_b"]), 1)
