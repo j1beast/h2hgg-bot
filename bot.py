@@ -1771,8 +1771,15 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
                     msg += f"Implicación de factores: {fuerza_ou}%\n"
         except:
             pass
+        ac_a, n_a = get_acierto_ou_jugador(jugador_a)
+        ac_b, n_b = get_acierto_ou_jugador(jugador_b)
+        ou_invertido = None
+        if ac_a is not None and ac_a < 0.40:
+            ou_invertido = (jugador_a, round(ac_a * 100, 1))
+        elif ac_b is not None and ac_b < 0.40:
+            ou_invertido = (jugador_b, round(ac_b * 100, 1))
         msg += f"BOT predice: {analisis['linea_total']} pts\n"
-        ou_inv = analisis.get('ou_invertido')
+        ou_inv = ou_invertido
         if ou_inv:
             msg += f"🔄 Predicción invertida por historial {ou_inv[0]} ({ou_inv[1]}% O/U)\n"
         if betsson and betsson.get('linea_ou') and betsson.get('cuota_over'):
