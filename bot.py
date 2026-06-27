@@ -808,11 +808,11 @@ def cargar_pesos():
     return _pesos_cache
 
 def edge_con_confianza(accuracy, n, z=1.96):
-    if n < 50:
+    if n < 30:
         return 0.0
     p = accuracy
     lower = (p + z**2/(2*n) - z*((p*(1-p)/n + z**2/(4*n**2))**0.5)) / (1 + z**2/n)
-    return max(0.0, lower - 0.5)
+    return max(0.01, lower - 0.5)
 
 def calcular_pesos_optimos_ou():
     conn = get_db()
