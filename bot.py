@@ -326,7 +326,7 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
             linea_total, cuota_over, cuota_under, prediccion_ou, fecha_prediccion, procesado,
             prob_h2h, prob_equipo, prob_h2h_eq, prob_forma, prob_h2h_rec,
             cuota_betsson_a, cuota_betsson_b, linea_betsson_ou, cuota_betsson_over, cuota_betsson_under, es_valor, ratio_def_a, ratio_def_b, margen_avg_a, margen_avg_b, ou_h2h_total, ou_general, ou_franq, ou_reciente, ou_h2h_eq, ou_defensa_a, ou_defensa_b, prob_matchup, prob_defensa, prob_api, ou_historial, ou_tendencia, ou_ritmo, ou_contraataque, ou_deficit_def, ou_consistencia, ou_eficiencia, ou_matchup_def, ou_tendencia_pts, prob_racha, prob_coco, prob_horario, ou_total_hist, ou_ritmo_franq)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
             (jugador_a, jugador_b, franq_a, franq_b, ganador, cuota_ganador,
              analisis.get("linea_total"), analisis.get("over_total"), analisis.get("under_total"),
              prediccion_ou, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), 0,
