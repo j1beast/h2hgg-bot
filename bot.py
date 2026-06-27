@@ -586,10 +586,10 @@ async def tarea_predicciones_automaticas(app_ref):
                         print(f"[CANAL] {jugador_a} vs {jugador_b}: intentando enviar al canal")
                         conn_c = get_db()
                         ya_enviado = conn_c.execute('''SELECT enviado_canal FROM predicciones
-                                                      WHERE ((jugador_a=? AND jugador_b=?) OR (jugador_a=? AND jugador_b=?))
-                                                      AND fecha_prediccion LIKE ?
-                                                      AND enviado_canal=1''',
-                                                   (jugador_a, jugador_b, jugador_b, jugador_a, f"{datetime.utcnow().strftime('%Y-%m-%d')}%")).fetchone()
+                              WHERE ((jugador_a=? AND jugador_b=?) OR (jugador_a=? AND jugador_b=?))
+                              AND datetime(fecha_prediccion) >= datetime('now', '-2 hours')
+                              AND enviado_canal=1''',
+                           (jugador_a, jugador_b, jugador_b, jugador_a)).fetchone()
                         conn_c.close()
                         print(f"[CANAL] {jugador_a} vs {jugador_b}: ya_enviado={ya_enviado}")
                         if ya_enviado:
