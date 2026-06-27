@@ -18,6 +18,7 @@ BASE_URL = "https://api.b365api.com"
 DB_PATH = "/app/data/cache.db"
 USUARIOS_PERMITIDOS = [7339330267, 1021947497, 409760550, 1316315194, 1478076850, 7515654372]
 CANAL_ID = -1003990501738
+TWITTER_ENABLED = False
 def es_permitido(update):
     return update.effective_user.id in USUARIOS_PERMITIDOS
     
@@ -654,6 +655,19 @@ async def tarea_predicciones_automaticas(app_ref):
                         conn_v.close()
                         try:
                             await app_ref.bot.send_message(chat_id=CANAL_ID, text=msg, parse_mode="Markdown")
+                        if TWITTER_ENABLED:
+                            try:
+                                twitter_client = tweepy.Client(
+                                    consumer_key=os.environ.get("TWITTER_API_KEY"),
+                                    consumer_secret=os.environ.get("TWITTER_API_SECRET"),
+                                    access_token=os.environ.get("TWITTER_ACCESS_TOKEN"),
+                                    access_token_secret=os.environ.get("TWITTER_ACCESS_TOKEN_SECRET")
+                                )
+                                tweet_text = msg.replace("*", "").replace("`", "")[:280]
+                                twitter_client.create_tweet(text=tweet_text)
+                                print("Tweet enviado correctamente")
+                            except Exception as te:
+                                print(f"Error enviando tweet: {te}")
                             conn_e = get_db()
                             conn_e.execute('''UPDATE predicciones SET enviado_canal=1
                                              WHERE ((jugador_a=? AND jugador_b=?) OR (jugador_a=? AND jugador_b=?))
