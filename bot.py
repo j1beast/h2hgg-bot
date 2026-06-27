@@ -102,6 +102,7 @@ def init_db():
         ("ou_total_hist", "REAL"),
         ("ou_ritmo_franq", "REAL"),
         ("ou_tendencia_h2h", "REAL"),
+        ("ou_contraataque_rel", "REAL"),
     ]:
         try:
             c.execute(f"ALTER TABLE predicciones ADD COLUMN {col} {tipo}")
@@ -326,8 +327,8 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
             (jugador_a, jugador_b, franq_a, franq_b, ganador_predicho, cuota_ganador,
             linea_total, cuota_over, cuota_under, prediccion_ou, fecha_prediccion, procesado,
             prob_h2h, prob_equipo, prob_h2h_eq, prob_forma, prob_h2h_rec,
-            cuota_betsson_a, cuota_betsson_b, linea_betsson_ou, cuota_betsson_over, cuota_betsson_under, es_valor, ratio_def_a, ratio_def_b, margen_avg_a, margen_avg_b, ou_h2h_total, ou_general, ou_franq, ou_reciente, ou_h2h_eq, ou_defensa_a, ou_defensa_b, prob_matchup, prob_defensa, prob_api, ou_historial, ou_tendencia, ou_ritmo, ou_contraataque, ou_deficit_def, ou_consistencia, ou_eficiencia, ou_matchup_def, ou_tendencia_pts, prob_racha, prob_coco, prob_horario, ou_total_hist, ou_ritmo_franq, ou_tendencia_h2h)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            cuota_betsson_a, cuota_betsson_b, linea_betsson_ou, cuota_betsson_over, cuota_betsson_under, es_valor, ratio_def_a, ratio_def_b, margen_avg_a, margen_avg_b, ou_h2h_total, ou_general, ou_franq, ou_reciente, ou_h2h_eq, ou_defensa_a, ou_defensa_b, prob_matchup, prob_defensa, prob_api, ou_historial, ou_tendencia, ou_ritmo, ou_contraataque, ou_deficit_def, ou_consistencia, ou_eficiencia, ou_matchup_def, ou_tendencia_pts, prob_racha, prob_coco, prob_horario, ou_total_hist, ou_ritmo_franq, ou_tendencia_h2h, ou_contraataque_rel)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
             (jugador_a, jugador_b, franq_a, franq_b, ganador, cuota_ganador,
              analisis.get("linea_total"), analisis.get("over_total"), analisis.get("under_total"),
              prediccion_ou, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), 0,
@@ -357,7 +358,8 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
              analisis.get("prob_horario"),
              analisis.get("ou_total_hist"),
              analisis.get("ou_ritmo_franq"),
-             analisis.get("ou_tendencia_h2h")))
+             analisis.get("ou_tendencia_h2h),
+             analisis.get("ou_contraataque_rel")))
         conn.commit()
     except Exception as e:
         print(f"[ERROR INSERT prediccion] {e}")
@@ -1579,6 +1581,25 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
         fb_b_api = api_b.get("avgFastBreakPoints")
         if fb_a_api and fb_b_api:
             resultado["ou_contraataque"] = round(fb_a_api + fb_b_api, 4)
+            conn_hist = get_db()
+            c_hist = conn_hist.cursor()
+            c_hist.execute('''SELECT AVG(ou_contraataque) FROM predicciones 
+                              WHERE jugador_a = ? AND ou_contraataque IS NOT NULL
+                              AND procesado = 1''', (jugador_a,))
+            media_contra_a = c_hist.fetchone()[0]
+            c_hist.execute('''SELECT AVG(ou_contraataque) FROM predicciones 
+                              WHERE jugador_b = ? AND ou_contraataque IS NOT NULL
+                              AND procesado = 1''', (jugador_b,))
+            media_contra_b = c_hist.fetchone()[0]
+            conn_hist.close()
+            if media_contra_a and media_contra_b:
+                media_hist = (media_contra_a + media_contra_b) / 2
+                resultado['ou_contraataque_rel'] = round(resultado['ou_contraataque'] - media_hist, 2)
+            else:
+                resultado['ou_contraataque_rel'] = None
+        else:
+            resultado["ou_contraataque"] = None
+            resultado['ou_contraataque_rel'] = None
         else:
             resultado["ou_contraataque"] = None
 
