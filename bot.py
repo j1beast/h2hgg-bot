@@ -601,14 +601,16 @@ async def tarea_predicciones_automaticas(app_ref):
                                 msg += f"{franq_a} ({jugador_a}) vs {franq_b} ({jugador_b}) — {hora_utc}\n"
                                 msg += f"Betsson: {jugador_a} gana → `{cb_a}`\n"
                                 msg += f"Bot: `{bot_a}` (+{pct}% diferencia)\n"
-                                msg += f"💪 Fuerza de la predicción: {analisis.get('fuerza_ganador', '?')}%\n"
+                                msg += f"Implicación de factores: {analisis.get('fuerza_ganador', '?')}%\n"
+                                msg += f"💰 Apuesta: {jugador_a}\n"
                             else:
                                 pct = round((cb_b / bot_b - 1) * 100, 1)
                                 msg += f"🎯 *VALUE BET - GANADOR*\n"
                                 msg += f"{franq_a} ({jugador_a}) vs {franq_b} ({jugador_b}) — {hora_utc}\n"
                                 msg += f"Betsson: {jugador_b} gana → `{cb_b}`\n"
                                 msg += f"Bot: `{bot_b}` (+{pct}% diferencia)\n"
-                                msg += f"💪 Fuerza de la predicción: {analisis.get('fuerza_ganador', '?')}%\n"
+                                msg += f"Implicación de factores: {analisis.get('fuerza_ganador', '?')}%\n"
+                                msg += f"💰 Apuesta: {jugador_b}\n"
                         # Valor O/U
                         bs_over = betsson_pred.get("cuota_over")
                         bs_under = betsson_pred.get("cuota_under")
@@ -634,7 +636,8 @@ async def tarea_predicciones_automaticas(app_ref):
                                     pf = sum(pesos_ou.get(k, 0.2) for k, v in ou_factors.items() if v is not None and (v > float(bs_linea)) == es_over_f)
                                     pt = sum(pesos_ou.get(k, 0.2) for k, v in ou_factors.items() if v is not None)
                                     if pt > 0:
-                                        msg += f"💪 Fuerza O/U: {round(pf/pt*100,1)}%\n"
+                                        msg += f"Implicación de factores O/U: {round(pf/pt*100,1)}%\n"
+                                        msg += f"💰 Apuesta: {tipo_ou}\n"
                                 except:
                                     pass
                             except:
