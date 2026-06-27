@@ -655,6 +655,8 @@ async def tarea_predicciones_automaticas(app_ref):
                         conn_v.close()
                         try:
                             await app_ref.bot.send_message(chat_id=CANAL_ID, text=msg, parse_mode="Markdown")
+                        except Exception as e:
+                            print(f"Error enviando al canal: {e}")
                         if TWITTER_ENABLED:
                             try:
                                 twitter_client = tweepy.Client(
