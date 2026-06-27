@@ -407,7 +407,7 @@ def verificar_predicciones():
     c = conn.cursor()
     c.execute('''SELECT id, jugador_a, jugador_b, ganador_predicho,
                  linea_betsson_ou, prediccion_ou, ganador_predicho,
-                 cuota_betsson_a, cuota_betsson_b, fecha_prediccion
+                 cuota_betsson_a, cuota_betsson_b, fecha_prediccion, es_valor_ganador
                  FROM predicciones WHERE procesado = 0
                  AND datetime(fecha_prediccion) <= datetime('now', '-15 minutes')''')
     pendientes = c.fetchall()
@@ -415,7 +415,7 @@ def verificar_predicciones():
 
     for row in pendientes:
         try:
-            pred_id, jugador_a, jugador_b, ganador_predicho, linea_betsson_ou, prediccion_ou, _, cb_a, cb_b, fecha_pred = row
+            pred_id, jugador_a, jugador_b, ganador_predicho, linea_betsson_ou, prediccion_ou, _, cb_a, cb_b, fecha_pred, es_valor_g = row
             fecha_pred_dt = datetime.strptime(fecha_pred, "%Y-%m-%d %H:%M:%S")
             desde_dt = fecha_pred_dt - timedelta(minutes=30)
 
@@ -459,6 +459,15 @@ def verificar_predicciones():
                              pts_real_a=?, pts_real_b=? WHERE id=?''',
                           (ganador_real, acierto_ganador, acierto_ou, pts_a, pts_b, pred_id))
                 print(f"[OK] {jugador_a} vs {jugador_b}: procesado (liga)")
+                if es_valor_g:
+                    emoji = "✅" if acierto_ganador == 1 else "❌"
+                    resultado_txt = "ACERTADO" if acierto_ganador == 1 else "FALLADO"
+                    import asyncio
+                    asyncio.run(app_ref.bot.send_message(
+                        chat_id=CANAL_ID,
+                        text=f"{emoji} *{resultado_txt}* — {jugador_a} vs {jugador_b}\nGanador real: *{ganador_real}* | Predicho: *{ganador_predicho}*",
+                        parse_mode="Markdown"
+                    ))
                 continue
 
             # Fallback: historial BetsAPI
@@ -487,6 +496,15 @@ def verificar_predicciones():
                          pts_real_a=?, pts_real_b=? WHERE id=?''',
                       (ganador_real, acierto_ganador, acierto_ou, ultimo["pts_a"], ultimo["pts_b"], pred_id))
             print(f"[OK] {jugador_a} vs {jugador_b}: procesado")
+            if es_valor_g:
+                emoji = "✅" if acierto_ganador == 1 else "❌"
+                resultado_txt = "ACERTADO" if acierto_ganador == 1 else "FALLADO"
+                import asyncio
+                asyncio.run(app_ref.bot.send_message(
+                    chat_id=CANAL_ID,
+                    text=f"{emoji} *{resultado_txt}* — {jugador_a} vs {jugador_b}\nGanador real: *{ganador_real}* | Predicho: *{ganador_predicho}*",
+                    parse_mode="Markdown"
+                ))
         except Exception as e:
             print(f"Error verificando predicción {pred_id}: {e}")
             continue
