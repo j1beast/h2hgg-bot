@@ -573,11 +573,6 @@ async def tarea_predicciones_automaticas(app_ref):
                             return cb / bot >= 1.10 and cb <= 2.00
                         hay_valor_ganador = es_valor_ganador(cb_a, bot_a) or es_valor_ganador(cb_b, bot_b)
                         hay_valor_ou = False
-                        if linea_bot and bs_linea:
-                            try:
-                                hay_valor_ou = abs(float(linea_bot) - float(bs_linea)) >= 7
-                            except:
-                                pass
                         if not hay_valor_ganador and not hay_valor_ou:
                             continue
                             
