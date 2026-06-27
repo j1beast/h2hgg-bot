@@ -3253,6 +3253,45 @@ async def debugvalor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     valor_null = c.fetchone()[0]
     conn.close()
     await update.message.reply_text(f"Procesadas sin valor: {sin_valor}\nProcesadas con valor: {con_valor}\nProcesadas valor NULL: {valor_null}")
+
+async def debug_contra(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT ou_contraataque, pts_real_a + pts_real_b as total_real
+                 FROM predicciones
+                 WHERE procesado=1 AND ou_contraataque IS NOT NULL
+                 AND pts_real_a IS NOT NULL AND pts_real_b IS NOT NULL
+                 AND pts_real_a + pts_real_b >= 40''')
+    rows = c.fetchall()
+    conn.close()
+    if len(rows) < 30:
+        await update.message.reply_text(f"Sin datos suficientes ({len(rows)} muestras).")
+        return
+    contras = [r[0] for r in rows]
+    totales = [r[1] for r in rows]
+    media_contra = sum(contras) / len(contras)
+    media_total = sum(totales) / len(totales)
+    rangos = [(0,15), (15,20), (20,25), (25,30), (30,999)]
+    msg = f"📊 *Calibración Contraataque*\n"
+    msg += f"Media liga: {round(media_contra,1)} FB pts | {round(media_total,1)} total pts\n\n"
+    for lo, hi in rangos:
+        grupo = [r[1] for r in rows if lo <= r[0] < hi]
+        if len(grupo) < 5:
+            continue
+        avg = round(sum(grupo)/len(grupo), 1)
+        diff = round(avg - media_total, 1)
+        msg += f"FB {lo}-{hi}: {avg} pts totales ({'+' if diff>=0 else ''}{diff} vs media) — {len(grupo)} partidos\n"
+    pairs = list(zip(contras, totales))
+    n = len(pairs)
+    mean_x = sum(c for c,_ in pairs) / n
+    mean_y = sum(t for _,t in pairs) / n
+    num = sum((c - mean_x)*(t - mean_y) for c,t in pairs)
+    den = sum((c - mean_x)**2 for c,_ in pairs)
+    multiplicador = round(num/den, 2) if den > 0 else 0
+    msg += f"\n📐 Multiplicador: {multiplicador} pts totales por cada pt de FB"
+    await update.message.reply_text(msg, parse_mode="Markdown")
         
 async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
@@ -4211,6 +4250,7 @@ app.add_handler(CommandHandler("performance", rendimiento))
 app.add_handler(CommandHandler("units", unidades))
 app.add_handler(CommandHandler("pending", pendientes))
 app.add_handler(CommandHandler("testoapi", test_odds_api))
+app.add_handler(CommandHandler("debugcontra", debug_contra))
 app.add_handler(CommandHandler("testfanduel", test_fanduel))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
