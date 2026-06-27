@@ -670,6 +670,7 @@ async def tarea_predicciones_automaticas(app_ref):
                                 print("Tweet enviado correctamente")
                             except Exception as te:
                                 print(f"Error enviando tweet: {te}")
+                        try:
                             conn_e = get_db()
                             conn_e.execute('''UPDATE predicciones SET enviado_canal=1
                                              WHERE ((jugador_a=? AND jugador_b=?) OR (jugador_a=? AND jugador_b=?))
