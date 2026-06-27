@@ -279,6 +279,20 @@ async def tarea_actualizacion_diaria():
             print(f"Error en actualización: {e}")
         await asyncio.sleep(900)  # 15 minutos
 
+def get_acierto_ou_jugador(jugador):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT COUNT(*), SUM(acierto_ou) FROM predicciones
+                 WHERE (jugador_a=? OR jugador_b=?)
+                 AND procesado=1 AND acierto_ou IS NOT NULL
+                 AND linea_betsson_ou IS NOT NULL''', (jugador, jugador))
+    row = c.fetchone()
+    conn.close()
+    n, aciertos = row[0] or 0, row[1] or 0
+    if n < 10:
+        return None, n
+    return round(aciertos / n, 4), n
+    
 def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson=None):
     conn = get_db()
     c = conn.cursor()
@@ -308,6 +322,17 @@ def guardar_prediccion(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
         prediccion_ou = "Over" if float(analisis["linea_total"]) > float(betsson["linea_ou"]) else "Under"
     else:
         prediccion_ou = "Over" if (analisis.get("over_total") or 99) < (analisis.get("under_total") or 99) else "Under"
+    # Invertir si algún jugador tiene historial O/U malo
+    ac_a, n_a = get_acierto_ou_jugador(jugador_a)
+    ac_b, n_b = get_acierto_ou_jugador(jugador_b)
+    ou_invertido = None
+    if ac_a is not None and ac_a < 0.40:
+        prediccion_ou = "Under" if prediccion_ou == "Over" else "Over"
+        ou_invertido = (jugador_a, round(ac_a * 100, 1))
+    elif ac_b is not None and ac_b < 0.40:
+        prediccion_ou = "Under" if prediccion_ou == "Over" else "Over"
+        ou_invertido = (jugador_b, round(ac_b * 100, 1))
+    analisis['ou_invertido'] = ou_invertido
     prob_a = analisis.get("prob_a") or 0.5
     prob_b = analisis.get("prob_b") or 0.5
     ganador = jugador_a if prob_a > prob_b else jugador_b
@@ -1747,6 +1772,9 @@ def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson
         except:
             pass
         msg += f"BOT predice: {analisis['linea_total']} pts\n"
+        ou_inv = analisis.get('ou_invertido')
+        if ou_inv:
+            msg += f"🔄 Predicción invertida por historial {ou_inv[0]} ({ou_inv[1]}% O/U)\n"
         if betsson and betsson.get('linea_ou') and betsson.get('cuota_over'):
             bs_linea = betsson['linea_ou']
             bs_over = betsson['cuota_over']
