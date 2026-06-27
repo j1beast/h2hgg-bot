@@ -575,6 +575,7 @@ async def tarea_predicciones_automaticas(app_ref):
                                 return cb / bot >= 1.10 and cb <= 2.00
                             return cb / bot >= 1.10 and cb <= 2.00
                         hay_valor_ganador = es_valor_ganador(cb_a, bot_a) or es_valor_ganador(cb_b, bot_b)
+                        print(f"[VALUE] {jugador_a} vs {jugador_b}: cb_a={cb_a}, cb_b={cb_b}, bot_a={bot_a}, bot_b={bot_b}, valor={hay_valor_ganador}")
                         hay_valor_ou = False
                         if not hay_valor_ganador and not hay_valor_ou:
                             continue
