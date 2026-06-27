@@ -3389,8 +3389,8 @@ async def debug_sesgo_linea(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     diffs = [r[1] - r[0] for r in rows]
     avg_diff = round(sum(diffs) / len(diffs), 2)
-    overs = [r for r in rows if r[2] == 'OVER']
-    unders = [r for r in rows if r[2] == 'UNDER']
+    overs = [r for r in rows if r[2] == 'Over']
+    unders = [r for r in rows if r[2] == 'Under']
     aciertos_over = sum(1 for r in overs if r[3] > r[1]) / len(overs) * 100 if overs else 0
     aciertos_under = sum(1 for r in unders if r[3] < r[1]) / len(unders) * 100 if unders else 0
     msg = f"📊 *Sesgo de línea*\n\n"
