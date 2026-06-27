@@ -3372,6 +3372,34 @@ async def debug_error_ou(update: Update, context: ContextTypes.DEFAULT_TYPE):
         emoji = "🟢" if error < 10 else "🟡" if error < 15 else "🔴"
         msg += f"{emoji} {nombres[nombre]}: ±{error} pts ({n} muestras)\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def debug_sesgo_linea(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT linea_total, linea_betsson_ou, prediccion_ou, pts_real_a + pts_real_b
+                 FROM predicciones
+                 WHERE procesado=1 AND linea_total IS NOT NULL AND linea_betsson_ou IS NOT NULL
+                 AND pts_real_a IS NOT NULL''')
+    rows = c.fetchall()
+    conn.close()
+    if len(rows) < 30:
+        await update.message.reply_text("Sin datos suficientes.")
+        return
+    diffs = [r[1] - r[0] for r in rows]
+    avg_diff = round(sum(diffs) / len(diffs), 2)
+    overs = [r for r in rows if r[2] == 'OVER']
+    unders = [r for r in rows if r[2] == 'UNDER']
+    aciertos_over = sum(1 for r in overs if r[3] > r[1]) / len(overs) * 100 if overs else 0
+    aciertos_under = sum(1 for r in unders if r[3] < r[1]) / len(unders) * 100 if unders else 0
+    msg = f"📊 *Sesgo de línea*\n\n"
+    msg += f"Media diferencia (Betsson - Bot): *{avg_diff} pts*\n"
+    msg += f"{'⚠️ Bot subestima sistemáticamente' if avg_diff > 2 else '⚠️ Bot sobreestima sistemáticamente' if avg_diff < -2 else '✅ Sin sesgo significativo'}\n\n"
+    msg += f"Predicciones Over: {len(overs)} | Acierto: {round(aciertos_over, 1)}%\n"
+    msg += f"Predicciones Under: {len(unders)} | Acierto: {round(aciertos_under, 1)}%\n"
+    msg += f"\nMuestras totales: {len(rows)}"
+    await update.message.reply_text(msg, parse_mode="Markdown")
         
 async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
@@ -4332,6 +4360,7 @@ app.add_handler(CommandHandler("pending", pendientes))
 app.add_handler(CommandHandler("testoapi", test_odds_api))
 app.add_handler(CommandHandler("debugcontra", debug_contra))
 app.add_handler(CommandHandler("debugerror", debug_error_ou))
+app.add_handler(CommandHandler("debugsesgo", debug_sesgo_linea))
 app.add_handler(CommandHandler("testfanduel", test_fanduel))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
