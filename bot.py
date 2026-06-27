@@ -1269,6 +1269,7 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
     
     # Rendimiento con equipo actual (25%)
     partidos_a_franq = [p for p in partidos_a if p.get("franquicia", "").upper() == franq_a.upper()]
+    print(f"[DEBUG FRANQ] franq_a='{franq_a}' | franqs en DB: {list(set(p.get('franquicia','') for p in partidos_a[:10]))}")
     partidos_b_franq = [p for p in partidos_b if p.get("franquicia", "").upper() == franq_b.upper()]
     if partidos_a_franq and partidos_b_franq:
         peso_a_franq = sum(calcular_peso_fecha(p.get("fecha")) for p in partidos_a_franq)
