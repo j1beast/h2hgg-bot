@@ -3259,38 +3259,56 @@ async def debug_contra(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     conn = get_db()
     c = conn.cursor()
-    c.execute('''SELECT ou_contraataque, pts_real_a + pts_real_b as total_real
+    c.execute('''SELECT ou_contraataque, pts_real_a + pts_real_b,
+                 ou_h2h_total, ou_reciente, ou_tendencia_pts
                  FROM predicciones
                  WHERE procesado=1 AND ou_contraataque IS NOT NULL
                  AND pts_real_a IS NOT NULL AND pts_real_b IS NOT NULL
-                 AND pts_real_a + pts_real_b >= 40''')
+                 AND pts_real_a + pts_real_b >= 40
+                 AND ou_h2h_total IS NOT NULL AND ou_reciente IS NOT NULL''')
     rows = c.fetchall()
     conn.close()
     if len(rows) < 30:
         await update.message.reply_text(f"Sin datos suficientes ({len(rows)} muestras).")
         return
-    contras = [r[0] for r in rows]
-    totales = [r[1] for r in rows]
-    media_contra = sum(contras) / len(contras)
-    media_total = sum(totales) / len(totales)
+    resultados = []
+    for ou_contra, total_real, ou_h2h, ou_rec, ou_tend in rows:
+        factores = [f for f in [ou_h2h, ou_rec, ou_tend] if f is not None]
+        if not factores:
+            continue
+        linea_base = sum(factores) / len(factores)
+        diferencia = total_real - linea_base
+        resultados.append((ou_contra, diferencia, total_real))
+    if not resultados:
+        await update.message.reply_text("Sin datos suficientes.")
+        return
+    media_contra = sum(r[0] for r in resultados) / len(resultados)
     rangos = [(0,15), (15,20), (20,25), (25,30), (30,999)]
-    msg = f"📊 *Calibración Contraataque*\n"
-    msg += f"Media liga: {round(media_contra,1)} FB pts | {round(media_total,1)} total pts\n\n"
+    msg = f"📊 *Contraataque como ajuste posterior*\n"
+    msg += f"Media liga: {round(media_contra,1)} FB pts\n"
+    msg += f"Muestras: {len(resultados)}\n\n"
+    msg += f"*Diferencia (real - linea_base) por rango FB:*\n"
     for lo, hi in rangos:
-        grupo = [r[1] for r in rows if lo <= r[0] < hi]
+        grupo = [(r[0], r[1]) for r in resultados if lo <= r[0] < hi]
         if len(grupo) < 5:
             continue
-        avg = round(sum(grupo)/len(grupo), 1)
-        diff = round(avg - media_total, 1)
-        msg += f"FB {lo}-{hi}: {avg} pts totales ({'+' if diff>=0 else ''}{diff} vs media) — {len(grupo)} partidos\n"
-    pairs = list(zip(contras, totales))
+        avg_diff = round(sum(d for _, d in grupo) / len(grupo), 1)
+        emoji = "📈" if avg_diff > 2 else "📉" if avg_diff < -2 else "➡️"
+        msg += f"{emoji} FB {lo}-{hi}: {'+' if avg_diff>=0 else ''}{avg_diff} pts vs base ({len(grupo)} partidos)\n"
+    pairs = [(r[0], r[1]) for r in resultados]
     n = len(pairs)
     mean_x = sum(c for c,_ in pairs) / n
-    mean_y = sum(t for _,t in pairs) / n
-    num = sum((c - mean_x)*(t - mean_y) for c,t in pairs)
+    mean_y = sum(d for _,d in pairs) / n
+    num = sum((c - mean_x)*(d - mean_y) for c,d in pairs)
     den = sum((c - mean_x)**2 for c,_ in pairs)
-    multiplicador = round(num/den, 2) if den > 0 else 0
-    msg += f"\n📐 Multiplicador: {multiplicador} pts totales por cada pt de FB"
+    mult = round(num/den, 3) if den > 0 else 0
+    msg += f"\n📐 Multiplicador real: {mult} pts de ajuste por cada pt de FB\n"
+    if abs(mult) < 0.1:
+        msg += "⚠️ Correlación muy débil — no vale la pena como ajuste"
+    elif mult > 0:
+        msg += f"✅ Correlación positiva — más FB = más puntos totales"
+    else:
+        msg += f"⚠️ Correlación negativa — más FB = menos puntos totales"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def debug_error_ou(update: Update, context: ContextTypes.DEFAULT_TYPE):
