@@ -3406,22 +3406,22 @@ async def debug_jugadores(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     conn = get_db()
     c = conn.cursor()
-    c.execute('''SELECT jugador_a, jugador_b, ganador_predicho, ganador_real,
+    c.execute('''SELECT jugador_a, jugador_b, ganador_predicho, resultado_real,
                  prediccion_ou, pts_real_a + pts_real_b, linea_betsson_ou
                  FROM predicciones
-                 WHERE procesado=1 AND ganador_real IS NOT NULL''')
+                 WHERE procesado=1 AND resultado_real IS NOT NULL''')
     rows = c.fetchall()
     conn.close()
     if len(rows) < 30:
         await update.message.reply_text("Sin datos suficientes.")
         return
     jugadores = {}
-    for jug_a, jug_b, gan_pred, gan_real, pred_ou, total_real, linea_bs in rows:
+    for jug_a, jug_b, gan_pred, resultado_real, pred_ou, total_real, linea_bs in rows:
         for jug in [jug_a, jug_b]:
             if jug not in jugadores:
                 jugadores[jug] = {'gan_ok': 0, 'gan_total': 0, 'ou_ok': 0, 'ou_total': 0}
             jugadores[jug]['gan_total'] += 1
-            if gan_pred == gan_real:
+            if gan_pred == resultado_real:
                 jugadores[jug]['gan_ok'] += 1
             if pred_ou and total_real and linea_bs:
                 jugadores[jug]['ou_total'] += 1
