@@ -599,7 +599,7 @@ async def tarea_predicciones_automaticas(app_ref):
                                 msg += f"Betsson: {tipo_ou} `{bs_linea}` → `{bs_over if tipo_ou == 'OVER' else bs_under}`\n"
                                 msg += f"Línea bot: {linea_bot} pts ({diff_str})\n"
                                 try:
-                                    ou_factors = {'h2h': analisis.get('ou_h2h_total'), 'reciente': analisis.get('ou_reciente'), 'contraataque': analisis.get('ou_contraataque'), 'tendencia_pts': analisis.get('ou_tendencia_pts'), 'defensa': ((analisis.get('ou_defensa_a') or 0) + (analisis.get('ou_defensa_b') or 0)) or None}, 'total_hist': analisis.get('ou_total_hist'), 'ritmo_franq': analisis.get('ou_ritmo_franq')                
+                                    ou_factors = {'h2h': analisis.get('ou_h2h_total'), 'reciente': analisis.get('ou_reciente'), 'contraataque': analisis.get('ou_contraataque'), 'tendencia_pts': analisis.get('ou_tendencia_pts'), 'defensa': ((analisis.get('ou_defensa_a') or 0) + (analisis.get('ou_defensa_b') or 0)) or None, 'total_hist': analisis.get('ou_total_hist'), 'ritmo_franq': analisis.get('ou_ritmo_franq')}
                                     pesos_ou = json.loads(get_meta("pesos_ou_optimizados") or "{}")
                                     es_over_f = float(linea_bot) > float(bs_linea)
                                     pf = sum(pesos_ou.get(k, 0.2) for k, v in ou_factors.items() if v is not None and (v > float(bs_linea)) == es_over_f)
