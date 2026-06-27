@@ -3292,6 +3292,49 @@ async def debug_contra(update: Update, context: ContextTypes.DEFAULT_TYPE):
     multiplicador = round(num/den, 2) if den > 0 else 0
     msg += f"\n📐 Multiplicador: {multiplicador} pts totales por cada pt de FB"
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def debug_error_ou(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT ou_h2h_total, ou_reciente, ou_contraataque, 
+                 ou_tendencia_pts, ou_total_hist, ou_ritmo_franq, ou_tendencia_h2h,
+                 pts_real_a + pts_real_b as total_real
+                 FROM predicciones
+                 WHERE procesado=1 AND pts_real_a IS NOT NULL
+                 AND pts_real_a + pts_real_b >= 40''')
+    rows = c.fetchall()
+    conn.close()
+    if len(rows) < 30:
+        await update.message.reply_text("Sin datos suficientes.")
+        return
+    nombres = {
+        'h2h': 'H2H total',
+        'reciente': 'Forma reciente',
+        'contraataque': 'Contraataque',
+        'tendencia_pts': 'Tendencia pts',
+        'total_hist': 'Total histórico',
+        'ritmo_franq': 'Ritmo franquicia',
+        'tendencia_h2h': 'Tendencia H2H'
+    }
+    factores = {
+        'h2h': 0, 'reciente': 1, 'contraataque': 2,
+        'tendencia_pts': 3, 'total_hist': 4, 'ritmo_franq': 5, 'tendencia_h2h': 6
+    }
+    msg = "📊 *Error medio por factor O/U*\n_(pts de diferencia vs total real)_\n\n"
+    resultados = []
+    for nombre, idx in factores.items():
+        errores = [abs(row[idx] - row[7]) for row in rows if row[idx] is not None]
+        if len(errores) < 10:
+            continue
+        avg_error = round(sum(errores) / len(errores), 1)
+        resultados.append((nombre, avg_error, len(errores)))
+    resultados.sort(key=lambda x: x[1])
+    for nombre, error, n in resultados:
+        emoji = "🟢" if error < 10 else "🟡" if error < 15 else "🔴"
+        msg += f"{emoji} {nombres[nombre]}: ±{error} pts ({n} muestras)\n"
+    await update.message.reply_text(msg, parse_mode="Markdown")
         
 async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
@@ -4251,6 +4294,7 @@ app.add_handler(CommandHandler("units", unidades))
 app.add_handler(CommandHandler("pending", pendientes))
 app.add_handler(CommandHandler("testoapi", test_odds_api))
 app.add_handler(CommandHandler("debugcontra", debug_contra))
+app.add_handler(CommandHandler("debugerror", debug_error_ou))
 app.add_handler(CommandHandler("testfanduel", test_fanduel))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
