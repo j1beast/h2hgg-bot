@@ -2595,7 +2595,6 @@ async def rendimiento(update: Update, context: ContextTypes.DEFAULT_TYPE):
     c.execute("SELECT SUM(acierto_ganador), SUM(acierto_ou) FROM predicciones WHERE procesado = 1")
     row = c.fetchone()
     aciertos_ganador = row[0] or 0
-    aciertos_ou = row[1] or 0
     c.execute("SELECT acierto_ganador FROM predicciones WHERE procesado = 1 ORDER BY id DESC LIMIT 10")
     ultimos = c.fetchall()
     conn.close()
@@ -2603,14 +2602,12 @@ async def rendimiento(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if idioma == "en":
         msg = f"📊 *Bot performance*\n\n"
         msg += f"Total predictions: {total}\n"
-        msg += f"✅ Winner correct: {aciertos_ganador}/{total} → {round(aciertos_ganador/total*100, 1)}%\n"
-        msg += f"✅ Over/Under correct: {aciertos_ou}/{total} → {round(aciertos_ou/total*100, 1)}%\n\n"
+        msg += f"✅ Winner correct: {aciertos_ganador}/{total} → {round(aciertos_ganador/total*100, 1)}%\n\n"
         msg += f"Last 10: {racha}\n"
     else:
         msg = f"📊 *Rendimiento del bot*\n\n"
         msg += f"Total predicciones: {total}\n"
-        msg += f"✅ Ganador acertado: {aciertos_ganador}/{total} → {round(aciertos_ganador/total*100, 1)}%\n"
-        msg += f"✅ Over/Under acertado: {aciertos_ou}/{total} → {round(aciertos_ou/total*100, 1)}%\n\n"
+        msg += f"✅ Ganador acertado: {aciertos_ganador}/{total} → {round(aciertos_ganador/total*100, 1)}%\n\n"
         msg += f"Últimos 10: {racha}\n"
     conn2 = get_db()
     c2 = conn2.cursor()
@@ -2632,8 +2629,7 @@ async def rendimiento(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg += f"\n📅 *Últimos 10 días:*\n"
         for dia, total, gan, ou in dias:
             gan = gan or 0
-            ou = ou or 0
-            msg += f"{dia}: {gan}/{total} ({round(gan/total*100,1)}%) | {ou}/{total} O/U ({round(ou/total*100,1)}%)\n"
+            msg += f"{dia}: {gan}/{total} ({round(gan/total*100,1)}%)\n"
     conn3 = get_db()
     c3 = conn3.cursor()
     c3.execute("SELECT COUNT(*), SUM(acierto_ganador), SUM(acierto_ou) FROM predicciones WHERE procesado=1 AND es_valor=1")
@@ -2642,17 +2638,14 @@ async def rendimiento(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total_v = rv[0] or 0
     if total_v > 0:
         ag_v = rv[1] or 0
-        aou_v = rv[2] or 0
         if idioma == "en":
             msg += f"\n🎯 *Value predictions:*\n"
             msg += f"Total: {total_v}\n"
             msg += f"✅ Winner: {ag_v}/{total_v} → {round(ag_v/total_v*100,1)}%\n"
-            msg += f"✅ O/U: {aou_v}/{total_v} → {round(aou_v/total_v*100,1)}%\n"
         else:
             msg += f"\n🎯 *Predicciones con VALOR:*\n"
             msg += f"Total: {total_v}\n"
             msg += f"✅ Ganador: {ag_v}/{total_v} → {round(ag_v/total_v*100,1)}%\n"
-            msg += f"✅ O/U: {aou_v}/{total_v} → {round(aou_v/total_v*100,1)}%\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -4350,7 +4343,6 @@ async def manualdeuso(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• *BETSSON odds* — real odds available\n"
             "• ✅ — value detected: Betsson pays more than it should\n"
             "• *Factor implication* — % of factors pointing to the same winner\n\n"
-            "📝 You can also type *MYTH vs MALICE* directly without any command.\n\n"
             "🌐 /language — Change language"
         )
     else:
@@ -4392,7 +4384,6 @@ async def manualdeuso(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• *Cuota BETSSON* — cuota real disponible\n"
             "• ✅ — valor detectado: Betsson paga más de lo que debería\n"
             "• *Implicación de factores* — % de factores que apuntan al mismo ganador\n\n"
-            "📝 También puedes escribir directamente *MYTH vs MALICE* sin usar ningún comando.\n\n"
             "🌐 /language — Cambiar idioma"
         )
     await update.message.reply_text(msg, parse_mode="Markdown")
