@@ -3445,6 +3445,20 @@ async def debug_jugadores(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pct = round(d['ou_ok']/d['ou_total']*100, 1)
         emoji = "🟢" if pct >= 60 else "🟡" if pct >= 53 else "🔴"
         msg += f"{emoji} {jug}: {pct}% ({d['ou_total']} partidos)\n"
+    sorted_gan_peor = sorted(jugadores.items(), key=lambda x: x[1]['gan_ok']/x[1]['gan_total'])
+    sorted_ou_peor = sorted(jugadores.items(), key=lambda x: x[1]['ou_ok']/x[1]['ou_total'] if x[1]['ou_total'] > 0 else 1)
+    msg += "\n❌ *Peores jugadores por acierto GANADOR*\n"
+    for jug, d in sorted_gan_peor[:10]:
+        pct = round(d['gan_ok']/d['gan_total']*100, 1)
+        emoji = "🔴" if pct < 50 else "🟡"
+        msg += f"{emoji} {jug}: {pct}% ({d['gan_total']} partidos)\n"
+    msg += "\n❌ *Peores jugadores por acierto O/U*\n"
+    for jug, d in sorted_ou_peor[:10]:
+        if d['ou_total'] == 0:
+            continue
+        pct = round(d['ou_ok']/d['ou_total']*100, 1)
+        emoji = "🔴" if pct < 47 else "🟡"
+        msg += f"{emoji} {jug}: {pct}% ({d['ou_total']} partidos)\n"
     await update.message.reply_text(msg, parse_mode="Markdown")
         
 async def mensaje_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
