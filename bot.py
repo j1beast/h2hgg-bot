@@ -3457,7 +3457,7 @@ def get_cuartos_jugador(jugador):
                  ORDER BY fecha DESC LIMIT 50''', (jugador, jugador))
     partidos = c.fetchall()
     conn.close()
-
+    print(f"DEBUG CUARTOS: {len(partidos)} partidos, ids: {[p[0] for p in partidos[:5]]}")
     cuartos = {1: [], 2: [], 3: [], 4: []}
 
     for p in partidos:
