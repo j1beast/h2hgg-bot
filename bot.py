@@ -400,7 +400,12 @@ def verificar_predicciones():
         resp = requests.get("https://api-h2h.hudstats.com/v1/schedule/past/nba?limit=50", timeout=10,
                             headers={"Origin": "https://h2hggl.com"})
         resultados_api = resp.json() if resp.status_code == 200 else []
-        print(f"DEBUG API resultado: {resultados_api[0] if resultados_api else 'vacío'}")
+            try:
+        resp_tl = requests.get("https://api-h2h.hudstats.com/v1/timeline/?external_id=NB213030626", timeout=10,
+                               headers={"Origin": "https://h2hggl.com"})
+        print(f"DEBUG TIMELINE: {resp_tl.json()}")
+    except Exception as e:
+        print(f"ERROR TIMELINE: {e}")
     except:
         resultados_api = []
 
