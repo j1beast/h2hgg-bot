@@ -609,10 +609,9 @@ async def tarea_predicciones_automaticas(app_ref):
                         hay_valor_ou = False
                         if not hay_valor_ganador and not hay_valor_ou:
                             continue
-                            
+
                         if not hay_valor_ganador and not hay_valor_ou:
                             continue
-                            # No enviar si ya se envió antes
                         print(f"[CANAL] {jugador_a} vs {jugador_b}: intentando enviar al canal")
                         conn_c = get_db()
                         ya_enviado = conn_c.execute('''SELECT enviado_canal FROM predicciones
@@ -626,22 +625,19 @@ async def tarea_predicciones_automaticas(app_ref):
                             continue
                         # Construir mensaje de valor
                         msg = ""
-                        # Valor ganador
                         if hay_valor_ganador:
                             if cb_a > bot_a:
                                 pct = round((cb_a / bot_a - 1) * 100, 1)
                                 msg += f"🎯 *VALUE BET - GANADOR*\n"
                                 msg += f"{franq_a} ({jugador_a}) vs {franq_b} ({jugador_b}) — {hora_utc}\n"
-                                msg += f"Betsson: {jugador_a} gana → `{cb_a}`\n"
-                                msg += f"Bot: `{bot_a}` (+{pct}% diferencia)\n"
+                                msg += f"Betsson: `{cb_a}` | Bot: `{bot_a}` (+{pct}% diferencia)\n"
                                 msg += f"Implicación de factores: {analisis.get('fuerza_ganador', '?')}%\n"
                                 msg += f"💰 Apuesta: {jugador_a}\n"
                             else:
                                 pct = round((cb_b / bot_b - 1) * 100, 1)
                                 msg += f"🎯 *VALUE BET - GANADOR*\n"
                                 msg += f"{franq_a} ({jugador_a}) vs {franq_b} ({jugador_b}) — {hora_utc}\n"
-                                msg += f"Betsson: {jugador_b} gana → `{cb_b}`\n"
-                                msg += f"Bot: `{bot_b}` (+{pct}% diferencia)\n"
+                                msg += f"Betsson: `{cb_b}` | Bot: `{bot_b}` (+{pct}% diferencia)\n"
                                 msg += f"Implicación de factores: {analisis.get('fuerza_ganador', '?')}%\n"
                                 msg += f"💰 Apuesta: {jugador_b}\n"
                         # Valor O/U
