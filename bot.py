@@ -1775,15 +1775,15 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
 # ─────────────────────────────────────────────
 
 def formatear_tweet(jugador_a, jugador_b, hay_valor_ganador, hay_valor_ou, analisis, betsson, cb_a, cb_b, bot_a, bot_b, linea_bot, bs_linea, hora_utc=None):
-    tweet = ""
+    tweet = "🏀 H2H GG League | eBASKETBALL\n\n"
     if hay_valor_ganador:
         if cb_a > bot_a:
             pct = round((cb_a / bot_a - 1) * 100, 1)
             tweet += f"🎯 VALUE BET - WINNER\n"
             tweet += f"{jugador_a} vs {jugador_b}\n"
             if hora_utc:
-                tweet += f"🕐 {hora_utc} UTC\n"
-            tweet += f"Betsson: {cb_a} | Bot: {bot_a} (+{pct}% edge)\n"
+                tweet += f"🕐 {hora_utc}\n"
+            tweet += f"Betsson: {cb_a} | Model: {bot_a} (+{pct}% edge)\n"
             if analisis.get('fuerza_ganador'):
                 tweet += f"Factor implication: {analisis['fuerza_ganador']}%\n"
             tweet += f"💰 Bet: {jugador_a}\n"
@@ -1792,8 +1792,8 @@ def formatear_tweet(jugador_a, jugador_b, hay_valor_ganador, hay_valor_ou, anali
             tweet += f"🎯 VALUE BET - WINNER\n"
             tweet += f"{jugador_a} vs {jugador_b}\n"
             if hora_utc:
-                tweet += f"🕐 {hora_utc} UTC\n"
-            tweet += f"Betsson: {cb_b} | Bot: {bot_b} (+{pct}% edge)\n"
+                tweet += f"🕐 {hora_utc}\n"
+            tweet += f"Betsson: {cb_b} | Model: {bot_b} (+{pct}% edge)\n"
             if analisis.get('fuerza_ganador'):
                 tweet += f"Factor implication: {analisis['fuerza_ganador']}%\n"
             tweet += f"💰 Bet: {jugador_b}\n"
