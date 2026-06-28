@@ -4485,6 +4485,62 @@ if __name__ == "__main__":
     else:
         print(f"Base de datos lista con {total_partidos_db()} partidos.")
 
+async def tarea_tweet_diario():
+    while True:
+        ahora = datetime.utcnow()
+        manana = (ahora + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        espera = (manana - ahora).total_seconds()
+        await asyncio.sleep(espera)
+        try:
+            ayer = (datetime.utcnow() - timedelta(days=1)).strftime("%Y-%m-%d")
+            conn = get_db()
+            c = conn.cursor()
+            c.execute('''SELECT ganador_predicho, jugador_a, jugador_b, acierto_ganador,
+                         cuota_betsson_a, cuota_betsson_b, es_valor_ganador
+                         FROM predicciones
+                         WHERE procesado=1 AND es_valor=1 AND es_valor_ganador=1
+                         AND cuota_betsson_a IS NOT NULL
+                         AND DATE(fecha_prediccion)=?''', (ayer,))
+            rows = c.fetchall()
+            conn.close()
+            if not rows:
+                continue
+            ganadas = 0
+            perdidas = 0
+            unidades = 0.0
+            for gan_pred, jug_a, jug_b, ac_g, cb_a, cb_b, ev_g in rows:
+                cuota = cb_a if gan_pred == jug_a else cb_b
+                if not cuota or cuota <= 1:
+                    continue
+                if ac_g == 1:
+                    ganadas += 1
+                    unidades += round(cuota - 1, 4)
+                else:
+                    perdidas += 1
+                    unidades -= 1
+            total = ganadas + perdidas
+            if total == 0:
+                continue
+            unidades = round(unidades, 2)
+            emoji = "📈" if unidades >= 0 else "📉"
+            tweet = f"📊 Daily Stats - H2H Hoops Bot\n\n"
+            tweet += f"🗓️ {ayer}\n"
+            tweet += f"Value bets: {total}\n"
+            tweet += f"✅ Won: {ganadas} | ❌ Lost: {perdidas}\n"
+            tweet += f"{emoji} Result: {'+' if unidades >= 0 else ''}{unidades}u\n"
+            tweet += f"\n@H2HHoops"
+            if TWITTER_ENABLED:
+                twitter_client = tweepy.Client(
+                    consumer_key=os.environ.get("TWITTER_API_KEY"),
+                    consumer_secret=os.environ.get("TWITTER_API_SECRET"),
+                    access_token=os.environ.get("TWITTER_ACCESS_TOKEN"),
+                    access_token_secret=os.environ.get("TWITTER_ACCESS_TOKEN_SECRET")
+                )
+                twitter_client.create_tweet(text=tweet[:280])
+                print(f"[TWEET DIARIO] Enviado: {tweet[:80]}")
+        except Exception as e:
+            print(f"[TWEET DIARIO] Error: {e}")
+
 async def post_init(application):
     await application.bot.set_my_commands([
         ("start", "🏀 Menu / Menú"),
@@ -4496,6 +4552,8 @@ async def post_init(application):
     asyncio.create_task(tarea_actualizacion_diaria())
     
     asyncio.create_task(tarea_predicciones_automaticas(application))
+
+    asyncio.create_task(tarea_tweet_diario())
 
 app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
 app.add_handler(CommandHandler("start", start))
