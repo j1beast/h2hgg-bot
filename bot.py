@@ -4478,4 +4478,5 @@ app.add_handler(CommandHandler("testfanduel", test_fanduel))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
 print("Bot iniciado...")
+app_ref = app
 app.run_polling()
