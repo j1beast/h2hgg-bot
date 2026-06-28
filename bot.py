@@ -2963,7 +2963,6 @@ async def get_cuotas_betsson():
             if not home or not away:
                 continue
             if not cuotas:  # Solo para el primer evento
-                print(f"DEBUG event keys: {list(event.keys())}")
             event_id = event.get("globalId", "").split(".")[-1]
             home_j = extraer_nombre_jugador(home).upper()
             away_j = extraer_nombre_jugador(away).upper()
@@ -3469,7 +3468,7 @@ def get_cuartos_jugador(jugador):
                  ORDER BY fecha DESC LIMIT 50''', (jugador, jugador))
     partidos = c.fetchall()
     conn.close()
-    print(f"DEBUG CUARTOS: {len(partidos)} partidos, ids: {[p[0] for p in partidos[:5]]}")
+    
     cuartos = {1: [], 2: [], 3: [], 4: []}
 
     for p in partidos:
