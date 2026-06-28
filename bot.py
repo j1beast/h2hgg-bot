@@ -696,7 +696,7 @@ async def tarea_predicciones_automaticas(app_ref):
                                     access_token=os.environ.get("TWITTER_ACCESS_TOKEN"),
                                     access_token_secret=os.environ.get("TWITTER_ACCESS_TOKEN_SECRET")
                                 )
-                                tweet_text = formatear_tweet(jugador_a, jugador_b, hay_valor_ganador, hay_valor_ou, analisis, betsson_pred, cb_a, cb_b, bot_a, bot_b, linea_bot, bs_linea)
+                                tweet_text = formatear_tweet(jugador_a, jugador_b, hay_valor_ganador, hay_valor_ou, analisis, betsson_pred, cb_a, cb_b, bot_a, bot_b, linea_bot, bs_linea, hora_utc=hora_utc)
                                 twitter_client.create_tweet(text=tweet_text)
                                 print("Tweet enviado correctamente")
                             except Exception as te:
@@ -1778,13 +1778,15 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
 # FORMATO DE MENSAJES
 # ─────────────────────────────────────────────
 
-def formatear_tweet(jugador_a, jugador_b, hay_valor_ganador, hay_valor_ou, analisis, betsson, cb_a, cb_b, bot_a, bot_b, linea_bot, bs_linea):
+def formatear_tweet(jugador_a, jugador_b, hay_valor_ganador, hay_valor_ou, analisis, betsson, cb_a, cb_b, bot_a, bot_b, linea_bot, bs_linea, hora_utc=None):
     tweet = ""
     if hay_valor_ganador:
         if cb_a > bot_a:
             pct = round((cb_a / bot_a - 1) * 100, 1)
             tweet += f"🎯 VALUE BET - WINNER\n"
             tweet += f"{jugador_a} vs {jugador_b}\n"
+            if hora_utc:
+                tweet += f"🕐 {hora_utc} UTC\n"
             tweet += f"Betsson: {jugador_a} wins → {cb_a}\n"
             tweet += f"Bot line: {bot_a} (+{pct}% edge)\n"
             if analisis.get('fuerza_ganador'):
@@ -1794,25 +1796,13 @@ def formatear_tweet(jugador_a, jugador_b, hay_valor_ganador, hay_valor_ou, anali
             pct = round((cb_b / bot_b - 1) * 100, 1)
             tweet += f"🎯 VALUE BET - WINNER\n"
             tweet += f"{jugador_a} vs {jugador_b}\n"
+            if hora_utc:
+                tweet += f"🕐 {hora_utc} UTC\n"
             tweet += f"Betsson: {jugador_b} wins → {cb_b}\n"
             tweet += f"Bot line: {bot_b} (+{pct}% edge)\n"
             if analisis.get('fuerza_ganador'):
                 tweet += f"Factor implication: {analisis['fuerza_ganador']}%\n"
             tweet += f"💰 Bet: {jugador_b}\n"
-    if hay_valor_ou and bs_linea and linea_bot:
-        try:
-            diff_pts = round(float(linea_bot) - float(bs_linea), 1)
-            tipo_ou = "OVER" if float(linea_bot) > float(bs_linea) else "UNDER"
-            diff_str = f"+{diff_pts}" if diff_pts > 0 else str(diff_pts)
-            if tweet:
-                tweet += "\n"
-            tweet += f"📊 VALUE BET - OVER/UNDER\n"
-            tweet += f"{jugador_a} vs {jugador_b}\n"
-            tweet += f"Betsson: {tipo_ou} {bs_linea} → {betsson.get('cuota_over') if tipo_ou == 'OVER' else betsson.get('cuota_under')}\n"
-            tweet += f"Bot line: {linea_bot} pts ({diff_str} pts)\n"
-            tweet += f"💰 Bet: {tipo_ou}\n"
-        except:
-            pass
     return tweet[:280]
     
 def formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson=None):
