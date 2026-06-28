@@ -1787,8 +1787,7 @@ def formatear_tweet(jugador_a, jugador_b, hay_valor_ganador, hay_valor_ou, anali
             tweet += f"{jugador_a} vs {jugador_b}\n"
             if hora_utc:
                 tweet += f"🕐 {hora_utc} UTC\n"
-            tweet += f"Betsson: {jugador_a} wins → {cb_a}\n"
-            tweet += f"Bot line: {bot_a} (+{pct}% edge)\n"
+            tweet += f"Betsson: {cb_a} | Bot: {bot_a} (+{pct}% edge)\n"
             if analisis.get('fuerza_ganador'):
                 tweet += f"Factor implication: {analisis['fuerza_ganador']}%\n"
             tweet += f"💰 Bet: {jugador_a}\n"
@@ -1798,8 +1797,7 @@ def formatear_tweet(jugador_a, jugador_b, hay_valor_ganador, hay_valor_ou, anali
             tweet += f"{jugador_a} vs {jugador_b}\n"
             if hora_utc:
                 tweet += f"🕐 {hora_utc} UTC\n"
-            tweet += f"Betsson: {jugador_b} wins → {cb_b}\n"
-            tweet += f"Bot line: {bot_b} (+{pct}% edge)\n"
+            tweet += f"Betsson: {cb_b} | Bot: {bot_b} (+{pct}% edge)\n"
             if analisis.get('fuerza_ganador'):
                 tweet += f"Factor implication: {analisis['fuerza_ganador']}%\n"
             tweet += f"💰 Bet: {jugador_b}\n"
