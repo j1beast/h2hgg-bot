@@ -403,13 +403,6 @@ def verificar_predicciones():
     except:
         resultados_api = []
 
-    try:
-        resp_tl = requests.get("https://api-h2h.hudstats.com/v1/timeline/?external_id=NB213030626", timeout=10,
-                               headers={"Origin": "https://h2hggl.com"})
-        print(f"DEBUG TIMELINE: {resp_tl.json()}")
-    except Exception as e:
-        print(f"ERROR TIMELINE: {e}")
-
     conn = get_db()
     c = conn.cursor()
     c.execute('''SELECT id, jugador_a, jugador_b, ganador_predicho,
