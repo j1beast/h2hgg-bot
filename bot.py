@@ -2963,6 +2963,7 @@ async def get_cuotas_betsson():
             if not home or not away:
                 continue
             if not cuotas:  # Solo para el primer evento
+                
             event_id = event.get("globalId", "").split(".")[-1]
             home_j = extraer_nombre_jugador(home).upper()
             away_j = extraer_nombre_jugador(away).upper()
