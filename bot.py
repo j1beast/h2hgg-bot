@@ -3451,9 +3451,9 @@ async def debug_sesgo_linea(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def get_cuartos_jugador(jugador):
     conn = get_db()
     c = conn.cursor()
-    c.execute('''SELECT external_id, fecha, gano_a, jugador_a, jugador_b, pts_a, pts_b
+    c.execute('''SELECT id, fecha, home_jugador, away_jugador, score_home, score_away
                  FROM partidos
-                 WHERE jugador_a=? OR jugador_b=?
+                 WHERE home_jugador=? OR away_jugador=?
                  ORDER BY fecha DESC LIMIT 50''', (jugador, jugador))
     partidos = c.fetchall()
     conn.close()
@@ -3461,7 +3461,7 @@ def get_cuartos_jugador(jugador):
     cuartos = {1: [], 2: [], 3: [], 4: []}
 
     for p in partidos:
-        ext_id, fecha, gano_a, jug_a, jug_b, pts_a, pts_b = p
+        ext_id, fecha, jug_home, jug_away, pts_home, pts_away = p
         if not ext_id:
             continue
         try:
@@ -3473,10 +3473,7 @@ def get_cuartos_jugador(jugador):
         except:
             continue
 
-        summary = data.get("matchSummary", {})
-        inverted = summary.get("invertedTeams", 0)
-        part_a = summary.get("teamA", {}).get("participantName", "").upper()
-        es_home = (part_a == jugador.upper() and not inverted) or (part_a != jugador.upper() and inverted)
+        es_home = (jug_home.upper() == jugador.upper())
 
         scores = {}
         for inc in data.get("incidents", []):
@@ -3498,7 +3495,7 @@ def get_cuartos_jugador(jugador):
             q_prev_home, q_prev_away = h, a
 
     return cuartos
-
+    
 async def cuartos_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         return
