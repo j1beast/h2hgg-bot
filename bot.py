@@ -113,6 +113,10 @@ def init_db():
             c.execute(f"ALTER TABLE predicciones ADD COLUMN {col} {tipo}")
         except:
             pass
+    try:
+        c.execute("ALTER TABLE partidos ADD COLUMN external_id TEXT")
+    except:
+        pass
     c.execute('''CREATE TABLE IF NOT EXISTS betsson_cookies (
         id INTEGER PRIMARY KEY,
         cookies TEXT,
@@ -419,7 +423,6 @@ def verificar_predicciones():
             fecha_pred_dt = datetime.strptime(fecha_pred, "%Y-%m-%d %H:%M:%S")
             desde_dt = fecha_pred_dt - timedelta(minutes=30)
 
-            # Buscar en API de la liga (sin lag)
             resultado_api = None
             for r in resultados_api:
                 if r.get("matchStatus") != "MATCH_ENDED":
@@ -458,6 +461,16 @@ def verificar_predicciones():
                 c.execute('''UPDATE predicciones SET resultado_real=?, acierto_ganador=?, acierto_ou=?, procesado=1,
                              pts_real_a=?, pts_real_b=? WHERE id=?''',
                           (ganador_real, acierto_ganador, acierto_ou, pts_a, pts_b, pred_id))
+                # Guardar external_id en tabla partidos
+                try:
+                    ext_id = resultado_api.get("externalId")
+                    fecha_partido = resultado_api["startDate"][:10]
+                    conn.execute('''UPDATE partidos SET external_id=?
+                                    WHERE (home_jugador=? OR away_jugador=?)
+                                    AND date(fecha) = ?''',
+                                 (ext_id, jugador_a, jugador_a, fecha_partido))
+                except:
+                    pass
                 print(f"[OK] {jugador_a} vs {jugador_b}: procesado (liga)")
                 if es_valor_g:
                     emoji = "✅" if acierto_ganador == 1 else "❌"
@@ -509,7 +522,6 @@ def verificar_predicciones():
             print(f"Error verificando predicción {pred_id}: {e}")
             continue
 
-    # Expirar predicciones con más de 4 horas sin procesar
     desde_expiracion = (datetime.utcnow() - timedelta(hours=4)).strftime("%Y-%m-%d %H:%M:%S")
     c.execute('''UPDATE predicciones SET procesado=2
                  WHERE procesado=0 AND fecha_prediccion <= ?''', (desde_expiracion,))
