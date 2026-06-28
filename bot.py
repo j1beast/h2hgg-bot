@@ -3448,6 +3448,85 @@ async def debug_sesgo_linea(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg += f"\nMuestras totales: {len(rows)}"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
+def get_cuartos_jugador(jugador):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT external_id, fecha, gano_a, jugador_a, jugador_b, pts_a, pts_b
+                 FROM partidos
+                 WHERE jugador_a=? OR jugador_b=?
+                 ORDER BY fecha DESC LIMIT 50''', (jugador, jugador))
+    partidos = c.fetchall()
+    conn.close()
+
+    cuartos = {1: [], 2: [], 3: [], 4: []}
+
+    for p in partidos:
+        ext_id, fecha, gano_a, jug_a, jug_b, pts_a, pts_b = p
+        if not ext_id:
+            continue
+        try:
+            resp = requests.get(f"https://api-h2h.hudstats.com/v1/timeline/?external_id={ext_id}",
+                                timeout=8, headers={"Origin": "https://h2hggl.com"})
+            if resp.status_code != 200:
+                continue
+            data = resp.json()
+        except:
+            continue
+
+        summary = data.get("matchSummary", {})
+        inverted = summary.get("invertedTeams", 0)
+        part_a = summary.get("teamA", {}).get("participantName", "").upper()
+        es_home = (part_a == jugador.upper() and not inverted) or (part_a != jugador.upper() and inverted)
+
+        scores = {}
+        for inc in data.get("incidents", []):
+            if inc.get("messageType") == "period-change":
+                period = inc.get("period", {})
+                if period.get("type") == "QUARTER" and period.get("phase") == "END":
+                    qid = period.get("id")
+                    rs = inc.get("runningScore", {})
+                    scores[qid] = (rs.get("home", 0), rs.get("away", 0))
+
+        if len(scores) < 4:
+            continue
+
+        q_prev_home, q_prev_away = 0, 0
+        for q in range(1, 5):
+            h, a = scores.get(q, (0, 0))
+            pts_jugador = (h - q_prev_home) if es_home else (a - q_prev_away)
+            cuartos[q].append(pts_jugador)
+            q_prev_home, q_prev_away = h, a
+
+    return cuartos
+
+async def cuartos_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not es_permitido(update):
+        return
+    if not context.args:
+        await update.message.reply_text("Uso: /cuartos JUGADOR")
+        return
+    jugador = " ".join(context.args).upper()
+    await update.message.reply_text(f"⏳ Analizando cuartos de {jugador}...")
+
+    cuartos = get_cuartos_jugador(jugador)
+    n = min(len(v) for v in cuartos.values())
+    if n < 3:
+        await update.message.reply_text(f"No hay suficientes partidos con timeline para {jugador} (mínimo 3).")
+        return
+
+    medias = {q: round(sum(v)/len(v), 1) for q, v in cuartos.items() if v}
+    primera = round(medias[1] + medias[2], 1)
+    segunda = round(medias[3] + medias[4], 1)
+    diff = round(segunda - primera, 1)
+    tendencia = "📉 Baja en 2ª mitad" if diff < -1 else "📈 Sube en 2ª mitad" if diff > 1 else "➡️ Ritmo constante"
+
+    msg = f"📊 *{jugador}* — Puntos por cuarto (media, {n} partidos)\n\n"
+    msg += f"Q1: {medias[1]} | Q2: {medias[2]} | Q3: {medias[3]} | Q4: {medias[4]}\n"
+    msg += f"1ª mitad: {primera} | 2ª mitad: {segunda}\n"
+    msg += f"{tendencia} ({diff:+.1f} pts)\n"
+
+    await update.message.reply_text(msg, parse_mode="Markdown")
+
 async def debug_jugadores(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_admin(update):
         return
@@ -4451,6 +4530,7 @@ app.add_handler(CommandHandler("debuglineas", debug_lineas))
 app.add_handler(CommandHandler("debugpsico", debugpsico))
 app.add_handler(CommandHandler("validarpsico", validarpsico))
 app.add_handler(CommandHandler("manualdeuso", manualdeuso))
+app.add_handler(CommandHandler("cuartos", cuartos_cmd))
 app.add_handler(CommandHandler("language", language))
 app.add_handler(CallbackQueryHandler(callback_language, pattern="^lang_"))
 app.add_handler(CommandHandler("prediction", pronostico))
