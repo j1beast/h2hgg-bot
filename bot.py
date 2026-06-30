@@ -2692,8 +2692,11 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Aún no hay predicciones con líneas Betsson procesadas.")
         return
     unidades_ganador = 0.0
+    unidades_ou = 0.0
     aciertos_g = 0
+    aciertos_ou = 0
     racha_g = []
+    racha_ou = []
     for row in rows:
         gan_pred, res_real, ac_g, pred_ou, ac_ou, cb_a, cb_b, cb_over, cb_under, jug_a, jug_b, fecha = row
         if gan_pred == jug_a:
@@ -2708,9 +2711,22 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 unidades_ganador -= 1
                 racha_g.append("❌")
+        if ac_ou is not None and pred_ou in ("Over", "Under"):
+            cuota_ou = cb_over if pred_ou == "Over" else cb_under
+            if cuota_ou and cuota_ou > 1:
+                if ac_ou == 1:
+                    unidades_ou += round(cuota_ou - 1, 4)
+                    aciertos_ou += 1
+                    racha_ou.append("✅")
+                else:
+                    unidades_ou -= 1
+                    racha_ou.append("❌")
     unidades_ganador = round(unidades_ganador, 2)
+    unidades_ou = round(unidades_ou, 2)
     emoji_g = "📈" if unidades_ganador >= 0 else "📉"
+    emoji_ou = "📈" if unidades_ou >= 0 else "📉"
     ultimas_g = "".join(racha_g[-10:])
+    ultimas_ou = "".join(racha_ou[-10:])
     if idioma == "en":
         msg = f"💰 *Units simulation (1u per bet)*\n"
         msg += f"_(Only predictions with Betsson odds)_\n\n"
@@ -2718,6 +2734,10 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg += f"Predictions: {len(racha_g)} | Correct: {aciertos_g}\n"
         msg += f"Last 10: {ultimas_g}\n"
         msg += f"{emoji_g} Result: `{'+' if unidades_ganador >= 0 else ''}{unidades_ganador}u`\n"
+        msg += f"\n📊 *OVER/UNDER*\n"
+        msg += f"Predictions: {len(racha_ou)} | Correct: {aciertos_ou}\n"
+        msg += f"Last 10: {ultimas_ou}\n"
+        msg += f"{emoji_ou} Result: `{'+' if unidades_ou >= 0 else ''}{unidades_ou}u`\n"
     else:
         msg = f"💰 *Simulación de unidades (1u por apuesta)*\n"
         msg += f"_(Solo predicciones con cuotas Betsson)_\n\n"
@@ -2725,6 +2745,10 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg += f"Predicciones: {len(racha_g)} | Aciertos: {aciertos_g}\n"
         msg += f"Últimas 10: {ultimas_g}\n"
         msg += f"{emoji_g} Resultado: `{'+' if unidades_ganador >= 0 else ''}{unidades_ganador}u`\n"
+        msg += f"\n📊 *OVER/UNDER*\n"
+        msg += f"Predicciones: {len(racha_ou)} | Aciertos: {aciertos_ou}\n"
+        msg += f"Últimas 10: {ultimas_ou}\n"
+        msg += f"{emoji_ou} Resultado: `{'+' if unidades_ou >= 0 else ''}{unidades_ou}u`\n"
     conn_dias = get_db()
     c_dias = conn_dias.cursor()
     c_dias.execute('''SELECT DATE(fecha_prediccion) as dia,
@@ -2743,10 +2767,14 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for row in rows_dias:
         dia, gan_pred, jug_a, jug_b, ac_g, ac_ou, pred_ou, cb_a, cb_b, cb_over, cb_under = row
         if dia not in dias_dict:
-            dias_dict[dia] = {"u_g": 0.0}
+            dias_dict[dia] = {"u_g": 0.0, "u_ou": 0.0}
         cuota_g = cb_a if gan_pred == jug_a else cb_b
         if cuota_g and cuota_g > 1:
             dias_dict[dia]["u_g"] += round(cuota_g - 1, 4) if ac_g == 1 else -1
+        if ac_ou is not None and pred_ou in ("Over", "Under"):
+            cuota_ou = cb_over if pred_ou == "Over" else cb_under
+            if cuota_ou and cuota_ou > 1:
+                dias_dict[dia]["u_ou"] += round(cuota_ou - 1, 4) if ac_ou == 1 else -1
     ultimos_dias = sorted(dias_dict.keys(), reverse=True)[:10]
     if ultimos_dias:
         if idioma == "en":
@@ -2755,8 +2783,10 @@ async def unidades(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg += f"\n📅 *Últimos 10 días:*\n"
         for dia in ultimos_dias:
             u_g = round(dias_dict[dia]["u_g"], 2)
+            u_ou = round(dias_dict[dia]["u_ou"], 2)
             emoji_g = "📈" if u_g >= 0 else "📉"
-            msg += f"{dia}: {emoji_g} {'+' if u_g >= 0 else ''}{u_g}u\n"
+            emoji_ou = "📈" if u_ou >= 0 else "📉"
+            msg += f"{dia}: G {emoji_g}{'+' if u_g >= 0 else ''}{u_g}u | O/U {emoji_ou}{'+' if u_ou >= 0 else ''}{u_ou}u\n"
     conn_v = get_db()
     c_v = conn_v.cursor()
     c_v.execute('''SELECT ganador_predicho, resultado_real, acierto_ganador,
