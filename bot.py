@@ -461,7 +461,6 @@ def verificar_predicciones():
                 c.execute('''UPDATE predicciones SET resultado_real=?, acierto_ganador=?, acierto_ou=?, procesado=1,
                              pts_real_a=?, pts_real_b=? WHERE id=?''',
                           (ganador_real, acierto_ganador, acierto_ou, pts_a, pts_b, pred_id))
-                # Guardar external_id en tabla partidos
                 try:
                     ext_id = resultado_api.get("externalId")
                     fecha_partido = resultado_api["startDate"][:10]
@@ -475,8 +474,7 @@ def verificar_predicciones():
                 if es_valor_g:
                     emoji = "✅" if acierto_ganador == 1 else "❌"
                     resultado_txt = "ACERTADO" if acierto_ganador == 1 else "FALLADO"
-                    import asyncio
-                    asyncio.run(app_ref.bot.send_message(
+                    asyncio.get_event_loop().create_task(app_ref.bot.send_message(
                         chat_id=CANAL_ID,
                         text=f"{emoji} *{resultado_txt}* — {jugador_a} vs {jugador_b}\nGanador real: *{ganador_real}* | Predicho: *{ganador_predicho}*",
                         parse_mode="Markdown"
@@ -512,8 +510,7 @@ def verificar_predicciones():
             if es_valor_g:
                 emoji = "✅" if acierto_ganador == 1 else "❌"
                 resultado_txt = "ACERTADO" if acierto_ganador == 1 else "FALLADO"
-                import asyncio
-                asyncio.run(app_ref.bot.send_message(
+                asyncio.get_event_loop().create_task(app_ref.bot.send_message(
                     chat_id=CANAL_ID,
                     text=f"{emoji} *{resultado_txt}* — {jugador_a} vs {jugador_b}\nGanador real: *{ganador_real}* | Predicho: *{ganador_predicho}*",
                     parse_mode="Markdown"
