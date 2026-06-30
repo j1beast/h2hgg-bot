@@ -3268,11 +3268,10 @@ async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         set_meta("pesos_ou_optimizados", json.dumps(pesos_ou))
         nombres_ou = {'h2h': 'H2H total', 'reciente': 'Forma reciente',
                       'contraataque_rel': 'Contraataque relativo', 'tendencia_pts': 'Tendencia de puntos',
-                      'total_hist': 'Total histórico jugador', 'ritmo_franq': 'Ritmo por franquicia',
                       'tendencia_h2h': 'Tendencia H2H reciente'}
         pesos_ou_anteriores = json.loads(pesos_ou_prev_str)
         msg += "\n\n📊 *Precisión O/U por componente:*\n"
-        for k in ['h2h', 'reciente', 'contraataque_rel', 'tendencia_pts', 'total_hist', 'ritmo_franq', 'tendencia_h2h']:
+        for k in ['h2h', 'reciente', 'contraataque_rel', 'tendencia_pts', 'tendencia_h2h']:
             n = n_ou.get(k, 0)
             if n < 10:
                 msg += f"⚪ {nombres_ou[k]}: sin datos ({n})\n"
@@ -3281,7 +3280,7 @@ async def optimizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             emoji = "🟢" if acc >= 55 else "🟡" if acc >= 50 else "🔴"
             msg += f"{emoji} {nombres_ou[k]}: {acc}% ({n} muestras)\n"
         msg += "\n⚖️ *Pesos O/U anteriores → Nuevos:*\n"
-        for k in ['h2h', 'reciente', 'contraataque_rel', 'tendencia_pts', 'total_hist', 'ritmo_franq', 'tendencia_h2h']:
+        for k in ['h2h', 'reciente', 'contraataque_rel', 'tendencia_pts', 'tendencia_h2h']:
             ant = round(pesos_ou_anteriores.get(k, 0) * 100, 1)
             nuevo = round(pesos_ou[k] * 100, 1)
             cambio = "↑" if pesos_ou[k] > pesos_ou_anteriores.get(k, 0) else "↓" if pesos_ou[k] < pesos_ou_anteriores.get(k, 0) else "="
