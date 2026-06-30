@@ -896,13 +896,12 @@ def calcular_pesos_optimos_ou():
     conn.close()
     if len(rows) < 30:
         return None, "Necesitas al menos 30 predicciones procesadas", {}
-    factores_data = {'h2h': [], 'reciente': [], 'contraataque_rel': [], 'tendencia_pts': [], 'total_hist': [], 'ritmo_franq': [], 'tendencia_h2h': []}
+    factores_data = {'h2h': [], 'reciente': [], 'contraataque_rel': [], 'tendencia_pts': [], 'tendencia_h2h': []}
     for ou_h2h, ou_rec, ou_contra, ou_tend_pts, ou_total_hist, ou_ritmo_franq, ou_tendencia_h2h, linea_bs, pts_a, pts_b in rows:
         total_real = pts_a + pts_b
         real_over = total_real > linea_bs
         for nombre, val in [('h2h', ou_h2h), ('reciente', ou_rec),
                              ('contraataque_rel', ou_contra), ('tendencia_pts', ou_tend_pts),
-                             ('total_hist', ou_total_hist), ('ritmo_franq', ou_ritmo_franq),
                              ('tendencia_h2h', ou_tendencia_h2h)]:
             if val is None:
                 continue
@@ -1731,7 +1730,6 @@ def analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, parti
             'h2h': resultado.get('ou_h2h_total'),
             'reciente': resultado.get('ou_reciente'),
             'tendencia_pts': resultado.get('ou_tendencia_pts'),
-            'total_hist': resultado.get('ou_total_hist'),
             'tendencia_h2h': resultado.get('ou_tendencia_h2h'),
         }
         vals_pond = [(v, pesos_ou.get(k, 0.2)) for k, v in factores_linea.items() if v is not None]
