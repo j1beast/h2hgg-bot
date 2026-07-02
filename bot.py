@@ -4792,7 +4792,7 @@ async def sub_crypto_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         data = resp.json()
         payment_id = str(data.get("payment_id", ""))
         pay_address = data.get("pay_address", "")
-        pay_amount = data.get("pay_amount", "")
+        pay_amount = info["precio_usd"]  # show clean plan price; always >= NOWPayments required amount
         pay_currency = data.get("pay_currency", currency).upper()
         if pay_address:
             conn = get_db()
