@@ -59,10 +59,11 @@ NOWPAYMENTS_API_KEY = os.environ.get("NOWPAYMENTS_API_KEY", "")
 WEBHOOK_BASE_URL = os.environ.get("WEBHOOK_BASE_URL", "")
 
 PLANES = {
-    "1d": {"nombre": "1 Day", "dias": 1, "precio_usd": 3.00},
-    "7d": {"nombre": "7 Days", "dias": 7, "precio_usd": 15.00},
-    "1m": {"nombre": "1 Month", "dias": 30, "precio_usd": 35.00},
+    "1d": {"nombre": "1 Day", "dias": 1, "precio_usd": 3.00, "stripe_url": "https://buy.stripe.com/aFa9AS6UqaTl5nA71lgnK01"},
+    "7d": {"nombre": "7 Days", "dias": 7, "precio_usd": 15.00, "stripe_url": "https://buy.stripe.com/fZueVcceK6D58zMetNgnK02"},
+    "1m": {"nombre": "1 Month", "dias": 30, "precio_usd": 40.00, "stripe_url": "https://buy.stripe.com/eVqdR80w21iLbLY2L5gnK03"},
 }
+STRIPE_PLAN_BY_URL = {v["stripe_url"]: k for k, v in PLANES.items()}
 
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -4723,35 +4724,11 @@ async def sub_pago_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     info = PLANES[plan]
 
     if metodo == "stripe":
-        try:
-            import stripe
-            stripe.api_key = STRIPE_SECRET_KEY
-            session = stripe.checkout.Session.create(
-                payment_method_types=["card"],
-                line_items=[{
-                    "price_data": {
-                        "currency": "eur",
-                        "product_data": {"name": f"H2H Hoops Bot — {info['nombre']}"},
-                        "unit_amount": int(info["precio_usd"] * 100),
-                    },
-                    "quantity": 1,
-                }],
-                mode="payment",
-                success_url=f"https://h2hhooopsbot.carrd.co?success=1",
-                cancel_url=f"https://h2hhooopsbot.carrd.co?cancel=1",
-                metadata={"user_id": str(user_id), "plan": plan},
-            )
-            conn = get_db()
-            conn.execute("INSERT OR REPLACE INTO pagos_pendientes VALUES (?,?,?,?,?)",
-                         (session.id, user_id, plan, "stripe", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
-            conn.commit()
-            conn.close()
-            await query.edit_message_text(
-                f"💳 *Card Payment*\n\n{info['nombre']} — ${info['precio_usd']:.2f}\n\nClick the link to pay:\n{session.url}\n\n_After payment, your access will be activated automatically._",
-                parse_mode="Markdown"
-            )
-        except Exception as e:
-            await query.edit_message_text(f"❌ Error creating payment: {e}")
+        pay_url = f"{info['stripe_url']}?client_reference_id={user_id}"
+        await query.edit_message_text(
+            f"💳 *Card Payment*\n\n{info['nombre']} — ${info['precio_usd']:.2f}\n\nClick the link to pay:\n{pay_url}\n\n_After payment, your access will be activated automatically._",
+            parse_mode="Markdown"
+        )
 
     elif metodo == "crypto":
         botones = InlineKeyboardMarkup([
@@ -4859,41 +4836,69 @@ async def sub_back_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def tarea_verificar_stripe():
-    """Comprueba pagos de Stripe pendientes cada 5 minutos."""
-    while True:
-        await asyncio.sleep(300)
-        try:
-            import stripe
-            stripe.api_key = STRIPE_SECRET_KEY
-            conn = get_db()
-            c = conn.cursor()
-            c.execute("SELECT payment_id, user_id, plan FROM pagos_pendientes WHERE metodo='stripe'")
-            pendientes = c.fetchall()
-            conn.close()
-            for payment_id, user_id, plan in pendientes:
-                try:
-                    session = stripe.checkout.Session.retrieve(payment_id)
-                    if session.payment_status == "paid":
-                        expira = activar_suscripcion(user_id, plan, "stripe")
-                        conn2 = get_db()
-                        conn2.execute("DELETE FROM pagos_pendientes WHERE payment_id=?", (payment_id,))
-                        conn2.commit()
-                        conn2.close()
-                        try:
-                            app_ref = globals().get("app")
-                            if app_ref:
-                                await app_ref.bot.send_message(
-                                    chat_id=user_id,
-                                    text=f"✅ *Payment confirmed!*\n\nYour subscription is now active.\nExpires: {expira[:10]}\n\nWelcome to H2H Hoops Bot! 🏀",
-                                    parse_mode="Markdown"
-                                )
-                        except Exception:
-                            pass
-                except Exception:
-                    pass
-        except Exception as e:
-            print(f"[STRIPE CHECK] Error: {e}")
+async def stripe_webhook_server():
+    """Aiohttp server to receive Stripe webhook events."""
+    try:
+        from aiohttp import web
+        import stripe
+
+        async def handle_stripe(request):
+            payload = await request.read()
+            sig = request.headers.get("Stripe-Signature", "")
+            webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+            try:
+                if webhook_secret:
+                    event = stripe.Webhook.construct_event(payload, sig, webhook_secret)
+                else:
+                    event = stripe.Event.construct_from(json.loads(payload), stripe.api_key)
+            except Exception as e:
+                print(f"[STRIPE WEBHOOK] Invalid payload: {e}")
+                return web.Response(status=400)
+
+            if event["type"] == "checkout.session.completed":
+                session = event["data"]["object"]
+                user_id_str = session.get("client_reference_id") or ""
+                if user_id_str.isdigit():
+                    user_id = int(user_id_str)
+                    # Determine plan from payment link URL
+                    plan = None
+                    payment_link = session.get("payment_link") or ""
+                    for url, p in STRIPE_PLAN_BY_URL.items():
+                        if url.split("/")[-1] in payment_link:
+                            plan = p
+                            break
+                    # Fallback: use amount
+                    if not plan:
+                        amount = session.get("amount_total", 0)
+                        if amount <= 300:
+                            plan = "1d"
+                        elif amount <= 1500:
+                            plan = "7d"
+                        else:
+                            plan = "1m"
+                    expira = activar_suscripcion(user_id, plan, "stripe")
+                    try:
+                        bot_ref = globals().get("app")
+                        if bot_ref:
+                            await bot_ref.bot.send_message(
+                                chat_id=user_id,
+                                text=f"✅ *Payment confirmed!*\n\nYour subscription is now active.\nExpires: {expira[:10]}\n\nWelcome to H2H Hoops Bot! 🏀",
+                                parse_mode="Markdown"
+                            )
+                    except Exception as e:
+                        print(f"[STRIPE WEBHOOK] Notify error: {e}")
+            return web.Response(text="ok")
+
+        stripe.api_key = STRIPE_SECRET_KEY
+        webhook_app = web.Application()
+        webhook_app.router.add_post("/stripe-webhook", handle_stripe)
+        runner = web.AppRunner(webhook_app)
+        await runner.setup()
+        site = web.TCPSite(runner, "0.0.0.0", 8080)
+        await site.start()
+        print("[STRIPE WEBHOOK] Listening on port 8080")
+    except Exception as e:
+        print(f"[STRIPE WEBHOOK] Failed to start: {e}")
 
 
 async def callback_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -5012,7 +5017,7 @@ async def post_init(application):
     asyncio.create_task(tarea_predicciones_automaticas(application))
 
     asyncio.create_task(tarea_tweet_diario())
-    asyncio.create_task(tarea_verificar_stripe())
+    asyncio.create_task(stripe_webhook_server())
 
 app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
 app.add_handler(CommandHandler("start", start))
