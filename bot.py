@@ -4,7 +4,7 @@ import json
 import sqlite3
 import statistics
 from datetime import datetime, timedelta
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 import asyncio
 import time
@@ -2224,6 +2224,7 @@ async def proximos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = "🏀 *Upcoming H2H GG League matches:*\n\n"
     else:
         msg = "🏀 *Próximos partidos H2H GG League:*\n\n"
+    await update.message.reply_text(msg, parse_mode="Markdown")
     for p in proximos_lista[:20]:
         ja = p["participantAName"].upper()
         jb = p["participantBName"].upper()
@@ -2233,12 +2234,56 @@ async def proximos(update: Update, context: ContextTypes.DEFAULT_TYPE):
             hora = datetime.strptime(p["startDate"], "%Y-%m-%dT%H:%M:%SZ").strftime("%H:%M UTC")
         except:
             hora = "?? UTC"
-        franq_txt = f" ({franq_a} vs {franq_b})" if franq_a and franq_b else ""
+        franq_txt = f"\n{franq_a} vs {franq_b}" if franq_a and franq_b else ""
         has_cuota = f"{ja}_vs_{jb}" in cuotas or f"{jb}_vs_{ja}" in cuotas
         cuota_icon = " 💰" if has_cuota else ""
-        msg += f"• {ja} vs {jb}{franq_txt} — {hora}{cuota_icon}\n"
-    await update.message.reply_text(msg, parse_mode="Markdown")
+        partido_msg = f"• *{ja} vs {jb}*{franq_txt} — {hora}{cuota_icon}"
+        boton = InlineKeyboardMarkup([[
+            InlineKeyboardButton("🔮 Pronóstico", callback_data=f"pron:{ja}:{jb}")
+        ]])
+        await update.message.reply_text(partido_msg, parse_mode="Markdown", reply_markup=boton)
     
+async def pronostico_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if not es_permitido(update):
+        return
+    _, jugador_a, jugador_b = query.data.split(":", 2)
+    await query.message.reply_text(f"🔍 Analizando {jugador_a} vs {jugador_b}...")
+    betsson_data = None
+    franq_a = franq_b = None
+    try:
+        cuotas_betsson = await get_cuotas_betsson()
+        key_ab = f"{jugador_a}_vs_{jugador_b}"
+        key_ba = f"{jugador_b}_vs_{jugador_a}"
+        raw = cuotas_betsson.get(key_ab) or cuotas_betsson.get(key_ba)
+        if raw:
+            invertido = key_ba in cuotas_betsson and key_ab not in cuotas_betsson
+            if invertido:
+                betsson_data = {
+                    "cuota_a": raw["cuota_b"], "cuota_b": raw["cuota_a"],
+                    "cuota_over": raw.get("cuota_over"), "cuota_under": raw.get("cuota_under"),
+                    "linea_ou": raw.get("linea_ou"),
+                    "franq_a": raw.get("franq_b"), "franq_b": raw.get("franq_a")
+                }
+            else:
+                betsson_data = raw
+            franq_a = betsson_data.get("franq_a")
+            franq_b = betsson_data.get("franq_b")
+    except:
+        pass
+    partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
+    partidos_a = buscar_partidos_jugador_db(jugador_a)
+    partidos_b = buscar_partidos_jugador_db(jugador_b)
+    if not franq_a:
+        franq_a = partidos_a[0]["franquicia"] if partidos_a else "Equipo A"
+    if not franq_b:
+        franq_b = partidos_b[0]["franquicia"] if partidos_b else "Equipo B"
+    analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
+    msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson=betsson_data)
+    await query.message.reply_text(msg, parse_mode="Markdown")
+
+
 async def resultados(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
         await update.message.reply_text("No tienes acceso a este bot.")
@@ -4607,6 +4652,7 @@ app.add_handler(CommandHandler("manualdeuso", manualdeuso))
 app.add_handler(CommandHandler("cuartos", cuartos_cmd))
 app.add_handler(CommandHandler("language", language))
 app.add_handler(CallbackQueryHandler(callback_language, pattern="^lang_"))
+app.add_handler(CallbackQueryHandler(pronostico_callback, pattern="^pron:"))
 app.add_handler(CommandHandler("prediction", pronostico))
 app.add_handler(CommandHandler("form", forma))
 app.add_handler(CommandHandler("guide", manualdeuso))
