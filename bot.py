@@ -2279,6 +2279,120 @@ async def pronostico_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         franq_b = partidos_b[0]["franquicia"] if partidos_b else "Equipo B"
     analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
     msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson=betsson_data)
+    botones = InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"⚔️ H2H", callback_data=f"h2h:{jugador_a}:{jugador_b}")],
+        [InlineKeyboardButton(f"📊 Stats {jugador_a}", callback_data=f"stats:{jugador_a}"),
+         InlineKeyboardButton(f"📊 Stats {jugador_b}", callback_data=f"stats:{jugador_b}")],
+        [InlineKeyboardButton(f"📈 Forma {jugador_a}", callback_data=f"forma:{jugador_a}"),
+         InlineKeyboardButton(f"📈 Forma {jugador_b}", callback_data=f"forma:{jugador_b}")],
+    ])
+    await query.message.reply_text(msg, parse_mode="Markdown", reply_markup=botones)
+
+
+async def h2h_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if not es_permitido(update):
+        return
+    _, jugador_a, jugador_b = query.data.split(":", 2)
+    idioma = get_idioma(update.effective_user.id)
+    partidos_h2h = buscar_historial_db(jugador_a, jugador_b)
+    if not partidos_h2h:
+        await query.message.reply_text(f"No encontré enfrentamientos entre {jugador_a} y {jugador_b}.")
+        return
+    wins_a = sum(1 for p in partidos_h2h if p["gano_a"])
+    wins_b = len(partidos_h2h) - wins_a
+    avg_a = round(sum(p["pts_a"] for p in partidos_h2h) / len(partidos_h2h), 1)
+    avg_b = round(sum(p["pts_b"] for p in partidos_h2h) / len(partidos_h2h), 1)
+    avg_total = round(sum(p["pts_a"] + p["pts_b"] for p in partidos_h2h) / len(partidos_h2h), 1)
+    if idioma == "en":
+        msg = f"🏀 *H2H {jugador_a} vs {jugador_b}*\nTotal: {len(partidos_h2h)} games\n{jugador_a}: {wins_a}W/{wins_b}L\n{jugador_b}: {wins_b}W/{wins_a}L\nAverage: {jugador_a} {avg_a} pts — {jugador_b} {avg_b} pts — Total {avg_total} pts\n\n📋 *Results:*\n"
+    else:
+        msg = f"🏀 *H2H {jugador_a} vs {jugador_b}*\nTotal: {len(partidos_h2h)} partidos\n{jugador_a}: {wins_a}W/{wins_b}L\n{jugador_b}: {wins_b}W/{wins_a}L\nPromedio: {jugador_a} {avg_a} pts — {jugador_b} {avg_b} pts — Total {avg_total} pts\n\n📋 *Resultados:*\n"
+    for i, p in enumerate(partidos_h2h, 1):
+        ganador = jugador_a if p["gano_a"] else jugador_b
+        msg += f"{i}. {jugador_a} {p['pts_a']}—{p['pts_b']} {jugador_b} ✅{ganador} {p.get('fecha','')}\n"
+        if len(msg) > 3500:
+            msg += "...\n"
+            break
+    await query.message.reply_text(msg, parse_mode="Markdown")
+
+
+async def stats_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if not es_permitido(update):
+        return
+    jugador = query.data.split(":", 1)[1]
+    idioma = get_idioma(update.effective_user.id)
+    partidos = buscar_partidos_jugador_db(jugador)
+    stats_liga = get_stats_liga()
+    api = stats_liga.get(jugador, {})
+    if not partidos and not api:
+        await query.message.reply_text(f"No encontré datos de {jugador}.")
+        return
+    msg = f"📊 *Estadísticas de {jugador}*\n\n" if idioma != "en" else f"📊 *Stats for {jugador}*\n\n"
+    if api:
+        mp = api.get("matchesPlayed") or 1
+        avg_contra_api = round(api["pointsAgainst"] / mp, 1) if api.get("pointsAgainst") else None
+        form_raw = api.get("matchForm", [])
+        form_str = " ".join(["W" if r.lower() == "w" else "L" for r in form_raw[:10]]) if form_raw else "—"
+        wins_form = sum(1 for r in form_raw[:10] if r.lower() == "w")
+        label = "🌐 *Official league*" if idioma == "en" else "🌐 *Liga oficial*"
+        msg += f"{label} ({mp} {'games' if idioma == 'en' else 'partidos'})\n"
+        msg += f"• {'Wins' if idioma == 'en' else 'Victorias'}: {api.get('matchesWon','?')} ({api.get('matchesWinPct','?')}%)\n"
+        msg += f"• {'Points' if idioma == 'en' else 'Puntos'}: `{api.get('avgPoints','?')}` avg"
+        if avg_contra_api:
+            msg += f" | {'Conceded' if idioma == 'en' else 'Recibidos'}: `{avg_contra_api}` avg"
+        msg += "\n"
+        if api.get("avgFieldGoalsPercent"):
+            msg += f"• {'FG' if idioma == 'en' else 'Tiro campo'}: {api['avgFieldGoalsPercent']}%\n"
+        if api.get("threePointersPercent"):
+            msg += f"• 3PT: {api['threePointersPercent']}% ({api.get('avg3PointersScored','?')} avg)\n"
+        if api.get("avgAssists"):
+            msg += f"• {'Assists' if idioma == 'en' else 'Asistencias'}: {api['avgAssists']}\n"
+        if api.get("avgBlocks") or api.get("avgSteals"):
+            msg += f"• {'Blocks' if idioma == 'en' else 'Tapones'}: {api.get('avgBlocks','?')} | {'Steals' if idioma == 'en' else 'Robos'}: {api.get('avgSteals','?')}\n"
+        msg += f"• {'Recent form' if idioma == 'en' else 'Forma reciente'}: {form_str} ({wins_form}/10)\n"
+    if partidos:
+        total = len(partidos)
+        victorias = sum(1 for p in partidos if p["gano"])
+        avg_pts = round(sum(p["pts_favor"] for p in partidos) / total, 1)
+        avg_contra = round(sum(p["pts_contra"] for p in partidos) / total, 1)
+        std = calcular_std([p["pts_favor"] for p in partidos])
+        racha_str = " ".join(["W" if p["gano"] else "L" for p in partidos[:10]])
+        msg += f"\n🗄️ *{'Local database' if idioma == 'en' else 'Base de datos local'}* ({total})\n"
+        msg += f"• {'Wins' if idioma == 'en' else 'Victorias'}: {victorias} ({round(victorias/total*100,1)}%)\n"
+        msg += f"• {'Points' if idioma == 'en' else 'Puntos'}: `{avg_pts}` avg | `{avg_contra}` {'conceded' if idioma == 'en' else 'recibidos'}\n"
+        msg += f"• {'Consistency' if idioma == 'en' else 'Consistencia'}: ±{std} pts\n"
+        msg += f"• {'Last 10' if idioma == 'en' else 'Últimos 10'}: {racha_str}\n"
+    await query.message.reply_text(msg, parse_mode="Markdown")
+
+
+async def forma_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if not es_permitido(update):
+        return
+    jugador = query.data.split(":", 1)[1]
+    idioma = get_idioma(update.effective_user.id)
+    partidos = buscar_partidos_jugador_db(jugador)
+    if not partidos:
+        await query.message.reply_text(f"No encontré partidos de {jugador}.")
+        return
+    recientes = partidos[:10]
+    victorias = sum(1 for p in recientes if p["gano"])
+    derrotas = len(recientes) - victorias
+    recientes_validos = [p for p in recientes if p["pts_favor"] + p["pts_contra"] >= 40]
+    avg_pts = round(sum(p["pts_favor"] for p in recientes_validos) / len(recientes_validos), 1) if recientes_validos else 0
+    avg_total = round(sum(p["pts_favor"] + p["pts_contra"] for p in recientes_validos) / len(recientes_validos), 1) if recientes_validos else 0
+    msg = f"📊 *{'Recent form of' if idioma == 'en' else 'Forma reciente de'} {jugador}*\n\n"
+    msg += f"{victorias}W / {derrotas}L ({'last' if idioma == 'en' else 'últimos'} {len(recientes)})\n"
+    msg += f"{'Average' if idioma == 'en' else 'Promedio'} {jugador}: {avg_pts} pts\n"
+    msg += f"{'Average total' if idioma == 'en' else 'Promedio total partido'}: {avg_total} pts\n\n"
+    for i, p in enumerate(recientes, 1):
+        icono = "✅" if p["gano"] else "❌"
+        msg += f"{i}. {icono} {jugador} {p['pts_favor']} - {p['pts_contra']} ({p.get('fecha','')})\n"
     await query.message.reply_text(msg, parse_mode="Markdown")
 
 
@@ -2590,7 +2704,14 @@ async def pronostico(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     analisis = analizar_partido(jugador_a, franq_a, jugador_b, franq_b, partidos_h2h, partidos_a, partidos_b)
     msg = formatear_analisis(jugador_a, franq_a, jugador_b, franq_b, analisis, betsson=betsson_data)
-    await update.message.reply_text(msg, parse_mode="Markdown")
+    botones = InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"⚔️ H2H", callback_data=f"h2h:{jugador_a}:{jugador_b}")],
+        [InlineKeyboardButton(f"📊 Stats {jugador_a}", callback_data=f"stats:{jugador_a}"),
+         InlineKeyboardButton(f"📊 Stats {jugador_b}", callback_data=f"stats:{jugador_b}")],
+        [InlineKeyboardButton(f"📈 Forma {jugador_a}", callback_data=f"forma:{jugador_a}"),
+         InlineKeyboardButton(f"📈 Forma {jugador_b}", callback_data=f"forma:{jugador_b}")],
+    ])
+    await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=botones)
 
 async def ranking(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_permitido(update):
@@ -4651,6 +4772,9 @@ app.add_handler(CommandHandler("cuartos", cuartos_cmd))
 app.add_handler(CommandHandler("language", language))
 app.add_handler(CallbackQueryHandler(callback_language, pattern="^lang_"))
 app.add_handler(CallbackQueryHandler(pronostico_callback, pattern="^pron:"))
+app.add_handler(CallbackQueryHandler(h2h_callback, pattern="^h2h:"))
+app.add_handler(CallbackQueryHandler(stats_callback, pattern="^stats:"))
+app.add_handler(CallbackQueryHandler(forma_callback, pattern="^forma:"))
 app.add_handler(CommandHandler("prediction", pronostico))
 app.add_handler(CommandHandler("form", forma))
 app.add_handler(CommandHandler("guide", manualdeuso))
