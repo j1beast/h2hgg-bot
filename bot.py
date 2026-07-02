@@ -4609,6 +4609,14 @@ async def manualdeuso(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• *BETSSON odds* — real odds available\n"
             "• ✅ — value detected: Betsson pays more than it should\n"
             "• *Factor implication* — % of factors pointing to the same winner\n\n"
+            "━━━━━━━━━━━━━━━\n"
+            "💳 *SUBSCRIPTION*\n"
+            "━━━━━━━━━━━━━━━\n\n"
+            "💳 `/subscription` — View plans and subscribe\n"
+            "• 1 Day — $3.00\n"
+            "• 7 Days — $15.00\n"
+            "• 1 Month — $40.00\n"
+            "Payment: Card (Stripe) or Crypto (BTC, ETH, SOL, USDT, BNB, TON)\n\n"
             "🌐 /language — Change language"
         )
     else:
@@ -4650,6 +4658,14 @@ async def manualdeuso(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• *Cuota BETSSON* — cuota real disponible\n"
             "• ✅ — valor detectado: Betsson paga más de lo que debería\n"
             "• *Implicación de factores* — % de factores que apuntan al mismo ganador\n\n"
+            "━━━━━━━━━━━━━━━\n"
+            "💳 *SUSCRIPCIÓN*\n"
+            "━━━━━━━━━━━━━━━\n\n"
+            "💳 `/suscripcion` — Ver planes y suscribirse\n"
+            "• 1 Día — $3.00\n"
+            "• 7 Días — $15.00\n"
+            "• 1 Mes — $40.00\n"
+            "Pago: Tarjeta (Stripe) o Crypto (BTC, ETH, SOL, USDT, BNB, TON)\n\n"
             "🌐 /language — Cambiar idioma"
         )
     await update.message.reply_text(msg, parse_mode="Markdown")
@@ -5010,6 +5026,7 @@ async def post_init(application):
         ("upcoming", "📅 Upcoming matches / Próximos partidos"),
         ("results", "🕐 Latest results / Últimos resultados"),
         ("guide", "📖 Guide / Manual de uso"),
+        ("subscription", "💳 Subscribe / Suscribirse"),
         ("language", "🌐 Change language / Cambiar idioma"),
     ])
     asyncio.create_task(tarea_actualizacion_diaria())
