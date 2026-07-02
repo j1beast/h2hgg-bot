@@ -2224,7 +2224,7 @@ async def proximos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = "🏀 *Upcoming H2H GG League matches:*\n\n"
     else:
         msg = "🏀 *Próximos partidos H2H GG League:*\n\n"
-    await update.message.reply_text(msg, parse_mode="Markdown")
+    botones = []
     for p in proximos_lista[:20]:
         ja = p["participantAName"].upper()
         jb = p["participantBName"].upper()
@@ -2234,14 +2234,12 @@ async def proximos(update: Update, context: ContextTypes.DEFAULT_TYPE):
             hora = datetime.strptime(p["startDate"], "%Y-%m-%dT%H:%M:%SZ").strftime("%H:%M UTC")
         except:
             hora = "?? UTC"
-        franq_txt = f"\n{franq_a} vs {franq_b}" if franq_a and franq_b else ""
+        franq_txt = f" ({franq_a} vs {franq_b})" if franq_a and franq_b else ""
         has_cuota = f"{ja}_vs_{jb}" in cuotas or f"{jb}_vs_{ja}" in cuotas
         cuota_icon = " 💰" if has_cuota else ""
-        partido_msg = f"• *{ja} vs {jb}*{franq_txt} — {hora}{cuota_icon}"
-        boton = InlineKeyboardMarkup([[
-            InlineKeyboardButton("🔮 Pronóstico", callback_data=f"pron:{ja}:{jb}")
-        ]])
-        await update.message.reply_text(partido_msg, parse_mode="Markdown", reply_markup=boton)
+        msg += f"• {ja} vs {jb}{franq_txt} — {hora}{cuota_icon}\n"
+        botones.append([InlineKeyboardButton(f"🔮 {ja} vs {jb}", callback_data=f"pron:{ja}:{jb}")])
+    await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(botones))
     
 async def pronostico_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
