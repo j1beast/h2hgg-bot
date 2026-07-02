@@ -4793,7 +4793,7 @@ async def sub_crypto_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         payment_id = str(data.get("payment_id", ""))
         pay_address = data.get("pay_address", "")
         raw_amount = data.get("pay_amount", info["precio_usd"])
-        pay_amount = round(raw_amount, 2) if "usdt" in currency.lower() else raw_amount
+        pay_amount = info["precio_usd"] if "usdt" in currency.lower() else raw_amount
         pay_currency = data.get("pay_currency", currency).upper()
         if pay_address:
             conn = get_db()
