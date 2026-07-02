@@ -19,8 +19,33 @@ DB_PATH = "/app/data/cache.db"
 USUARIOS_PERMITIDOS = [7339330267, 409760550, 1478076850, 7515654372, 1316315194]
 CANAL_ID = -1003990501738
 TWITTER_ENABLED = True
+def tiene_suscripcion_activa(user_id):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT expira FROM suscripciones WHERE user_id=?", (user_id,))
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        return False
+    try:
+        return datetime.strptime(row[0], "%Y-%m-%d %H:%M:%S") > datetime.utcnow()
+    except Exception:
+        return False
+
+def activar_suscripcion(user_id, plan, metodo):
+    dias = PLANES[plan]["dias"]
+    expira = (datetime.utcnow() + timedelta(days=dias)).strftime("%Y-%m-%d %H:%M:%S")
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''INSERT OR REPLACE INTO suscripciones (user_id, expira, plan, metodo)
+                 VALUES (?, ?, ?, ?)''', (user_id, expira, plan, metodo))
+    conn.commit()
+    conn.close()
+    return expira
+
 def es_permitido(update):
-    return update.effective_user.id in USUARIOS_PERMITIDOS
+    uid = update.effective_user.id
+    return uid in USUARIOS_PERMITIDOS or tiene_suscripcion_activa(uid)
 ADMIN_ID = 7339330267
 def es_admin(update):
     return update.effective_user.id == ADMIN_ID
@@ -28,6 +53,16 @@ def es_admin(update):
 # ─────────────────────────────────────────────
 # BASE DE DATOS
 # ─────────────────────────────────────────────
+
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
+NOWPAYMENTS_API_KEY = os.environ.get("NOWPAYMENTS_API_KEY", "")
+WEBHOOK_BASE_URL = os.environ.get("WEBHOOK_BASE_URL", "")
+
+PLANES = {
+    "1d": {"nombre": "1 Day", "dias": 1, "precio_usd": 3.00},
+    "7d": {"nombre": "7 Days", "dias": 7, "precio_usd": 15.00},
+    "1m": {"nombre": "1 Month", "dias": 30, "precio_usd": 35.00},
+}
 
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -121,6 +156,19 @@ def init_db():
         id INTEGER PRIMARY KEY,
         cookies TEXT,
         timestamp INTEGER
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS suscripciones (
+        user_id INTEGER PRIMARY KEY,
+        expira TEXT,
+        plan TEXT,
+        metodo TEXT
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS pagos_pendientes (
+        payment_id TEXT PRIMARY KEY,
+        user_id INTEGER,
+        plan TEXT,
+        metodo TEXT,
+        creado TEXT
     )''')
     conn.commit()
     conn.close()
@@ -4618,6 +4666,213 @@ async def language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Selecciona tu idioma / Choose your language:", reply_markup=reply_markup)
 
+async def suscripcion(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    idioma = get_idioma(user_id)
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT expira, plan FROM suscripciones WHERE user_id=?", (user_id,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        try:
+            expira_dt = datetime.strptime(row[0], "%Y-%m-%d %H:%M:%S")
+            if expira_dt > datetime.utcnow():
+                dias_left = (expira_dt - datetime.utcnow()).days
+                await update.message.reply_text(
+                    f"✅ *Active subscription*\nPlan: {PLANES.get(row[1], {}).get('nombre', row[1])}\nExpires: {row[0][:10]} ({dias_left} days left)",
+                    parse_mode="Markdown"
+                )
+                return
+        except Exception:
+            pass
+    botones = InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"1 Day — $3", callback_data="sub_plan:1d")],
+        [InlineKeyboardButton(f"7 Days — $15", callback_data="sub_plan:7d")],
+        [InlineKeyboardButton(f"1 Month — $35", callback_data="sub_plan:1m")],
+    ])
+    await update.message.reply_text(
+        "🏀 *H2H Hoops Bot — Subscription*\n\nChoose your plan:",
+        parse_mode="Markdown",
+        reply_markup=botones
+    )
+
+
+async def sub_plan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    plan = query.data.split(":")[1]
+    info = PLANES[plan]
+    botones = InlineKeyboardMarkup([
+        [InlineKeyboardButton("💳 Card (Stripe)", callback_data=f"sub_pago:stripe:{plan}")],
+        [InlineKeyboardButton("₿ Crypto (BTC/ETH/SOL/USDT/BNB)", callback_data=f"sub_pago:crypto:{plan}")],
+        [InlineKeyboardButton("⬅️ Back", callback_data="sub_back")],
+    ])
+    await query.edit_message_text(
+        f"🏀 *{info['nombre']} — ${info['precio_usd']:.2f}*\n\nChoose payment method:",
+        parse_mode="Markdown",
+        reply_markup=botones
+    )
+
+
+async def sub_pago_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    _, metodo, plan = query.data.split(":")
+    user_id = query.from_user.id
+    info = PLANES[plan]
+
+    if metodo == "stripe":
+        try:
+            import stripe
+            stripe.api_key = STRIPE_SECRET_KEY
+            session = stripe.checkout.Session.create(
+                payment_method_types=["card"],
+                line_items=[{
+                    "price_data": {
+                        "currency": "usd",
+                        "product_data": {"name": f"H2H Hoops Bot — {info['nombre']}"},
+                        "unit_amount": int(info["precio_usd"] * 100),
+                    },
+                    "quantity": 1,
+                }],
+                mode="payment",
+                success_url=f"https://h2hhooopsbot.carrd.co?success=1",
+                cancel_url=f"https://h2hhooopsbot.carrd.co?cancel=1",
+                metadata={"user_id": str(user_id), "plan": plan},
+            )
+            conn = get_db()
+            conn.execute("INSERT OR REPLACE INTO pagos_pendientes VALUES (?,?,?,?,?)",
+                         (session.id, user_id, plan, "stripe", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+            conn.commit()
+            conn.close()
+            await query.edit_message_text(
+                f"💳 *Card Payment*\n\n{info['nombre']} — ${info['precio_usd']:.2f}\n\nClick the link to pay:\n{session.url}\n\n_After payment, your access will be activated automatically._",
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            await query.edit_message_text(f"❌ Error creating payment: {e}")
+
+    elif metodo == "crypto":
+        try:
+            resp = requests.post(
+                "https://api.nowpayments.io/v1/payment",
+                headers={"x-api-key": NOWPAYMENTS_API_KEY, "Content-Type": "application/json"},
+                json={
+                    "price_amount": info["precio_usd"],
+                    "price_currency": "usd",
+                    "pay_currency": "btc",
+                    "order_id": f"{user_id}_{plan}_{int(time.time())}",
+                    "order_description": f"H2H Hoops Bot — {info['nombre']}",
+                },
+                timeout=15
+            )
+            data = resp.json()
+            payment_id = str(data.get("payment_id", ""))
+            pay_address = data.get("pay_address", "")
+            pay_amount = data.get("pay_amount", "")
+            pay_currency = data.get("pay_currency", "BTC").upper()
+            if pay_address:
+                conn = get_db()
+                conn.execute("INSERT OR REPLACE INTO pagos_pendientes VALUES (?,?,?,?,?)",
+                             (payment_id, user_id, plan, "crypto", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+                conn.commit()
+                conn.close()
+                botones = InlineKeyboardMarkup([[
+                    InlineKeyboardButton("✅ I've paid", callback_data=f"sub_verificar:{payment_id}:{plan}")
+                ]])
+                await query.edit_message_text(
+                    f"₿ *Crypto Payment*\n\n{info['nombre']} — ${info['precio_usd']:.2f}\n\n"
+                    f"Send exactly:\n`{pay_amount} {pay_currency}`\n\nTo address:\n`{pay_address}`\n\n"
+                    f"_After sending, click the button below to verify._",
+                    parse_mode="Markdown",
+                    reply_markup=botones
+                )
+            else:
+                await query.edit_message_text(f"❌ Error creating crypto payment. Try again later.")
+        except Exception as e:
+            await query.edit_message_text(f"❌ Error: {e}")
+
+
+async def sub_verificar_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    _, payment_id, plan = query.data.split(":")
+    user_id = query.from_user.id
+    try:
+        resp = requests.get(
+            f"https://api.nowpayments.io/v1/payment/{payment_id}",
+            headers={"x-api-key": NOWPAYMENTS_API_KEY},
+            timeout=15
+        )
+        data = resp.json()
+        status = data.get("payment_status", "")
+        if status in ("finished", "confirmed", "partially_paid"):
+            expira = activar_suscripcion(user_id, plan, "crypto")
+            await query.edit_message_text(
+                f"✅ *Payment confirmed!*\n\nYour subscription is now active.\nExpires: {expira[:10]}\n\nWelcome to H2H Hoops Bot! 🏀",
+                parse_mode="Markdown"
+            )
+        elif status in ("waiting", "confirming"):
+            await query.answer("⏳ Payment not confirmed yet. Wait a few minutes and try again.", show_alert=True)
+        else:
+            await query.answer(f"❌ Payment status: {status}. Contact support if you already paid.", show_alert=True)
+    except Exception as e:
+        await query.answer(f"❌ Error verifying: {e}", show_alert=True)
+
+
+async def sub_back_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    botones = InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"1 Day — $3", callback_data="sub_plan:1d")],
+        [InlineKeyboardButton(f"7 Days — $15", callback_data="sub_plan:7d")],
+        [InlineKeyboardButton(f"1 Month — $35", callback_data="sub_plan:1m")],
+    ])
+    await query.edit_message_text(
+        "🏀 *H2H Hoops Bot — Subscription*\n\nChoose your plan:",
+        parse_mode="Markdown",
+        reply_markup=botones
+    )
+
+
+async def tarea_verificar_stripe():
+    """Comprueba pagos de Stripe pendientes cada 5 minutos."""
+    while True:
+        await asyncio.sleep(300)
+        try:
+            import stripe
+            stripe.api_key = STRIPE_SECRET_KEY
+            conn = get_db()
+            c = conn.cursor()
+            c.execute("SELECT payment_id, user_id, plan FROM pagos_pendientes WHERE metodo='stripe'")
+            pendientes = c.fetchall()
+            conn.close()
+            for payment_id, user_id, plan in pendientes:
+                try:
+                    session = stripe.checkout.Session.retrieve(payment_id)
+                    if session.payment_status == "paid":
+                        expira = activar_suscripcion(user_id, plan, "stripe")
+                        conn2 = get_db()
+                        conn2.execute("DELETE FROM pagos_pendientes WHERE payment_id=?", (payment_id,))
+                        conn2.commit()
+                        conn2.close()
+                        try:
+                            app_ref = globals().get("app")
+                            if app_ref:
+                                await app_ref.bot.send_message(
+                                    chat_id=user_id,
+                                    text=f"✅ *Payment confirmed!*\n\nYour subscription is now active.\nExpires: {expira[:10]}\n\nWelcome to H2H Hoops Bot! 🏀",
+                                    parse_mode="Markdown"
+                                )
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"[STRIPE CHECK] Error: {e}")
+
+
 async def callback_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -4734,6 +4989,7 @@ async def post_init(application):
     asyncio.create_task(tarea_predicciones_automaticas(application))
 
     asyncio.create_task(tarea_tweet_diario())
+    asyncio.create_task(tarea_verificar_stripe())
 
 app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
 app.add_handler(CommandHandler("start", start))
@@ -4790,6 +5046,12 @@ app.add_handler(CommandHandler("debugerror", debug_error_ou))
 app.add_handler(CommandHandler("debugsesgo", debug_sesgo_linea))
 app.add_handler(CommandHandler("debugjugadores", debug_jugadores))
 app.add_handler(CommandHandler("testfanduel", test_fanduel))
+app.add_handler(CommandHandler("suscripcion", suscripcion))
+app.add_handler(CommandHandler("subscription", suscripcion))
+app.add_handler(CallbackQueryHandler(sub_plan_callback, pattern="^sub_plan:"))
+app.add_handler(CallbackQueryHandler(sub_pago_callback, pattern="^sub_pago:"))
+app.add_handler(CallbackQueryHandler(sub_verificar_callback, pattern="^sub_verificar:"))
+app.add_handler(CallbackQueryHandler(sub_back_callback, pattern="^sub_back$"))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
 
 print("Bot iniciado...")

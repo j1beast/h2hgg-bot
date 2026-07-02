@@ -3,3 +3,4 @@ requests
 playwright==1.44.0
 anthropic
 tweepy
+stripe
