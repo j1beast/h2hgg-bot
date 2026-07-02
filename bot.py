@@ -4730,7 +4730,7 @@ async def sub_pago_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 payment_method_types=["card"],
                 line_items=[{
                     "price_data": {
-                        "currency": "usd",
+                        "currency": "eur",
                         "product_data": {"name": f"H2H Hoops Bot — {info['nombre']}"},
                         "unit_amount": int(info["precio_usd"] * 100),
                     },
