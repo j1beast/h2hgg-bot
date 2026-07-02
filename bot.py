@@ -4705,7 +4705,7 @@ async def sub_plan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     info = PLANES[plan]
     botones = InlineKeyboardMarkup([
         [InlineKeyboardButton("💳 Card (Stripe)", callback_data=f"sub_pago:stripe:{plan}")],
-        [InlineKeyboardButton("₿ Crypto (BTC/ETH/SOL/USDT/BNB)", callback_data=f"sub_pago:crypto:{plan}")],
+        [InlineKeyboardButton("₿ Crypto (BTC/ETH/SOL/USDT/BNB/TON)", callback_data=f"sub_pago:crypto:{plan}")],
         [InlineKeyboardButton("⬅️ Back", callback_data="sub_back")],
     ])
     await query.edit_message_text(
@@ -4754,44 +4754,66 @@ async def sub_pago_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(f"❌ Error creating payment: {e}")
 
     elif metodo == "crypto":
-        try:
-            resp = requests.post(
-                "https://api.nowpayments.io/v1/payment",
-                headers={"x-api-key": NOWPAYMENTS_API_KEY, "Content-Type": "application/json"},
-                json={
-                    "price_amount": info["precio_usd"],
-                    "price_currency": "usd",
-                    "pay_currency": "btc",
-                    "order_id": f"{user_id}_{plan}_{int(time.time())}",
-                    "order_description": f"H2H Hoops Bot — {info['nombre']}",
-                },
-                timeout=15
+        botones = InlineKeyboardMarkup([
+            [InlineKeyboardButton("₿ BTC", callback_data=f"sub_crypto:{plan}:btc"),
+             InlineKeyboardButton("Ξ ETH", callback_data=f"sub_crypto:{plan}:eth")],
+            [InlineKeyboardButton("◎ SOL", callback_data=f"sub_crypto:{plan}:sol"),
+             InlineKeyboardButton("💵 USDT", callback_data=f"sub_crypto:{plan}:usdterc20")],
+            [InlineKeyboardButton("🔶 BNB", callback_data=f"sub_crypto:{plan}:bnbbsc"),
+             InlineKeyboardButton("💎 TON", callback_data=f"sub_crypto:{plan}:ton")],
+            [InlineKeyboardButton("⬅️ Back", callback_data=f"sub_plan:{plan}")],
+        ])
+        await query.edit_message_text(
+            f"₿ *Crypto Payment*\n\n{info['nombre']} — ${info['precio_usd']:.2f}\n\nChoose your cryptocurrency:",
+            parse_mode="Markdown",
+            reply_markup=botones
+        )
+
+
+async def sub_crypto_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    _, plan, currency = query.data.split(":")
+    user_id = query.from_user.id
+    info = PLANES[plan]
+    try:
+        resp = requests.post(
+            "https://api.nowpayments.io/v1/payment",
+            headers={"x-api-key": NOWPAYMENTS_API_KEY, "Content-Type": "application/json"},
+            json={
+                "price_amount": info["precio_usd"],
+                "price_currency": "usd",
+                "pay_currency": currency,
+                "order_id": f"{user_id}_{plan}_{int(time.time())}",
+                "order_description": f"H2H Hoops Bot — {info['nombre']}",
+            },
+            timeout=15
+        )
+        data = resp.json()
+        payment_id = str(data.get("payment_id", ""))
+        pay_address = data.get("pay_address", "")
+        pay_amount = data.get("pay_amount", "")
+        pay_currency = data.get("pay_currency", currency).upper()
+        if pay_address:
+            conn = get_db()
+            conn.execute("INSERT OR REPLACE INTO pagos_pendientes VALUES (?,?,?,?,?)",
+                         (payment_id, user_id, plan, "crypto", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+            conn.commit()
+            conn.close()
+            botones = InlineKeyboardMarkup([[
+                InlineKeyboardButton("✅ I've paid", callback_data=f"sub_verificar:{payment_id}:{plan}")
+            ]])
+            await query.edit_message_text(
+                f"₿ *Crypto Payment — {pay_currency}*\n\n{info['nombre']} — ${info['precio_usd']:.2f}\n\n"
+                f"Send exactly:\n`{pay_amount} {pay_currency}`\n\nTo address:\n`{pay_address}`\n\n"
+                f"_After sending, click the button below to verify._",
+                parse_mode="Markdown",
+                reply_markup=botones
             )
-            data = resp.json()
-            payment_id = str(data.get("payment_id", ""))
-            pay_address = data.get("pay_address", "")
-            pay_amount = data.get("pay_amount", "")
-            pay_currency = data.get("pay_currency", "BTC").upper()
-            if pay_address:
-                conn = get_db()
-                conn.execute("INSERT OR REPLACE INTO pagos_pendientes VALUES (?,?,?,?,?)",
-                             (payment_id, user_id, plan, "crypto", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
-                conn.commit()
-                conn.close()
-                botones = InlineKeyboardMarkup([[
-                    InlineKeyboardButton("✅ I've paid", callback_data=f"sub_verificar:{payment_id}:{plan}")
-                ]])
-                await query.edit_message_text(
-                    f"₿ *Crypto Payment*\n\n{info['nombre']} — ${info['precio_usd']:.2f}\n\n"
-                    f"Send exactly:\n`{pay_amount} {pay_currency}`\n\nTo address:\n`{pay_address}`\n\n"
-                    f"_After sending, click the button below to verify._",
-                    parse_mode="Markdown",
-                    reply_markup=botones
-                )
-            else:
-                await query.edit_message_text(f"❌ Error creating crypto payment. Try again later.")
-        except Exception as e:
-            await query.edit_message_text(f"❌ Error: {e}")
+        else:
+            await query.edit_message_text("❌ Error creating crypto payment. Try again later.")
+    except Exception as e:
+        await query.edit_message_text(f"❌ Error: {e}")
 
 
 async def sub_verificar_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -5050,6 +5072,7 @@ app.add_handler(CommandHandler("suscripcion", suscripcion))
 app.add_handler(CommandHandler("subscription", suscripcion))
 app.add_handler(CallbackQueryHandler(sub_plan_callback, pattern="^sub_plan:"))
 app.add_handler(CallbackQueryHandler(sub_pago_callback, pattern="^sub_pago:"))
+app.add_handler(CallbackQueryHandler(sub_crypto_callback, pattern="^sub_crypto:"))
 app.add_handler(CallbackQueryHandler(sub_verificar_callback, pattern="^sub_verificar:"))
 app.add_handler(CallbackQueryHandler(sub_back_callback, pattern="^sub_back$"))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_libre))
